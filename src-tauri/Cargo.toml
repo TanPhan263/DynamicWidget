@@ -1,0 +1,56 @@
+[package]
+name = "islet"
+version = "0.1.0"
+description = "A Dynamic Island-style notification center for macOS and Windows"
+edition = "2021"
+rust-version = "1.85"
+
+[lib]
+name = "islet_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.4", features = [] }
+
+[dependencies]
+tauri = { version = "2.12.5", features = ["tray-icon", "image-png", "macos-private-api"] }
+tauri-plugin-global-shortcut = "2.4.1"
+tauri-plugin-autostart = "2.7.0"
+tauri-plugin-log = "2.10.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"
+thiserror = "2"
+tiny_http = "0.12"
+getrandom = "0.3"
+ureq = { version = "2", default-features = false, features = ["native-tls"] }
+native-tls = "0.2"
+tungstenite = { version = "0.30", default-features = false, features = ["handshake", "native-tls"] }
+base64 = "0.22"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+sysinfo = "0.40"
+starship-battery = "0.12"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", features = ["NSWindow", "NSRunningApplication", "NSWorkspace", "NSResponder", "NSScreen", "NSGraphics", "objc2-core-foundation"] }
+core-graphics = "0.25"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", features = [
+  "Win32_Foundation",
+  "Win32_Media_Audio",
+  "Win32_Media_Audio_Endpoints",
+  "Win32_System_Com",
+  "Win32_System_Power",
+  "Win32_System_Shutdown",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_WindowsAndMessaging",
+] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "unwind"
+strip = true

@@ -1,0 +1,26 @@
+@import "../styles/globals.css";
+
+/* The island window is transparent; only the island itself is drawn. */
+html,
+body,
+#root {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+textarea,
+code {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Hide scrollbars except while scrolling a list. */
+.thin-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.15) transparent;
+}

@@ -1,0 +1,61 @@
+mod audio;
+mod displays;
+mod island;
+
+use tauri::{AppHandle, Monitor, WebviewWindow};
+
+use super::adapter::PlatformAdapter;
+use crate::core::geometry::{DisplayGeometry, Point, Rect};
+use crate::core::island::IslandLayout;
+use crate::core::media::NowPlaying;
+use crate::errors::AppResult;
+
+/// Windows works in physical pixels of the virtual screen. Tauri marks the
+/// process per-monitor DPI aware (v2), so GetCursorPos and monitor
+/// rectangles both use unscaled physical coordinates.
+pub struct WindowsAdapter;
+
+impl PlatformAdapter for WindowsAdapter {
+    fn monitor_geometry(&self, monitor: &Monitor) -> (Rect, f64) {
+        displays::monitor_geometry(monitor)
+    }
+
+    fn pointer_position(&self) -> AppResult<Point> {
+        displays::pointer_position()
+    }
+
+    fn prepare_island(&self, window: &WebviewWindow) {
+        island::prepare(window);
+    }
+
+    fn place_island(&self, window: &WebviewWindow, origin: Point, display: &DisplayGeometry) {
+        island::place(window, origin, display);
+    }
+
+    fn show_island(&self, window: &WebviewWindow) {
+        island::show(window);
+    }
+
+    fn island_layout(&self, _app: &AppHandle) -> IslandLayout {
+        // No notch: the page draws a floating pill below the top edge.
+        IslandLayout::initial()
+    }
+
+    fn foreground_token(&self) -> Option<i64> {
+        island::foreground_window()
+    }
+
+    fn restore_foreground(&self, app: &AppHandle, token: i64) {
+        island::focus_window(app, token);
+    }
+
+    fn audio_playing(&self) -> bool {
+        audio::output_peak().is_some_and(|peak| peak > audio::SILENCE)
+    }
+
+    // shortcut: no desktop-player titles on Windows yet (websites still work
+    // through the extension); add Windows.Media.Control when needed.
+    fn now_playing(&self) -> Option<NowPlaying> {
+        None
+    }
+}

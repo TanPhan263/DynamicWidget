@@ -1,0 +1,212 @@
+//! Island engine thread. The island is one transparent window, larger than
+//! the island ever gets, pinned to the top center of the primary display.
+//! The page reports the rectangle the island currently covers; this thread
+//! polls the pointer and lets clicks through everywhere else, so the menu
+//! bar and apps under the empty part of the window keep working.
+//!
+//! A click-through window gets no mouse events, so hover is detected here
+//! and sent to the page as an event instead of relying on `mouseenter`.
+
+use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::thread;
+use std::time::{Duration, Instant};
+
+use serde::Serialize;
+use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
+
+use super::geometry::{DisplayGeometry, Point};
+use crate::actions;
+
+pub const ISLAND_LABEL: &str = "island";
+/// Window size in CSS pixels. Matches `tauri.conf.json`; the page lays the
+/// island out inside it.
+pub const WINDOW_WIDTH: f64 = 1000.0;
+pub const WINDOW_HEIGHT: f64 = 800.0;
+
+pub const ISLAND_HOVER: &str = "island-hover";
+pub const ISLAND_LAYOUT: &str = "island-layout";
+
+const POINTER_POLL: Duration = Duration::from_millis(30);
+const DISPLAY_POLL: Duration = Duration::from_secs(2);
+/// Extra hit area around the island, in CSS pixels, so a fast pointer at
+/// the screen edge still counts as hovering.
+const HIT_SLOP: f64 = 4.0;
+
+/// The notch cut-out of a MacBook display, in CSS pixels.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Notch {
+    pub width: f64,
+    pub height: f64,
+}
+
+/// How the page should shape the island on the current display.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IslandLayout {
+    pub platform: &'static str,
+    /// When set, the compact island hugs the notch.
+    pub notch: Option<Notch>,
+    /// macOS menu bar height in CSS pixels; 0 elsewhere.
+    pub menu_bar_height: f64,
+}
+
+impl IslandLayout {
+    pub fn initial() -> Self {
+        Self {
+            platform: crate::platform::platform_name(),
+            notch: None,
+            menu_bar_height: 0.0,
+        }
+    }
+}
+
+fn primary_display(app: &AppHandle) -> Option<DisplayGeometry> {
+    let st = actions::state(app);
+    let monitor = app.primary_monitor().ok().flatten().or_else(|| {
+        app.available_monitors()
+            .ok()
+            .and_then(|m| m.into_iter().next())
+    })?;
+    let (bounds, units_per_css_px) = st.adapter.monitor_geometry(&monitor);
+    Some(DisplayGeometry {
+        bounds,
+        units_per_css_px,
+    })
+}
+
+struct Placement {
+    display: DisplayGeometry,
+    origin: Point,
+}
+
+struct Engine {
+    app: AppHandle,
+    window: WebviewWindow,
+    placement: Option<Placement>,
+    last_display_check: Option<Instant>,
+    hovering: bool,
+    visible: bool,
+}
+
+impl Engine {
+    fn refresh_display(&mut self, now: Instant) {
+        if self
+            .last_display_check
+            .is_some_and(|t| now.duration_since(t) < DISPLAY_POLL)
+        {
+            return;
+        }
+        self.last_display_check = Some(now);
+        let Some(display) = primary_display(&self.app) else {
+            return;
+        };
+        if self
+            .placement
+            .as_ref()
+            .is_some_and(|p| p.display == display)
+        {
+            return;
+        }
+        let st = actions::state(&self.app);
+        let origin = display.top_center_origin(WINDOW_WIDTH);
+        st.adapter.place_island(&self.window, origin, &display);
+        let layout = st.adapter.island_layout(&self.app);
+        log::info!(
+            "island placed at ({}, {}), notch: {:?}",
+            origin.x,
+            origin.y,
+            layout.notch
+        );
+        st.mutate(|i| i.layout = layout.clone());
+        let _ = self.app.emit(ISLAND_LAYOUT, &layout);
+        self.placement = Some(Placement { display, origin });
+    }
+
+    fn sync_visibility(&mut self, hidden: bool) {
+        let want = !hidden && self.placement.is_some();
+        if want == self.visible {
+            return;
+        }
+        let st = actions::state(&self.app);
+        if want {
+            st.adapter.show_island(&self.window);
+        } else {
+            let _ = self.window.hide();
+            self.set_hover(false);
+        }
+        self.visible = want;
+    }
+
+    fn set_hover(&mut self, inside: bool) {
+        if inside == self.hovering {
+            return;
+        }
+        self.hovering = inside;
+        let _ = self.window.set_ignore_cursor_events(!inside);
+        if inside {
+            // Remember who had focus before a click can move it to the island.
+            let st = actions::state(&self.app);
+            if let Some(token) = st.adapter.foreground_token() {
+                st.mutate(|i| i.previous_foreground = Some(token));
+            }
+        }
+        let _ = self.app.emit_to(ISLAND_LABEL, ISLAND_HOVER, inside);
+    }
+
+    fn tick(&mut self) {
+        let st = actions::state(&self.app);
+        let (hidden, rect) = st.read(|i| (i.island_hidden, i.island_rect));
+        self.refresh_display(Instant::now());
+        self.sync_visibility(hidden);
+        if !self.visible {
+            return;
+        }
+        let (Some(p), Some(rect)) = (&self.placement, rect) else {
+            return;
+        };
+        let Ok(pointer) = st.adapter.pointer_position() else {
+            return;
+        };
+        let area = p
+            .display
+            .window_rect_to_native(p.origin, rect.outset(HIT_SLOP));
+        self.set_hover(area.contains(pointer));
+    }
+}
+
+pub fn spawn(app: AppHandle) {
+    let Some(window) = app.get_webview_window(ISLAND_LABEL) else {
+        log::error!("island window missing from configuration");
+        return;
+    };
+    actions::state(&app).adapter.prepare_island(&window);
+    let _ = window.set_ignore_cursor_events(true);
+
+    let spawned = thread::Builder::new()
+        .name("islet-island".into())
+        .spawn(move || {
+            let mut engine = Engine {
+                app: app.clone(),
+                window,
+                placement: None,
+                last_display_check: None,
+                hovering: false,
+                visible: false,
+            };
+            loop {
+                if actions::state(&app).read(|i| i.quitting) {
+                    break;
+                }
+                // A panic in one tick (a platform call gone wrong) must not
+                // leave the island frozen; log it and keep going.
+                if catch_unwind(AssertUnwindSafe(|| engine.tick())).is_err() {
+                    log::error!("island tick panicked");
+                }
+                thread::sleep(POINTER_POLL);
+            }
+        });
+    if let Err(e) = spawned {
+        log::error!("island engine did not start: {e}");
+    }
+}

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Island and Settings windows: core IPC plus event listening. Shortcuts, autostart and window placement are driven from Rust only.",
+  "windows": ["island", "settings"],
+  "permissions": ["core:default"]
+}

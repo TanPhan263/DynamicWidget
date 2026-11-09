@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Islet</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <img src="icons/32.png" alt="" width="20" height="20" />
+      <h1>Islet</h1>
+      <span id="status" class="badge" role="status">Checking…</span>
+    </header>
+
+    <section id="pair">
+      <p class="hint">Open Islet Settings → Browser, copy the pairing token and paste it here.</p>
+      <label for="token">Pairing token</label>
+      <input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="Paste token" />
+      <details>
+        <summary>Port</summary>
+        <input id="port" type="number" min="1024" max="65535" inputmode="numeric" aria-label="Islet API port" />
+      </details>
+      <button id="save" type="button" class="primary">Connect</button>
+    </section>
+
+    <section class="rows">
+      <label class="row">
+        <span>Forward notifications</span>
+        <input id="enabled" type="checkbox" role="switch" />
+      </label>
+      <label class="row" id="site-row" hidden>
+        <span>From <strong id="site"></strong></span>
+        <input id="site-enabled" type="checkbox" role="switch" />
+      </label>
+    </section>
+
+    <footer>
+      <button id="test" type="button">Send test</button>
+      <p class="hint">A site notifies only after you allow notifications for it in the browser.</p>
+    </footer>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

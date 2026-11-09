@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Island and Settings windows: core IPC plus event listening. Shortcuts, autostart and window placement are driven from Rust only.","local":true,"windows":["island","settings"],"permissions":["core:default"]}}
