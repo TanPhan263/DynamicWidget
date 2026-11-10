@@ -50,7 +50,7 @@ export const fr: Messages = {
   "nav.apiDesc": "Envoyez des notifications depuis des scripts et des outils.",
   "nav.about": "À propos",
   "nav.aboutDesc": "Informations de version et réinitialisation.",
-  "welcome.title": "Bienvenue dans Islet",
+  "welcome.title": "Bienvenue dans Lintel",
   "welcome.position": "L’île se trouve en haut au centre de l’écran.",
   "welcome.positionNotch": "L’île se trouve en haut au centre de l’écran, autour de l’encoche.",
   "welcome.openHover": "Survolez-la ou appuyez sur {shortcut} pour ouvrir le panneau des widgets et des notifications.",
@@ -86,7 +86,7 @@ export const fr: Messages = {
   "general.clock24": "Format 24 heures",
   "general.login": "Ouvrir à la connexion",
   "general.language": "Langue",
-  "general.languageDesc": "La langue des menus, libellés et notifications d’Islet.",
+  "general.languageDesc": "La langue des menus, libellés et notifications d’Lintel.",
   "general.languageSystem": "Langue du système",
 
   "style.label": "Style de l’île",
@@ -163,7 +163,7 @@ export const fr: Messages = {
 
   "music.title": "Barres musicales",
   "music.desc":
-    "Des barres animées apparaissent à côté de l’île lorsqu’une app lit de l’audio : musique, vidéos ou appels. Les titres proviennent de Spotify et d’Apple Music (macOS demande une fois l’autorisation de contrôler chacune) et des sites web via l’extension Islet.",
+    "Des barres animées apparaissent à côté de l’île lorsqu’une app lit de l’audio : musique, vidéos ou appels. Les titres proviennent de Spotify et d’Apple Music (macOS demande une fois l’autorisation de contrôler chacune) et des sites web via l’extension Lintel.",
   "music.show": "Afficher les barres musicales",
   "music.position": "Position",
   "music.positionDesc": "Sous l’île, le titre du morceau s’affiche sous les barres.",
@@ -187,16 +187,16 @@ export const fr: Messages = {
 
   "browser.title": "Notifications des sites web",
   "browser.desc":
-    "L’extension Islet transmet les notifications de Gmail, Slack, Facebook, Discord et de tout autre site autorisé à envoyer des notifications.",
+    "L’extension Lintel transmet les notifications de Gmail, Slack, Facebook, Discord et de tout autre site autorisé à envoyer des notifications.",
   "browser.apiOff": "L’extension se connecte via l’API locale. Activez l’API pour l’utiliser.",
   "browser.step1": "Ouvrez la page des extensions dans Chrome, Edge, Brave ou Arc (chrome://extensions) et activez le mode développeur.",
   "browser.step2": "Cliquez sur Charger l’extension non empaquetée et choisissez le dossier de l’extension.",
-  "browser.step3": "Cliquez sur l’icône Islet dans la barre d’outils, collez le jeton d’association et cliquez sur Connect.",
+  "browser.step3": "Cliquez sur l’icône Lintel dans la barre d’outils, collez le jeton d’association et cliquez sur Connect.",
   "browser.folder": "Dossier de l’extension",
   "browser.folderDesc": "Chargez ce dossier à l’étape 2.",
   "browser.showFolder": "Afficher le dossier",
   "browser.token": "Jeton d’association",
-  "browser.tokenDesc": "Seule une extension disposant de ce jeton peut envoyer des notifications à Islet.",
+  "browser.tokenDesc": "Seule une extension disposant de ce jeton peut envoyer des notifications à Lintel.",
   "browser.unavailable": "Indisponible",
   "browser.showToken": "Afficher le jeton",
   "browser.hideToken": "Masquer le jeton",
@@ -204,7 +204,7 @@ export const fr: Messages = {
   "browser.replaceDesc": "Déconnecte les navigateurs qui utilisent le jeton actuel. Collez le nouveau jeton dans chaque extension.",
   "browser.generate": "Générer un nouveau jeton",
   "browser.note":
-    "Les notifications n’arrivent que lorsque le site est ouvert dans un onglet. Pour éviter les doublons du navigateur, désactivez ses notifications dans {path} ; les sites continuent de les envoyer à Islet.",
+    "Les notifications n’arrivent que lorsque le site est ouvert dans un onglet. Pour éviter les doublons du navigateur, désactivez ses notifications dans {path} ; les sites continuent de les envoyer à Lintel.",
   "browser.pathMac": "Réglages Système → Notifications",
   "browser.pathWindows": "Paramètres → Système → Notifications",
 

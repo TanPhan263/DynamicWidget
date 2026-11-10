@@ -53,7 +53,7 @@ pub fn place(window: &WebviewWindow, origin: Point, height: f64) {
 
 pub fn show(window: &WebviewWindow) {
     // orderFrontRegardless shows the window without making it key or
-    // activating Islet, so keyboard focus stays where it was.
+    // activating Lintel, so keyboard focus stays where it was.
     with_ns_window(window, |ns| ns.orderFrontRegardless());
 }
 

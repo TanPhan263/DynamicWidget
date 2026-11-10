@@ -1,12 +1,12 @@
 [package]
-name = "islet"
+name = "lintel"
 version = "0.1.0"
 description = "A Dynamic Island-style notification center for macOS and Windows"
 edition = "2021"
 rust-version = "1.85"
 
 [lib]
-name = "islet_lib"
+name = "lintel_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

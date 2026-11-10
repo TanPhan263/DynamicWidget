@@ -16,7 +16,7 @@ describe("Settings", () => {
     resetMock(snap);
     render(<App />);
     await flush();
-    expect(screen.getByText("Welcome to Islet")).toBeInTheDocument();
+    expect(screen.getByText("Welcome to Lintel")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Got it" }));
     await flush();
     expect(invoked.some((c) => c.cmd === "complete_onboarding")).toBe(true);
@@ -199,7 +199,7 @@ describe("Settings", () => {
     expect(token).toHaveTextContent("fedcba9876543210fedcba9876543210");
     fireEvent.click(screen.getByRole("button", { name: /Show folder/ }));
     await flush();
-    expect(screen.getByText("/Applications/Islet.app/Contents/Resources/extension")).toBeInTheDocument();
+    expect(screen.getByText("/Applications/Lintel.app/Contents/Resources/extension")).toBeInTheDocument();
   });
 
   it("edits the followed stocks and the island pin", async () => {

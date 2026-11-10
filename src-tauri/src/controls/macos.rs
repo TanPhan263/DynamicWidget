@@ -230,7 +230,7 @@ fn set_dark_mode(on: bool) -> AppResult<()> {
         .success();
     ok.then_some(()).ok_or_else(|| {
         AppError::Platform(
-            "Allow Islet to control System Events in System Settings → Privacy & Security → Automation"
+            "Allow Lintel to control System Events in System Settings → Privacy & Security → Automation"
                 .into(),
         )
     })

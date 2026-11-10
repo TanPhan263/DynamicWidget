@@ -307,7 +307,7 @@ export function SystemWidget({ stats }: { stats: SystemStats }) {
   );
 }
 
-const NOTES_KEY = "islet.notes";
+const NOTES_KEY = "lintel.notes";
 
 function readNotes(): string {
   try {
@@ -343,7 +343,7 @@ export function NotesWidget() {
   );
 }
 
-/** System actions, plus Do Not Disturb, which Islet handles itself. */
+/** System actions, plus Do Not Disturb, which Lintel handles itself. */
 export type WidgetAction = QuickAction | "do-not-disturb";
 
 export interface QuickActionsApi {
@@ -402,7 +402,7 @@ function FloatingError({ error }: { error: string | null }) {
 }
 
 export function QuickActionsWidget({ api, span }: { api: QuickActionsApi } & SpanProps) {
-  // The system does not report mute changes, so this is what Islet last set.
+  // The system does not report mute changes, so this is what Lintel last set.
   const [muted, setMuted] = useState<boolean | null>(null);
   const [error, setError] = useFlashError();
   const wide = isWide(span);

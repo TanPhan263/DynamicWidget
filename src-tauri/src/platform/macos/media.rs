@@ -1,5 +1,5 @@
 //! The track playing in Spotify or Apple Music, asked with AppleScript.
-//! macOS asks the person once to let Islet control each player.
+//! macOS asks the person once to let Lintel control each player.
 
 use std::io::Read;
 use std::process::Command;
@@ -47,7 +47,7 @@ pub fn now_playing() -> Option<NowPlaying> {
         );
         let out = osascript(&script)?;
         if !out.status.success() {
-            // Often -1743: Islet is not allowed to control this player.
+            // Often -1743: Lintel is not allowed to control this player.
             log::warn!("{name} query failed: {}", String::from_utf8_lossy(&out.stderr).trim());
         }
         let (mut np, art) = parse_player(name, &String::from_utf8_lossy(&out.stdout))?;
@@ -74,7 +74,7 @@ fn cached(key: &str, load: impl FnOnce() -> Option<String>) -> Option<String> {
 
 /// Music's cover: AppleScript writes the artwork's raw bytes to a temporary file.
 fn music_cover() -> Option<String> {
-    let path = std::env::temp_dir().join("islet-music-cover");
+    let path = std::env::temp_dir().join("lintel-music-cover");
     let script = format!(
         r#"tell application id "com.apple.Music" to set d to raw data of artwork 1 of current track
 set f to open for access (POSIX file "{}") with write permission
@@ -127,7 +127,7 @@ pub fn control(player: &str, command: MediaCommand) -> AppResult<()> {
         .iter()
         .find(|(name, ..)| *name == player)
         .map(|(_, _, id, _)| id)
-        .ok_or_else(|| AppError::Validation(format!("{player} can't be controlled from Islet")))?;
+        .ok_or_else(|| AppError::Validation(format!("{player} can't be controlled from Lintel")))?;
     let verb = match command {
         MediaCommand::PlayPause => "playpause",
         MediaCommand::Next => "next track",

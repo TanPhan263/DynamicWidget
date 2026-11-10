@@ -3,23 +3,23 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Islet</title>
+    <title>Lintel</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
     <header>
       <img src="icons/32.png" alt="" width="20" height="20" />
-      <h1>Islet</h1>
+      <h1>Lintel</h1>
       <span id="status" class="badge" role="status">Checking…</span>
     </header>
 
     <section id="pair">
-      <p class="hint">Open Islet Settings → Browser, copy the pairing token and paste it here.</p>
+      <p class="hint">Open Lintel Settings → Browser, copy the pairing token and paste it here.</p>
       <label for="token">Pairing token</label>
       <input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="Paste token" />
       <details>
         <summary>Port</summary>
-        <input id="port" type="number" min="1024" max="65535" inputmode="numeric" aria-label="Islet API port" />
+        <input id="port" type="number" min="1024" max="65535" inputmode="numeric" aria-label="Lintel API port" />
       </details>
       <button id="save" type="button" class="primary">Connect</button>
     </section>

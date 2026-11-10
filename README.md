@@ -1,35 +1,132 @@
-# Islet
+<div align="center">
 
-A Dynamic Island-style notification center for macOS and Windows. An island sits at the top center of your screen and shows notifications, live activities and quick widgets.
+<img src="src-tauri/icons/128x128@2x.png" alt="Lintel icon" width="112" height="112">
 
-Choose its style in Settings:
+# Lintel
 
-| Style | Looks like |
+**A smart control and notification center that sits on top of your screen.**
+
+Notifications, live activities, media controls and quick widgets, in one small bar at the top of Windows and macOS.
+
+[![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-1f2937)](#installation)
+[![Built with Tauri 2](https://img.shields.io/badge/built%20with-Tauri%202-24c8db)](https://v2.tauri.app)
+[![License: MIT](https://img.shields.io/badge/license-MIT-16a34a)](LICENSE)
+
+<img src="docs/screenshots/demo.gif" alt="Lintel opening from the top of the screen and showing its widget panel" width="820">
+
+</div>
+
+## Contents
+
+- [Overview](#overview)
+- [Features](#features)
+- [Screenshots](#screenshots)
+- [Installation](#installation)
+- [Getting started](#getting-started)
+- [Browser extension](#browser-extension)
+- [Local API](#local-api)
+- [Building from source](#building-from-source)
+- [Project structure](#project-structure)
+- [License](#license)
+
+## Overview
+
+Lintel puts a small island at the top center of your screen. It stays out of the way until something happens: a notification slides out, music bars appear while sound plays, and a timer counts down beside it. Hover over it to open a panel of widgets and system controls, so you don't have to dig through the tray, the Action Center or several separate apps.
+
+Clicks pass through everywhere outside the island, so the apps below it keep working. When a full-screen app, game, video or presentation is in front, the island steps aside.
+
+## Features
+
+| | |
 |---|---|
-| Notch | Hangs from the top edge of the screen, around the notch on MacBooks |
-| Dynamic Island | A floating black capsule just below the top edge, empty until something happens, like on iPhone |
+| **Notifications** | Pop out of the island for a few seconds, then wait in the Notifications tab. Do Not Disturb keeps them quiet. |
+| **Live activities** | A running timer, unread count, music bars, and green and orange dots while an app uses the camera or microphone. |
+| **Now playing** | Cover art, title and playback controls for Spotify, Apple Music, any app in the Windows media flyout, and websites. |
+| **Controls** | Wi-Fi, Bluetooth, airplane mode, dark mode, night light or Night Shift, energy saver, volume and brightness. |
+| **Widgets** | Clock, Calendar, Timer, System (CPU, memory, battery), Notes, Weather, Stocks, Now playing, Controls and Quick actions. Drag to move, drag a corner to resize. |
+| **Quick actions** | Record screen, screenshot, keep awake, Do Not Disturb, mute, lock, calculator, downloads. |
+| **Stocks** | Live prices from Yahoo Finance, with Vietnamese stocks (HOSE, HNX, UPCoM) from VPS. Pin up to 3 symbols to the island. |
+| **Website notifications** | A browser extension forwards notifications from Gmail, Slack, Discord and other sites. |
+| **Local API** | Scripts, CI jobs and tools can send notifications over HTTP. |
+| **Themes** | Graphite, Black, Midnight, Aurora, Ember, Slate, Transparent, or your own pictures, framed with a built-in cropper. |
+| **Two styles** | *Notch*, hanging from the top edge, or a floating capsule just below it. Both can be resized. |
+| **8 languages** | English, 简体中文, Tiếng Việt, 日本語, 한국어, Español, Français and Deutsch. Lintel follows your system language. |
 
-The closed island (with notifications) and the open panel each have a size slider, 50–150% for the island and 80–150% for the panel, and the island resizes live while you drag one. The notch itself keeps its size.
+## Screenshots
 
-- **Notifications** pop out of the island for a few seconds, then wait in the Notifications tab. Do Not Disturb keeps them quiet.
-- **Live activities** show beside the island while it is closed: a running timer, the unread count, and music bars while any app plays sound (music, videos, calls). A green dot shows while an app uses the camera and an orange one while it uses the microphone (CoreMediaIO and CoreAudio on macOS, the privacy settings' usage records on Windows).
-- **Widgets** in the open panel: Clock, Calendar, Timer, System (CPU, memory, battery), Notes, Stocks, Now playing, Weather (today plus the next two days from wttr.in, which finds your city from your IP address), Controls (a control center: Wi-Fi, Bluetooth, airplane mode, dark mode, night light, energy saver, and volume and brightness sliders) and Quick actions (Record screen, Screenshot, Keep awake, Do Not Disturb, Mute, Lock, Calculator, Downloads). Click a card to open the matching app (Calendar, Clock, Activity Monitor or Task Manager, Notes or Sticky Notes, Weather). Drag a card to move it and drag its bottom-right corner to resize it (1–3 columns by 1–2 rows, snapping to the grid). Settings has the same controls. With the keyboard, focus a card's grip and use Space and the arrow keys to move it, or focus its corner handle and use the arrow keys to resize it.
-- **Screen recording**: Record screen records the main display to the Desktop on macOS, with the cursor and clicks. A red dot and the elapsed time sit beside the island while it runs; click the dot to stop, and the movie is shown in Finder. macOS asks once for Screen Recording permission. On Windows the button opens Snipping Tool, which records from its toolbar.
-- **Now playing**: music bars spring to new heights while sound plays. Settings → Now playing puts the bars in the island or below it. The title always stays inside the island: in the middle of it, or, beside a notch, popping up once for each new track. Settings also turns them upside down, and colors them with a preset gradient or two colors of your own. Titles come from Spotify and Apple Music on macOS (macOS asks once to let Islet control each), from any app that shows in the Windows volume flyout on Windows (Spotify, Media Player, browsers and others), and from websites through the browser extension (`POST /v1/media`, extension only). With the title in the middle of the island, previous, pause and next buttons sit beside it (hovering them doesn't open the panel). The Now playing widget shows the cover, title and artist with previous, play/pause and next buttons, and keeps the last track after a pause so it can be resumed. The buttons work for Spotify and Music on macOS, for every app on Windows, and for websites through the extension (it collects each press within about a second, and uses the site's own player controls, or the page's video or audio). Covers come from Spotify (downloaded once per track), Apple Music and Windows' media sessions.
-- **Languages:** English, 简体中文, Tiếng Việt, 日本語, 한국어, Español, Français and Deutsch. Islet follows the system language and falls back to English; Settings → General → Language picks one instead. The tray menu, system notifications (battery, test, screen recording), dates, the clock's AM/PM and the weather description follow the chosen language. Error messages from the core are still English.
-- **Controls** replaces a trip to the system's control center. It shows only what your system can do:
-  - **macOS:** Wi-Fi, Bluetooth, dark mode, Night Shift, Low Power Mode (its button opens Battery settings, because only an administrator can switch it), volume, and the built-in screen's brightness. Turning on dark mode the first time asks to let Islet control System Events.
-  - **Windows:** Wi-Fi, Bluetooth, airplane mode (it switches every radio), dark mode, energy saver (its button opens Battery saver settings), volume, and the built-in screen's brightness. Windows has no public switch for Night light, so it isn't shown.
-  - Bluetooth, brightness and Night Shift on macOS use the private system frameworks that Control Center itself uses.
-- **Quick actions**: Keep awake stops the display and computer from sleeping until you turn it off or quit Islet. Lock sleeps the display on macOS, which locks it when your Mac asks for the password after sleep, and locks the PC on Windows. Mute toggles the sound output.
-- **Stocks**: the Stocks widget follows up to 8 symbols as written on Yahoo Finance (AAPL, VNM.VN, BTC-USD, ^GSPC, EURUSD=X) with price, today's change and, on wider cards, a sparkline. Click a row to open its quote page, or its pin to show it on the island. Up to 3 symbols can be on the island; the closed island shows one at a time, 4 seconds each, with its price and change. Settings → Widgets → Stocks adds and removes symbols and has the same On island toggle on each row. Prices stream live from Yahoo Finance over a WebSocket while the widget is shown or a symbol is on the island; names, the previous close and the sparkline come from Yahoo's chart data every 5 minutes (every minute if the stream is unreachable). Yahoo's free data may be delayed for some exchanges. Vietnamese stocks (`.VN`, any of HOSE, HNX or UPCoM) skip Yahoo: their price comes from VPS every 3 seconds and their sparkline from VNDirect's 1-minute bars.
-- **Website notifications**: the Islet browser extension forwards notifications from Gmail, Slack, Facebook, Discord and any other site.
-- **Local API**: scripts and tools on your computer can send notifications.
-- **Battery alerts**: charger plugged in or removed, fully charged, 20% and 10%.
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/panel.png" alt="The open panel with Clock, Weather, Now playing and Controls widgets"><br>
+      <sub><b>Widget panel</b></sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/notification.png" alt="A notification sliding out of the island"><br>
+      <sub><b>Notification</b></sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="docs/screenshots/now-playing.png" alt="Music bars and a track title beside the closed island"><br>
+      <sub><b>Now playing</b></sub>
+    </td>
+    <td align="center">
+      <img src="docs/screenshots/settings.png" alt="The Settings window with theme and style options"><br>
+      <sub><b>Settings</b></sub>
+    </td>
+  </tr>
+</table>
 
-Hover over the island (or click it, if you prefer) to open it. `Cmd/Ctrl+Shift+Space` opens and closes it from anywhere, and `Esc` closes it. Clicks pass through everywhere outside the island, so the menu bar and your apps keep working.
+## Installation
 
-## Sending notifications
+> Prebuilt installers are published on the [Releases page](https://github.com/TanPhan263/DynamicWidget/releases). Until the first release is out, [build from source](#building-from-source).
+
+### Windows
+
+1. Download the latest `Lintel_x.y.z_x64-setup.exe` (or the `.msi`) from the [Releases page](https://github.com/TanPhan263/DynamicWidget/releases).
+2. Run the installer. If Windows SmartScreen warns that the app is unrecognized, choose **More info → Run anyway**. The installer isn't code-signed yet.
+3. Lintel starts in the system tray. The Settings window opens on first launch with a short welcome.
+
+Requires Windows 10 or 11 (64-bit). The installer downloads the Microsoft WebView2 runtime if it's missing.
+
+### macOS
+
+Requires macOS 12 Monterey or later.
+
+1. Download the latest `Lintel_x.y.z_*.dmg` from the [Releases page](https://github.com/TanPhan263/DynamicWidget/releases).
+2. Open the disk image and drag **Lintel** to **Applications**.
+3. The app isn't notarized yet. The first time, right-click Lintel in Applications and choose **Open**, then confirm.
+4. Lintel runs from the menu bar. macOS asks for permissions only when you use a feature that needs them, such as screen recording or controlling Spotify and Music.
+
+## Getting started
+
+| Action | How |
+|---|---|
+| Open the island | Hover over it (or click it, if you prefer, in Settings) |
+| Toggle from anywhere | `Ctrl+Shift+Space` (Windows) / `Cmd+Shift+Space` (macOS) |
+| Close | `Esc`, or move the pointer away |
+| Arrange widgets | Drag a card to move it, drag its bottom-right corner to resize |
+| Settings | Tray or menu bar icon → **Settings** |
+| Quit | Tray or menu bar icon → **Quit Lintel** (closing Settings only hides it) |
+
+## Browser extension
+
+The extension in [`extension/`](extension/) forwards website notifications and now-playing info to Lintel. It works in Chrome, Edge, Brave, Arc and other Chromium browsers (version 111 or later).
+
+1. Open `chrome://extensions` and turn on **Developer mode**.
+2. Click **Load unpacked** and choose the `extension` folder. **Settings → Browser → Show folder** opens it.
+3. Click the Lintel icon in the toolbar, paste the pairing token from **Settings → Browser** and click **Connect**.
+
+Good to know:
+
+- A site sends notifications only after you allow them in the browser, and only while it's open in a tab.
+- To avoid seeing each notification twice, turn off the browser's own notifications in your system's notification settings. Lintel keeps receiving them.
+- Each site can send at most 12 notifications a minute, and repeats within 3 seconds are dropped.
+- Desktop apps (for example the Slack or Steam apps) use system notifications, which Lintel can't read. Neither macOS nor unpackaged Windows apps have a public API for that.
+
+## Local API
+
+Anything on your computer can send a notification:
 
 ```sh
 curl -X POST http://127.0.0.1:47821/v1/notify \
@@ -37,79 +134,55 @@ curl -X POST http://127.0.0.1:47821/v1/notify \
   -d '{"title":"Build passed","body":"main · 2m 14s","app":"CI","icon":"✅","accent":"#16a34a"}'
 ```
 
-| Field | |
+| Field | Description |
 |---|---|
 | `title` | Required, up to 120 characters |
 | `body` | Optional, up to 500 characters |
-| `app` | Sender name shown above the title (default "Script") |
+| `app` | Sender name shown above the title (default `Script`) |
 | `icon` | An emoji or up to 4 characters |
-| `accent` | Icon background, hex color |
+| `accent` | Icon background, as a hex color |
 | `image` | A small picture instead of the icon: a base64 PNG, JPEG, WebP or GIF data URL, up to 12 KiB |
 
-`GET /v1/health` checks that Islet is running. `GET /v1/media/command` (extension only) hands over a waiting play, pause or skip for the playing tab. The server listens on `127.0.0.1` only. It refuses requests from web pages (any `Origin` header other than a browser extension's) and requests whose `Host` isn't the loopback address, and it only accepts a JSON content type. Requests from a browser extension must carry the pairing token (`Authorization: Bearer <token>`). You can change the port or turn the API off in Settings.
+`GET /v1/health` checks that Lintel is running.
 
-## Website notifications
+**Security:** the server listens on `127.0.0.1` only and accepts only JSON. It refuses requests from web pages and requests whose `Host` isn't the loopback address. Browser extensions must send the pairing token (`Authorization: Bearer <token>`). You can change the port or turn the API off in Settings.
 
-The extension in [extension/](extension/) works in Chrome, Edge, Brave, Arc and other Chromium browsers (version 111 or later).
+## Building from source
 
-1. Open the browser's extensions page (`chrome://extensions`) and turn on Developer mode.
-2. Click Load unpacked and choose the extension folder. Islet Settings → Browser → Show folder opens it.
-3. Click the Islet icon in the toolbar, paste the pairing token from Settings → Browser and click Connect.
-
-The extension watches for pages calling the browser's Notification API and sends each notification, with the site's name and icon, to Islet. It never changes what the page or the browser does. Things to know:
-
-- A site sends notifications only after you allow them for it in the browser, and only while it's open in a tab. Push notifications that arrive with every tab of the site closed don't reach Islet.
-- To avoid seeing each notification twice, turn off the browser's notifications in System Settings → Notifications (macOS) or Settings → System → Notifications (Windows). Sites still think they may notify, so Islet keeps getting them.
-- The popup can pause forwarding, or stop it for the current site.
-- Each site can send at most 12 notifications a minute, and repeats within 3 seconds are dropped.
-- Settings → Browser → Generate new token disconnects every browser that uses the old token.
-- Desktop apps, such as the Steam or Slack apps, use the system's own notifications, which the extension can't see.
-
-Islet doesn't mirror other apps' system notifications. macOS has no public API for reading them, and on Windows the notification listener API needs a packaged (MSIX) app.
-
-## Development
-
-Requirements: Node 20+, Rust 1.85+, and the [Tauri 2 prerequisites](https://v2.tauri.app/start/prerequisites/) for your OS.
+**Requirements:** Node.js 20+, Rust 1.85+, and the [Tauri 2 prerequisites](https://v2.tauri.app/start/prerequisites/) for your OS.
 
 ```sh
+git clone https://github.com/TanPhan263/DynamicWidget.git
+cd DynamicWidget
 npm install
-npm run tauri dev        # run the app with hot reload
-npm test                 # frontend tests (Vitest)
-cd src-tauri && cargo test   # Rust tests
-npm run tauri build      # installers: .app/.dmg on macOS, .msi/NSIS .exe on Windows
-npm run icons            # regenerate app and tray icons
+
+npm run tauri dev              # run with hot reload
+npm test                       # frontend tests (Vitest)
+cd src-tauri && cargo test     # Rust tests
+npm run tauri build            # installers: .msi / .exe on Windows, .app / .dmg on macOS
+npm run icons                  # regenerate app and tray icons
 ```
 
-On first launch the Settings window opens with a short welcome. After that, Islet runs from the menu bar (macOS) or tray (Windows). Closing Settings only hides it; use **Quit Islet** in the menu to exit. The island steps aside while a full-screen app, game, video or presentation is in front (press the shortcut to bring it up anyway), and while it's hidden Islet stops watching the pointer.
+Built installers are written to `src-tauri/target/release/bundle/`.
 
-## Design
-
-The interface follows shadcn/ui: Tailwind CSS v4 with shadcn's neutral OKLCH theme in light and dark (`src/styles/globals.css`), Radix primitives wrapped as shadcn-style components (`src/components/ui`), Lucide icons and the Geist font. Motion (Framer Motion) drives the island: a spring morphs its shape, content cross-fades with a blur, widgets stagger in and digits roll. All motion respects the system's Reduce Motion setting.
-
-The look is "glass and depth". The open panel fades from black to graphite, with a faint wash of the playing album's color at the bottom (indigo when nothing plays), and the widget tiles are dark glass over a soft blur of the background. Numbers are large and light; labels are small uppercase captions. The weather tile glows in the sky's color, and the Now playing tile is tinted by its own blurred cover. On macOS the Settings sidebar uses the system's own translucent sidebar material, under an overlay title bar. Settings → General → Theme switches the panel's background between Graphite (default), Black, Midnight, Aurora, Ember, Slate, Transparent (nearly clear, so the desktop shows through, with frosted widget tiles) and Picture, your own photos (JPEG, PNG or WebP): one for the wide panel and, optionally, one for the thin floating island, which otherwise borrows the panel's. Picking Picture shows a place for each (panel and island) with a Choose button; after choosing a file you frame it in the exact shape it fills (a 4:3 panel or a thin pill for the island) by dragging and zooming. They're saved next to the settings file and darkened so text stays readable; with the Dynamic Island style the closed island takes the theme's color too (the Notch style stays black to match the notch, except with Picture, where the island picture shows around the notch).
-
-## How it works
-
-The island is a single transparent, always-on-top window (1000×800 CSS px) pinned to the top center of the primary display. On macOS it sits one level above the menu bar. The page draws the island inside that window and reports the island's rectangle to the core (the whole window while a widget is being dragged, so the drag survives leaving the panel). A Rust thread polls the pointer about 30 times a second and turns click-through off only while the pointer is over that rectangle. A click-through window receives no mouse events, so the same thread sends hover to the page as an event. When the panel closes while it has keyboard focus, focus returns to the app you were using.
+## Project structure
 
 ```text
 src/
-  island/                The island page: state machine, geometry, views, widgets
-  settings/              The Settings window
-  shared/                Types, IPC wrappers, events and formatting shared by both pages
-  components/ui/         shadcn-style components (Button, Switch, Card, Slider, ...)
-  styles/globals.css     Tailwind and theme tokens
-  lib/                   cn() helper and system theme hook
+  island/            The island window: state machine, geometry, views and widgets
+  settings/          The Settings window
+  shared/            Types, IPC wrappers, events, formatting and translations
+  components/ui/     shadcn-style UI components
 src-tauri/src/
-  core/
-    island.rs            Window placement, pointer polling, click-through and hover
-    notifications.rs     Notification history and input validation
-    http_api.rs          Local notification API
-    system_monitor.rs    CPU, memory, battery and battery alerts
-    settings_service.rs  Versioned settings file with atomic saves
-    shortcut_service.rs  Global shortcut
-  platform/              macOS (AppKit) and Windows (Win32): window level, notch, focus
-  actions.rs             Intents shared by the tray, shortcut, API and commands
-  commands.rs            IPC commands
-  tray.rs                Menu-bar / tray menu
+  core/              Island window, notifications, local API, system monitor, settings
+  platform/          macOS (AppKit) and Windows (Win32) integration
+  controls/          System controls: Wi-Fi, Bluetooth, volume, brightness and more
+  tray.rs            Tray / menu bar menu
+extension/           Chromium browser extension
 ```
+
+The interface uses React, Tailwind CSS v4, Radix primitives, Lucide icons and Motion. The native core is Rust on [Tauri 2](https://v2.tauri.app).
+
+## License
+
+[MIT](LICENSE) © 2026 Phan Nhật Tân

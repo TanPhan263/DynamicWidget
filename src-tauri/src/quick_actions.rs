@@ -97,7 +97,7 @@ fn record(app: &AppHandle) -> AppResult<Option<bool>> {
                         crate::i18n::text(lang, crate::i18n::Text::Desktop)
                     )
                 }),
-                app: Some("Islet".into()),
+                app: Some("Lintel".into()),
                 icon: None,
                 accent: Some("#dc2626".into()),
                 image: None,
@@ -212,7 +212,7 @@ mod platform {
             thread::sleep(Duration::from_millis(400));
             if child.try_wait()?.is_some() {
                 return Err(AppError::Platform(
-                    "Allow Islet in System Settings → Privacy & Security → Screen Recording".into(),
+                    "Allow Lintel in System Settings → Privacy & Security → Screen Recording".into(),
                 ));
             }
             self.active = Some(Recording {
@@ -255,7 +255,7 @@ mod platform {
         }
     }
 
-    /// Runs `caffeinate` while on. It also exits on its own when Islet does.
+    /// Runs `caffeinate` while on. It also exits on its own when Lintel does.
     #[derive(Default)]
     pub struct KeepAwake {
         child: Option<Child>,
@@ -342,7 +342,7 @@ mod platform {
             if on {
                 let (tx, rx) = channel::<()>();
                 thread::Builder::new()
-                    .name("islet-keep-awake".into())
+                    .name("lintel-keep-awake".into())
                     .spawn(move || {
                         unsafe {
                             SetThreadExecutionState(

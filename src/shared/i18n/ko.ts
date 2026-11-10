@@ -50,7 +50,7 @@ export const ko: Messages = {
   "nav.apiDesc": "스크립트와 도구에서 알림을 보냅니다.",
   "nav.about": "정보",
   "nav.aboutDesc": "버전 정보 및 재설정.",
-  "welcome.title": "Islet에 오신 것을 환영합니다",
+  "welcome.title": "Lintel에 오신 것을 환영합니다",
   "welcome.position": "아일랜드는 화면 상단 중앙에 있습니다.",
   "welcome.positionNotch": "아일랜드는 화면 상단 중앙의 노치 주변에 있습니다.",
   "welcome.openHover": "포인터를 올리거나 {shortcut} 키를 누르면 위젯과 알림이 있는 패널이 열립니다.",
@@ -85,7 +85,7 @@ export const ko: Messages = {
   "general.clock24": "24시간제 사용",
   "general.login": "로그인 시 실행",
   "general.language": "언어",
-  "general.languageDesc": "Islet의 메뉴, 레이블 및 알림에 사용할 언어입니다.",
+  "general.languageDesc": "Lintel의 메뉴, 레이블 및 알림에 사용할 언어입니다.",
   "general.languageSystem": "시스템 기본값",
 
   "style.label": "아일랜드 스타일",
@@ -162,7 +162,7 @@ export const ko: Messages = {
 
   "music.title": "뮤직 바",
   "music.desc":
-    "음악, 동영상, 통화 등 어떤 앱이든 오디오를 재생하는 동안 아일랜드 옆에 움직이는 바가 표시됩니다. 트랙 제목은 Spotify와 Apple Music(macOS가 앱마다 한 번씩 제어 권한을 요청함), 그리고 Islet 브라우저 확장 프로그램을 통해 웹사이트에서 가져옵니다.",
+    "음악, 동영상, 통화 등 어떤 앱이든 오디오를 재생하는 동안 아일랜드 옆에 움직이는 바가 표시됩니다. 트랙 제목은 Spotify와 Apple Music(macOS가 앱마다 한 번씩 제어 권한을 요청함), 그리고 Lintel 브라우저 확장 프로그램을 통해 웹사이트에서 가져옵니다.",
   "music.show": "뮤직 바 표시",
   "music.position": "위치",
   "music.positionDesc": "아일랜드 아래에 두면 트랙 제목이 바 아래에 표시됩니다.",
@@ -185,16 +185,16 @@ export const ko: Messages = {
   "music.playing": "소리 재생 중",
 
   "browser.title": "웹사이트 알림",
-  "browser.desc": "Islet 브라우저 확장 프로그램은 Gmail, Slack, Facebook, Discord 및 알림이 허용된 모든 사이트의 알림을 전달합니다.",
+  "browser.desc": "Lintel 브라우저 확장 프로그램은 Gmail, Slack, Facebook, Discord 및 알림이 허용된 모든 사이트의 알림을 전달합니다.",
   "browser.apiOff": "확장 프로그램은 로컬 API로 연결됩니다. 사용하려면 API를 켜세요.",
   "browser.step1": "Chrome, Edge, Brave 또는 Arc에서 확장 프로그램 페이지(chrome://extensions)를 열고 개발자 모드를 켭니다.",
   "browser.step2": "압축해제된 확장 프로그램을 로드합니다를 클릭하고 확장 프로그램 폴더를 선택합니다.",
-  "browser.step3": "브라우저 도구 막대의 Islet 아이콘을 클릭하고 페어링 토큰을 붙여넣은 다음 Connect를 클릭합니다.",
+  "browser.step3": "브라우저 도구 막대의 Lintel 아이콘을 클릭하고 페어링 토큰을 붙여넣은 다음 Connect를 클릭합니다.",
   "browser.folder": "확장 프로그램 폴더",
   "browser.folderDesc": "2단계에서 이 폴더를 로드합니다.",
   "browser.showFolder": "폴더 보기",
   "browser.token": "페어링 토큰",
-  "browser.tokenDesc": "이 토큰이 있는 확장 프로그램만 Islet에 알림을 보낼 수 있습니다.",
+  "browser.tokenDesc": "이 토큰이 있는 확장 프로그램만 Lintel에 알림을 보낼 수 있습니다.",
   "browser.unavailable": "사용할 수 없음",
   "browser.showToken": "토큰 보기",
   "browser.hideToken": "토큰 숨기기",
@@ -202,7 +202,7 @@ export const ko: Messages = {
   "browser.replaceDesc": "현재 토큰을 사용하는 브라우저의 연결이 끊어집니다. 새 토큰을 각 확장 프로그램에 붙여넣으세요.",
   "browser.generate": "새 토큰 생성",
   "browser.note":
-    "알림은 사이트가 탭에 열려 있을 때만 도착합니다. 브라우저 팝업이 중복되지 않도록 {path}에서 브라우저 알림을 끄세요. 사이트는 계속 Islet으로 알림을 보냅니다.",
+    "알림은 사이트가 탭에 열려 있을 때만 도착합니다. 브라우저 팝업이 중복되지 않도록 {path}에서 브라우저 알림을 끄세요. 사이트는 계속 Lintel으로 알림을 보냅니다.",
   "browser.pathMac": "시스템 설정 → 알림",
   "browser.pathWindows": "설정 → 시스템 → 알림",
 

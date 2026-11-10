@@ -50,7 +50,7 @@ export const es: Messages = {
   "nav.apiDesc": "Envía notificaciones desde scripts y herramientas.",
   "nav.about": "Acerca de",
   "nav.aboutDesc": "Información de la versión y restablecimiento.",
-  "welcome.title": "Te damos la bienvenida a Islet",
+  "welcome.title": "Te damos la bienvenida a Lintel",
   "welcome.position": "La isla está en la parte superior central de la pantalla.",
   "welcome.positionNotch": "La isla está en la parte superior central de la pantalla, alrededor del notch.",
   "welcome.openHover": "Pasa el puntero por encima o pulsa {shortcut} para abrir el panel con widgets y notificaciones.",
@@ -86,7 +86,7 @@ export const es: Messages = {
   "general.clock24": "Usar formato de 24 horas",
   "general.login": "Abrir al iniciar sesión",
   "general.language": "Idioma",
-  "general.languageDesc": "El idioma de los menús, etiquetas y notificaciones de Islet.",
+  "general.languageDesc": "El idioma de los menús, etiquetas y notificaciones de Lintel.",
   "general.languageSystem": "Predeterminado del sistema",
 
   "style.label": "Estilo de la isla",
@@ -163,7 +163,7 @@ export const es: Messages = {
 
   "music.title": "Barras de música",
   "music.desc":
-    "Unas barras animadas aparecen junto a la isla mientras alguna app reproduce audio, como música, vídeos o llamadas. Los títulos se obtienen de Spotify y Apple Music (macOS pide permiso una vez para controlar cada una) y de sitios web a través de la extensión de Islet.",
+    "Unas barras animadas aparecen junto a la isla mientras alguna app reproduce audio, como música, vídeos o llamadas. Los títulos se obtienen de Spotify y Apple Music (macOS pide permiso una vez para controlar cada una) y de sitios web a través de la extensión de Lintel.",
   "music.show": "Mostrar barras de música",
   "music.position": "Posición",
   "music.positionDesc": "Debajo de la isla, el título de la canción aparece bajo las barras.",
@@ -187,16 +187,16 @@ export const es: Messages = {
 
   "browser.title": "Notificaciones de sitios web",
   "browser.desc":
-    "La extensión de Islet reenvía las notificaciones de Gmail, Slack, Facebook, Discord y de cualquier otro sitio con permiso para enviarlas.",
+    "La extensión de Lintel reenvía las notificaciones de Gmail, Slack, Facebook, Discord y de cualquier otro sitio con permiso para enviarlas.",
   "browser.apiOff": "La extensión se conecta a través de la API local. Activa la API para usarla.",
   "browser.step1": "Abre la página de extensiones en Chrome, Edge, Brave o Arc (chrome://extensions) y activa el modo de desarrollador.",
   "browser.step2": "Haz clic en Cargar descomprimida y elige la carpeta de la extensión.",
-  "browser.step3": "Haz clic en el icono de Islet en la barra del navegador, pega el token de vinculación y haz clic en Connect.",
+  "browser.step3": "Haz clic en el icono de Lintel en la barra del navegador, pega el token de vinculación y haz clic en Connect.",
   "browser.folder": "Carpeta de la extensión",
   "browser.folderDesc": "Carga esta carpeta en el paso 2.",
   "browser.showFolder": "Mostrar carpeta",
   "browser.token": "Token de vinculación",
-  "browser.tokenDesc": "Solo una extensión con este token puede enviar notificaciones a Islet.",
+  "browser.tokenDesc": "Solo una extensión con este token puede enviar notificaciones a Lintel.",
   "browser.unavailable": "No disponible",
   "browser.showToken": "Mostrar token",
   "browser.hideToken": "Ocultar token",
@@ -204,7 +204,7 @@ export const es: Messages = {
   "browser.replaceDesc": "Desconecta los navegadores que usan el token actual. Pega el nuevo token en cada extensión.",
   "browser.generate": "Generar nuevo token",
   "browser.note":
-    "Las notificaciones solo llegan mientras el sitio está abierto en una pestaña. Para evitar avisos duplicados del navegador, desactiva sus notificaciones en {path}; los sitios siguen enviándolas a Islet.",
+    "Las notificaciones solo llegan mientras el sitio está abierto en una pestaña. Para evitar avisos duplicados del navegador, desactiva sus notificaciones en {path}; los sitios siguen enviándolas a Lintel.",
   "browser.pathMac": "Ajustes del Sistema → Notificaciones",
   "browser.pathWindows": "Configuración → Sistema → Notificaciones",
 

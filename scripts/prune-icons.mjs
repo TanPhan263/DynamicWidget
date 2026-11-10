@@ -1,4 +1,4 @@
-// `tauri icon` also emits mobile and Windows Store assets. Islet ships
+// `tauri icon` also emits mobile and Windows Store assets. Lintel ships
 // desktop installers only, so remove them to keep the repository small.
 import { rmSync, readdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";

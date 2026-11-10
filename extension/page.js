@@ -2,11 +2,11 @@
 // page call the Notification API. It reports what the page shows and
 // changes nothing about whether or how the browser shows it.
 (() => {
-  const EVENT = "islet:notification";
+  const EVENT = "lintel:notification";
 
   const report = (title, options) => {
     try {
-      // Without permission the browser shows nothing, so neither does Islet.
+      // Without permission the browser shows nothing, so neither does Lintel.
       if (window.Notification?.permission !== "granted") return;
       const o = options && typeof options === "object" ? options : {};
       const detail = JSON.stringify({
@@ -48,16 +48,16 @@
         artist: playing ? meta?.artist || "" : "",
         playing,
       });
-      // Repeated while playing so Islet knows the tab is still there; a stop is sent once.
+      // Repeated while playing so Lintel knows the tab is still there; a stop is sent once.
       if (!playing && detail === lastMedia) return;
       lastMedia = detail;
-      document.dispatchEvent(new CustomEvent("islet:media", { detail }));
+      document.dispatchEvent(new CustomEvent("lintel:media", { detail }));
     } catch {
       // Never break the page.
     }
   }, 3000);
 
-  // Islet's play, pause and skip buttons. The page's own Media Session
+  // Lintel's play, pause and skip buttons. The page's own Media Session
   // handlers do it best (they keep its UI in step), so they are kept here as
   // the page sets them; otherwise the <video>/<audio> element is used.
   const handlers = {};
@@ -74,7 +74,7 @@
     if (typeof handler === "function") handler({ action });
     else fallback?.();
   };
-  if (window === window.top) document.addEventListener("islet:media-command", (e) => {
+  if (window === window.top) document.addEventListener("lintel:media-command", (e) => {
     try {
       const all = [...document.querySelectorAll("video, audio")];
       const playing = all.find((m) => !m.paused);

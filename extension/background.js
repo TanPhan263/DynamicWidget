@@ -1,13 +1,13 @@
-import { getSettings, sendMedia, sendNotification, setStatus, takeMediaCommand } from "./islet.js";
+import { getSettings, sendMedia, sendNotification, setStatus, takeMediaCommand } from "./lintel.js";
 import { shortHost, siteFor } from "./sites.js";
 
-/** At most this many notifications per site per minute reach Islet. */
+/** At most this many notifications per site per minute reach Lintel. */
 const RATE_LIMIT = 12;
 /** The same notification again within this time is a duplicate. */
 const DUPLICATE_MS = 3000;
-/** Islet accepts icons up to 12 KiB as a data URL. */
+/** Lintel accepts icons up to 12 KiB as a data URL. */
 const IMAGE_MAX = 11 * 1024;
-/** How often Islet is asked for a play, pause or skip for the media tab. */
+/** How often Lintel is asked for a play, pause or skip for the media tab. */
 const COMMAND_POLL_MS = 1000;
 /** After the tab's last report, it can still be resumed for this long. */
 const COMMAND_WINDOW_MS = 10 * 60_000;

@@ -1,4 +1,4 @@
-//! The token that pairs the Islet browser extension with the local API.
+//! The token that pairs the Lintel browser extension with the local API.
 //! It lives in its own file next to the settings, so resetting settings
 //! does not unpair the browser.
 
@@ -108,7 +108,7 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let store = TokenStore::new(std::env::temp_dir().join(format!("islet-test-token-{ts}")));
+        let store = TokenStore::new(std::env::temp_dir().join(format!("lintel-test-token-{ts}")));
         let first = store.load_or_create().unwrap();
         assert_eq!(store.load_or_create().unwrap(), first);
         let second = store.replace().unwrap();

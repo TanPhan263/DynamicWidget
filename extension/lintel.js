@@ -1,4 +1,4 @@
-// Talking to the Islet app on this computer. Shared by the worker and popup.
+// Talking to the Lintel app on this computer. Shared by the worker and popup.
 
 export const DEFAULTS = { token: "", port: 47821, enabled: true, muted: [] };
 
@@ -20,7 +20,7 @@ async function request(settings, path, init = {}) {
   });
 }
 
-/** Checks that Islet is running and accepts the token. */
+/** Checks that Lintel is running and accepts the token. */
 export async function checkConnection(settings) {
   if (!settings.token) return "unpaired";
   try {
@@ -34,7 +34,7 @@ export async function checkConnection(settings) {
   }
 }
 
-/** Tells Islet what a tab plays; returns the resulting status. */
+/** Tells Lintel what a tab plays; returns the resulting status. */
 export async function sendMedia(settings, payload) {
   try {
     const res = await request(settings, "/v1/media", {
@@ -49,7 +49,7 @@ export async function sendMedia(settings, payload) {
   }
 }
 
-/** The play, pause or skip waiting in Islet for the playing tab, or null. */
+/** The play, pause or skip waiting in Lintel for the playing tab, or null. */
 export async function takeMediaCommand(settings) {
   try {
     const res = await request(settings, "/v1/media/command");
@@ -70,7 +70,7 @@ export async function sendNotification(settings, payload) {
     });
   try {
     let res = await post(payload);
-    // An icon Islet rejects should not cost the notification.
+    // An icon Lintel rejects should not cost the notification.
     if (res.status === 400 && payload.image) res = await post({ ...payload, image: undefined });
     if (res.status === 401) return "unpaired";
     return res.ok ? "ok" : "error";

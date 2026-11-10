@@ -9,7 +9,7 @@ use crate::actions;
 use crate::i18n::{text, Text};
 use crate::state::UiSnapshot;
 
-const TRAY_ID: &str = "islet";
+const TRAY_ID: &str = "lintel";
 
 const ICON: &[u8] = include_bytes!("../icons/tray.png");
 const ICON_DND: &[u8] = include_bytes!("../icons/tray-dnd.png");
@@ -22,7 +22,7 @@ fn tooltip(snap: &UiSnapshot) -> String {
     if snap.settings.do_not_disturb {
         text(snap.ui_language, Text::TooltipDnd).into()
     } else {
-        "Islet".into()
+        "Lintel".into()
     }
 }
 

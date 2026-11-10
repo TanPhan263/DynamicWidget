@@ -3,8 +3,8 @@
 <plist version="1.0">
 <dict>
   <key>NSBluetoothAlwaysUsageDescription</key>
-  <string>Islet turns Bluetooth on and off from the Controls widget.</string>
+  <string>Lintel turns Bluetooth on and off from the Controls widget.</string>
   <key>NSAppleEventsUsageDescription</key>
-  <string>Islet controls music players and switches dark mode for you.</string>
+  <string>Lintel controls music players and switches dark mode for you.</string>
 </dict>
 </plist>

@@ -212,7 +212,7 @@ describe("Island", () => {
     expect(ran()).toEqual(["keep-awake", "mute", "calculator"]);
     expect(container.querySelector(".island")).toHaveClass("compact");
 
-    // Do Not Disturb is Islet's own toggle.
+    // Do Not Disturb is Lintel's own toggle.
     act(() => emit("island-toggle"));
     // The header has the same toggle; the widget's tile comes last.
     await screen.findByRole("button", { name: "Keep awake" });
@@ -378,7 +378,7 @@ describe("Island", () => {
     expect(island).toHaveClass("compact");
     expect(invoked).toContainEqual({ cmd: "media_control", args: { player: "Spotify", command: "next", browser: false } });
 
-    // A player Islet can't control keeps its buttons, greyed out.
+    // A player Lintel can't control keeps its buttons, greyed out.
     act(() => emit("system-stats", { ...snap.stats, audioPlaying: true, nowPlaying: { ...song, app: "coursera.org", controls: false } }));
     expect(within(island as HTMLElement).getByRole("button", { name: "Pause" })).toBeDisabled();
     act(() => emit("system-stats", { ...snap.stats, audioPlaying: true, nowPlaying: song }));

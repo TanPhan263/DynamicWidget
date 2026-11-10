@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Islet",
+  "productName": "Lintel",
   "version": "0.1.0",
-  "identifier": "app.islet.desktop",
+  "identifier": "app.lintel.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -15,7 +15,7 @@
     "windows": [
       {
         "label": "island",
-        "title": "Islet",
+        "title": "Lintel",
         "url": "island.html",
         "width": 1000,
         "height": 800,
@@ -32,7 +32,7 @@
       },
       {
         "label": "settings",
-        "title": "Islet Settings",
+        "title": "Lintel Settings",
         "url": "index.html",
         "width": 880,
         "height": 640,
@@ -53,7 +53,7 @@
     "category": "Utility",
     "resources": { "../extension/": "extension/" },
     "shortDescription": "Dynamic Island-style notification center",
-    "longDescription": "Islet adds an island at the top of your screen that shows notifications, live activities like timers and charging, and quick widgets. Scripts and tools can send notifications to it over a local HTTP API.",
+    "longDescription": "Lintel adds an island at the top of your screen that shows notifications, live activities like timers and charging, and quick widgets. Scripts and tools can send notifications to it over a local HTTP API.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

@@ -13,7 +13,7 @@
 //! that is never answered), and the `Host` header must name the loopback
 //! address, which defeats DNS rebinding.
 //!
-//! The Islet browser extension forwards website notifications. Its requests
+//! The Lintel browser extension forwards website notifications. Its requests
 //! come from an extension origin and must carry the pairing token shown in
 //! Settings (`Authorization: Bearer <token>`); see [`super::pairing`].
 
@@ -102,7 +102,7 @@ pub fn route(req: &ApiRequest, port: u16, token: &str) -> Result<Route, Rejectio
         return Err(reject(403, "Browser requests are not accepted"));
     }
     if !req.host.is_some_and(|h| host_is_loopback(h.trim(), port)) {
-        return Err(reject(403, "Use http://127.0.0.1 to reach the Islet API"));
+        return Err(reject(403, "Use http://127.0.0.1 to reach the Lintel API"));
     }
     // Scripts send neither header. The extension must always send the token.
     let given = req
@@ -114,7 +114,7 @@ pub fn route(req: &ApiRequest, port: u16, token: &str) -> Result<Route, Rejectio
         _ => {
             return Err(reject(
                 401,
-                "Not paired. Copy the token from Islet Settings → Browser into the extension",
+                "Not paired. Copy the token from Lintel Settings → Browser into the extension",
             ))
         }
     };
@@ -220,7 +220,7 @@ impl ApiServer {
         };
         let worker = server.clone();
         let thread = thread::Builder::new()
-            .name("islet-api".into())
+            .name("lintel-api".into())
             .spawn(move || serve(&worker, port, &sink, &media, &commands, &token))
             .map_err(|e| AppError::Api(e.to_string()))?;
         log::info!("notification API listening on 127.0.0.1:{port}");
@@ -311,7 +311,7 @@ fn serve(
         let response = match parsed {
             Ok(Route::Health { paired }) => reply(
                 200,
-                json!({ "ok": true, "app": "islet", "version": env!("CARGO_PKG_VERSION"), "paired": paired }),
+                json!({ "ok": true, "app": "lintel", "version": env!("CARGO_PKG_VERSION"), "paired": paired }),
             ),
             Ok(Route::Notify(input, source)) => match sink(input, source) {
                 Ok(n) => reply(201, json!({ "ok": true, "id": n.id })),

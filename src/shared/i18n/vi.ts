@@ -50,7 +50,7 @@ export const vi: Messages = {
   "nav.apiDesc": "Gửi thông báo từ script và công cụ.",
   "nav.about": "Giới thiệu",
   "nav.aboutDesc": "Thông tin phiên bản và đặt lại.",
-  "welcome.title": "Chào mừng đến với Islet",
+  "welcome.title": "Chào mừng đến với Lintel",
   "welcome.position": "Island nằm ở chính giữa phía trên màn hình.",
   "welcome.positionNotch": "Island nằm ở chính giữa phía trên màn hình, bao quanh tai thỏ.",
   "welcome.openHover": "Di chuột lên hoặc nhấn {shortcut} để mở bảng với các tiện ích và thông báo.",
@@ -86,7 +86,7 @@ export const vi: Messages = {
   "general.clock24": "Dùng định dạng 24 giờ",
   "general.login": "Khởi động cùng hệ thống",
   "general.language": "Ngôn ngữ",
-  "general.languageDesc": "Ngôn ngữ của menu, nhãn và thông báo trong Islet.",
+  "general.languageDesc": "Ngôn ngữ của menu, nhãn và thông báo trong Lintel.",
   "general.languageSystem": "Theo hệ thống",
 
   "style.label": "Kiểu Island",
@@ -163,7 +163,7 @@ export const vi: Messages = {
 
   "music.title": "Thanh nhạc",
   "music.desc":
-    "Các thanh nhạc chuyển động hiện cạnh Island khi có ứng dụng phát âm thanh, kể cả nhạc, video và cuộc gọi. Tên bài hát lấy từ Spotify và Apple Music (macOS hỏi quyền điều khiển một lần cho mỗi ứng dụng) và từ trang web qua tiện ích mở rộng Islet.",
+    "Các thanh nhạc chuyển động hiện cạnh Island khi có ứng dụng phát âm thanh, kể cả nhạc, video và cuộc gọi. Tên bài hát lấy từ Spotify và Apple Music (macOS hỏi quyền điều khiển một lần cho mỗi ứng dụng) và từ trang web qua tiện ích mở rộng Lintel.",
   "music.show": "Hiện thanh nhạc",
   "music.position": "Vị trí",
   "music.positionDesc": "Khi đặt bên dưới Island, tên bài hát hiện dưới các thanh nhạc.",
@@ -187,16 +187,16 @@ export const vi: Messages = {
 
   "browser.title": "Thông báo từ trang web",
   "browser.desc":
-    "Tiện ích mở rộng Islet chuyển tiếp thông báo từ Gmail, Slack, Facebook, Discord và mọi trang web được phép gửi thông báo.",
+    "Tiện ích mở rộng Lintel chuyển tiếp thông báo từ Gmail, Slack, Facebook, Discord và mọi trang web được phép gửi thông báo.",
   "browser.apiOff": "Tiện ích mở rộng kết nối qua API cục bộ. Hãy bật API để sử dụng.",
   "browser.step1": "Mở trang tiện ích mở rộng trong Chrome, Edge, Brave hoặc Arc (chrome://extensions) và bật Chế độ dành cho nhà phát triển.",
   "browser.step2": "Nhấp Tải tiện ích đã giải nén và chọn thư mục tiện ích.",
-  "browser.step3": "Nhấp biểu tượng Islet trên thanh công cụ trình duyệt, dán mã ghép nối và nhấp Connect.",
+  "browser.step3": "Nhấp biểu tượng Lintel trên thanh công cụ trình duyệt, dán mã ghép nối và nhấp Connect.",
   "browser.folder": "Thư mục tiện ích",
   "browser.folderDesc": "Tải thư mục này ở bước 2.",
   "browser.showFolder": "Mở thư mục",
   "browser.token": "Mã ghép nối",
-  "browser.tokenDesc": "Chỉ tiện ích mở rộng có mã này mới gửi được thông báo đến Islet.",
+  "browser.tokenDesc": "Chỉ tiện ích mở rộng có mã này mới gửi được thông báo đến Lintel.",
   "browser.unavailable": "Không khả dụng",
   "browser.showToken": "Hiện mã",
   "browser.hideToken": "Ẩn mã",
@@ -204,7 +204,7 @@ export const vi: Messages = {
   "browser.replaceDesc": "Ngắt kết nối các trình duyệt đang dùng mã hiện tại. Hãy dán mã mới vào từng tiện ích mở rộng.",
   "browser.generate": "Tạo mã mới",
   "browser.note":
-    "Thông báo chỉ đến khi trang web đang mở trong một thẻ. Để tránh cửa sổ thông báo trùng lặp từ trình duyệt, hãy tắt thông báo của trình duyệt trong {path}; các trang web vẫn tiếp tục gửi đến Islet.",
+    "Thông báo chỉ đến khi trang web đang mở trong một thẻ. Để tránh cửa sổ thông báo trùng lặp từ trình duyệt, hãy tắt thông báo của trình duyệt trong {path}; các trang web vẫn tiếp tục gửi đến Lintel.",
   "browser.pathMac": "Cài đặt hệ thống → Thông báo",
   "browser.pathWindows": "Cài đặt → Hệ thống → Thông báo",
 

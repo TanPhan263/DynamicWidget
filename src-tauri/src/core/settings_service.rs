@@ -64,7 +64,7 @@ pub enum IslandTheme {
     Graphite,
 }
 
-/// The languages Islet speaks; anything else falls back to following the system.
+/// The languages Lintel speaks; anything else falls back to following the system.
 pub const LANGUAGES: [&str; 8] = ["en", "zh", "vi", "ja", "ko", "es", "fr", "de"];
 
 /// Smallest and largest island size, in percent of the default size.
@@ -570,7 +570,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let dir = std::env::temp_dir().join(format!("islet-test-{name}-{ts}"));
+        let dir = std::env::temp_dir().join(format!("lintel-test-{name}-{ts}"));
         fs::create_dir_all(&dir).unwrap();
         SettingsStore::new(dir)
     }

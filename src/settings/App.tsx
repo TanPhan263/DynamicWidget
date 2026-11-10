@@ -82,7 +82,7 @@ export function App() {
         <div className="mb-5 flex items-center gap-2.5 px-1 py-1 sm:px-2" data-tauri-drag-region={vibrant || undefined}>
           <BrandMark />
           <div className="hidden leading-tight sm:block">
-            <div className="text-sm font-semibold">Islet</div>
+            <div className="text-sm font-semibold">Lintel</div>
             <div className="text-xs text-muted-foreground">v{snap.version}</div>
           </div>
         </div>

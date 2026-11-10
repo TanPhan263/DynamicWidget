@@ -91,7 +91,7 @@ mod tests {
 
     #[test]
     fn round_trips_a_picture() {
-        let dir = std::env::temp_dir().join(format!("islet-bg-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("lintel-bg-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         let file = path(&dir, Slot::Panel);
         assert_ne!(file, path(&dir, Slot::Island));

@@ -26,7 +26,7 @@ const SYMBOLS: Record<NotificationSymbol, LucideIcon> = {
 };
 
 /**
- * A rounded tile for a notification: a built-in vector icon for Islet's own
+ * A rounded tile for a notification: a built-in vector icon for Lintel's own
  * notifications, a website's icon, otherwise the sender's emoji or initial.
  */
 export function NotificationIcon({ n, size = 36 }: { n: IslandNotification; size?: number }) {

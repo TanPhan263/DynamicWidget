@@ -21,7 +21,7 @@ function installFakeNotification(permission) {
 
 function reports() {
   const got = [];
-  document.addEventListener("islet:notification", (e) => got.push(JSON.parse(e.detail)));
+  document.addEventListener("lintel:notification", (e) => got.push(JSON.parse(e.detail)));
   return got;
 }
 
@@ -64,7 +64,7 @@ describe("page.js media", () => {
     vi.useFakeTimers();
     installFakeNotification("granted");
     const got = [];
-    document.addEventListener("islet:media", (e) => got.push(JSON.parse(e.detail)));
+    document.addEventListener("lintel:media", (e) => got.push(JSON.parse(e.detail)));
     Object.defineProperty(navigator, "mediaSession", {
       configurable: true,
       value: { playbackState: "playing", metadata: { title: "Lofi beats", artist: "Chill" } },
@@ -81,7 +81,7 @@ describe("page.js media", () => {
 });
 
 describe("page.js media commands", () => {
-  const command = (c) => document.dispatchEvent(new CustomEvent("islet:media-command", { detail: c }));
+  const command = (c) => document.dispatchEvent(new CustomEvent("lintel:media-command", { detail: c }));
 
   it("uses the page's own Media Session handlers", () => {
     const set = vi.fn();

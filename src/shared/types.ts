@@ -175,7 +175,7 @@ export const API_PORT_RANGE = [1024, 65535] as const;
 
 export type NotificationSource = "api" | "system" | "widget" | "browser";
 
-/** Built-in icons for notifications Islet raises itself. */
+/** Built-in icons for notifications Lintel raises itself. */
 export type NotificationSymbol =
   | "battery"
   | "battery-charging"
@@ -241,7 +241,7 @@ export interface NowPlaying {
   /** The player or website, such as "Spotify" or "YouTube". */
   app: string;
   image: string | null;
-  /** Islet can play, pause and skip it. */
+  /** Lintel can play, pause and skip it. */
   controls: boolean;
   /** A website reported it; its buttons go through the extension. */
   browser: boolean;

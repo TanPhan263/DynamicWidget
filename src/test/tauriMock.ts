@@ -172,7 +172,7 @@ export const coreModule = {
         emit("background-changed", { slot: args!.slot, image: background[args!.slot as string] });
         return undefined;
       case "open_extension_folder":
-        return "/Applications/Islet.app/Contents/Resources/extension";
+        return "/Applications/Lintel.app/Contents/Resources/extension";
       default:
         return undefined;
     }

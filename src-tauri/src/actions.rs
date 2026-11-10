@@ -84,7 +84,7 @@ pub fn send_test_notification(app: &AppHandle) -> AppResult<Notification> {
         NotificationInput {
             title: text(lang, Text::TestTitle).into(),
             body: Some(text(lang, Text::TestBody).into()),
-            app: Some("Islet".into()),
+            app: Some("Lintel".into()),
             icon: None,
             accent: Some("#171717".into()),
             image: None,

@@ -55,7 +55,7 @@ export const en = {
   "nav.apiDesc": "Send notifications from scripts and tools.",
   "nav.about": "About",
   "nav.aboutDesc": "Version information and reset.",
-  "welcome.title": "Welcome to Islet",
+  "welcome.title": "Welcome to Lintel",
   "welcome.position": "The island sits at the top center of your screen.",
   "welcome.positionNotch": "The island sits at the top center of your screen, around the notch.",
   "welcome.openHover": "Hover over it or press {shortcut} to open the panel with widgets and notifications.",
@@ -92,7 +92,7 @@ export const en = {
   "general.clock24": "Use 24-hour time",
   "general.login": "Launch at login",
   "general.language": "Language",
-  "general.languageDesc": "The language of Islet's menus, labels and notifications.",
+  "general.languageDesc": "The language of Lintel's menus, labels and notifications.",
   "general.languageSystem": "System default",
 
   // Settings: style and theme pickers, picture cropping
@@ -174,7 +174,7 @@ export const en = {
   // Settings: Now playing
   "music.title": "Music bars",
   "music.desc":
-    "Animated bars appear beside the island while any app plays audio, including music, videos and calls. Track titles come from Spotify and Apple Music (macOS asks once for permission to control each) and from websites through the Islet browser extension.",
+    "Animated bars appear beside the island while any app plays audio, including music, videos and calls. Track titles come from Spotify and Apple Music (macOS asks once for permission to control each) and from websites through the Lintel browser extension.",
   "music.show": "Show music bars",
   "music.position": "Position",
   "music.positionDesc": "When placed below the island, the track title appears under the bars.",
@@ -199,16 +199,16 @@ export const en = {
   // Settings: Browser
   "browser.title": "Website notifications",
   "browser.desc":
-    "The Islet browser extension forwards notifications from Gmail, Slack, Facebook, Discord and any other site allowed to send notifications.",
+    "The Lintel browser extension forwards notifications from Gmail, Slack, Facebook, Discord and any other site allowed to send notifications.",
   "browser.apiOff": "The extension connects through the local API. Enable the API to use it.",
   "browser.step1": "Open the extensions page in Chrome, Edge, Brave or Arc (chrome://extensions) and turn on Developer mode.",
   "browser.step2": "Click Load unpacked and choose the extension folder.",
-  "browser.step3": "Click the Islet icon in the browser toolbar, paste the pairing token and click Connect.",
+  "browser.step3": "Click the Lintel icon in the browser toolbar, paste the pairing token and click Connect.",
   "browser.folder": "Extension folder",
   "browser.folderDesc": "Load this folder in step 2.",
   "browser.showFolder": "Show folder",
   "browser.token": "Pairing token",
-  "browser.tokenDesc": "Only an extension with this token can send notifications to Islet.",
+  "browser.tokenDesc": "Only an extension with this token can send notifications to Lintel.",
   "browser.unavailable": "Unavailable",
   "browser.showToken": "Show token",
   "browser.hideToken": "Hide token",
@@ -216,7 +216,7 @@ export const en = {
   "browser.replaceDesc": "Disconnects browsers using the current token. Paste the new token into each extension.",
   "browser.generate": "Generate new token",
   "browser.note":
-    "Notifications arrive only while the site is open in a tab. To avoid duplicate pop-ups from the browser, turn off its notifications in {path}; sites continue to send them to Islet.",
+    "Notifications arrive only while the site is open in a tab. To avoid duplicate pop-ups from the browser, turn off its notifications in {path}; sites continue to send them to Lintel.",
   "browser.pathMac": "System Settings → Notifications",
   "browser.pathWindows": "Settings → System → Notifications",
 

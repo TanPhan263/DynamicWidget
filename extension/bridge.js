@@ -1,7 +1,7 @@
 // Runs in the extension's isolated world and passes what page.js reports to
 // the background worker. The worker takes the site from the frame's own URL,
 // so a page can only ever send notifications under its own name.
-document.addEventListener("islet:notification", (e) => {
+document.addEventListener("lintel:notification", (e) => {
   if (typeof e.detail !== "string" || e.detail.length > 4000) return;
   let n;
   try {
@@ -14,14 +14,14 @@ document.addEventListener("islet:notification", (e) => {
     .catch(() => {});
 });
 
-// Islet's play, pause and skip buttons, from the worker to page.js.
+// Lintel's play, pause and skip buttons, from the worker to page.js.
 const COMMANDS = ["play-pause", "next", "previous"];
 chrome.runtime.onMessage.addListener((message) => {
   if (message?.type !== "media-command" || !COMMANDS.includes(message.command)) return;
-  document.dispatchEvent(new CustomEvent("islet:media-command", { detail: message.command }));
+  document.dispatchEvent(new CustomEvent("lintel:media-command", { detail: message.command }));
 });
 
-document.addEventListener("islet:media", (e) => {
+document.addEventListener("lintel:media", (e) => {
   if (typeof e.detail !== "string" || e.detail.length > 2000) return;
   let m;
   try {

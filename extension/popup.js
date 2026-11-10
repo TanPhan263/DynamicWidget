@@ -1,4 +1,4 @@
-import { checkConnection, getSettings, sendNotification, setStatus } from "./islet.js";
+import { checkConnection, getSettings, sendNotification, setStatus } from "./lintel.js";
 import { shortHost } from "./sites.js";
 
 const $ = (id) => document.getElementById(id);
@@ -6,7 +6,7 @@ const $ = (id) => document.getElementById(id);
 const LABELS = {
   ok: "Connected",
   unpaired: "Not paired",
-  offline: "Islet not running",
+  offline: "Lintel not running",
   error: "Error",
 };
 
@@ -69,7 +69,7 @@ async function init() {
     const status = await sendNotification(await getSettings(), {
       title: "Browser connected",
       body: "Website notifications will show up here.",
-      app: "Islet extension",
+      app: "Lintel extension",
     });
     await setStatus(status);
     showStatus(status);

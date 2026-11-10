@@ -73,7 +73,7 @@ fn on_screen_windows() -> Vec<Window> {
 }
 
 /// True while the frontmost app fills the main display; `None` while
-/// Islet itself is in front.
+/// Lintel itself is in front.
 pub fn active() -> Option<bool> {
     let pid = super::island::frontmost_pid()?;
     let b = CGDisplay::main().bounds();

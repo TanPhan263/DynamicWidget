@@ -29,7 +29,7 @@ pub fn run() {
             tauri_plugin_log::Builder::new()
                 .targets([
                     Target::new(TargetKind::LogDir {
-                        file_name: Some("islet".into()),
+                        file_name: Some("lintel".into()),
                     }),
                     Target::new(TargetKind::Stdout),
                 ])
@@ -61,7 +61,7 @@ pub fn run() {
                 platform::create_adapter(),
             ));
             app.manage(state.clone());
-            log::info!("Islet {} starting", env!("CARGO_PKG_VERSION"));
+            log::info!("Lintel {} starting", env!("CARGO_PKG_VERSION"));
 
             register_shortcut(&handle, &state);
             tray::create(&handle, &state.snapshot())?;
@@ -71,7 +71,7 @@ pub fn run() {
             market::spawn(handle.clone());
 
             if let Some(settings_window) = app.get_webview_window("settings") {
-                // Closing Settings only hides it; Islet lives in the tray.
+                // Closing Settings only hides it; Lintel lives in the tray.
                 let w = settings_window.clone();
                 settings_window.on_window_event(move |event| {
                     if let WindowEvent::CloseRequested { api, .. } = event {
@@ -113,7 +113,7 @@ pub fn run() {
             commands::set_ui_language,
         ])
         .build(tauri::generate_context!())
-        .expect("error while building Islet");
+        .expect("error while building Lintel");
 
     app.run(|app, event| match event {
         // Keep running in the tray when windows close; only explicit Quit

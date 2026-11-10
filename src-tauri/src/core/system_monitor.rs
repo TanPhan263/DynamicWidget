@@ -183,7 +183,7 @@ fn read_battery(manager: Option<&starship_battery::Manager>) -> Option<BatteryIn
 
 pub fn spawn(app: AppHandle) {
     let spawned = thread::Builder::new()
-        .name("islet-system".into())
+        .name("lintel-system".into())
         .spawn(move || {
             let mut sys = System::new().ok();
             let manager = starship_battery::Manager::new()

@@ -69,7 +69,7 @@ const VND_BARS_URL: &str = "https://dchart-api.vndirect.com.vn/dchart/history";
 /// Covers weekends and Tet, so the latest session is always in range.
 const VND_LOOKBACK_SECS: u64 = 14 * 86_400;
 const USER_AGENT: &str =
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Islet";
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Lintel";
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -613,7 +613,7 @@ pub fn spawn(app: AppHandle) {
 
 fn spawn_vn_poller(app: AppHandle) {
     let spawned = thread::Builder::new()
-        .name("islet-market-vn".into())
+        .name("lintel-market-vn".into())
         .spawn(move || {
             let agent = agent();
             loop {
@@ -653,7 +653,7 @@ fn spawn_vn_poller(app: AppHandle) {
 
 fn spawn_poller(app: AppHandle, streaming: Arc<AtomicBool>) {
     let spawned = thread::Builder::new()
-        .name("islet-market".into())
+        .name("lintel-market".into())
         .spawn(move || {
             let agent = agent();
             let mut last: Option<(Vec<String>, Instant, bool)> = None;
@@ -707,7 +707,7 @@ fn spawn_poller(app: AppHandle, streaming: Arc<AtomicBool>) {
 
 fn spawn_streamer(app: AppHandle, streaming: Arc<AtomicBool>) {
     let spawned = thread::Builder::new()
-        .name("islet-market-stream".into())
+        .name("lintel-market-stream".into())
         .spawn(move || {
             let mut backoff = Duration::from_secs(2);
             loop {
@@ -721,7 +721,7 @@ fn spawn_streamer(app: AppHandle, streaming: Arc<AtomicBool>) {
                     continue;
                 }
                 match stream(&app, &symbols, &streaming) {
-                    // The symbols changed or Islet is quitting.
+                    // The symbols changed or Lintel is quitting.
                     Ok(()) => backoff = Duration::from_secs(2),
                     Err(e) => {
                         streaming.store(false, Ordering::Relaxed);

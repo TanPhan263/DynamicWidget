@@ -23,14 +23,14 @@ pub trait PlatformAdapter: Send + Sync {
     fn show_island(&self, window: &WebviewWindow);
     /// Notch and menu bar of the primary display.
     fn island_layout(&self, app: &AppHandle) -> IslandLayout;
-    /// Identifies the focused application, unless it is Islet itself.
+    /// Identifies the focused application, unless it is Lintel itself.
     fn foreground_token(&self) -> Option<i64>;
     /// Gives focus back to what [`Self::foreground_token`] identified.
     fn restore_foreground(&self, app: &AppHandle, token: i64);
     /// Some app is playing sound (music, a video, a call).
     fn audio_playing(&self) -> bool;
     /// A full-screen app, game, video or presentation is in front; `None`
-    /// when Islet itself is in front, so it can't tell.
+    /// when Lintel itself is in front, so it can't tell.
     fn full_screen(&self) -> Option<bool>;
     /// Some app has a camera open.
     fn camera_in_use(&self) -> bool;

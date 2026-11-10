@@ -22,7 +22,7 @@ pub struct NowPlaying {
     pub app: String,
     /// A small picture: the website's icon or the cover.
     pub image: Option<String>,
-    /// Islet can play, pause and skip it (see [`MediaCommand`]).
+    /// Lintel can play, pause and skip it (see [`MediaCommand`]).
     pub controls: bool,
     /// A website reported it; its buttons go to the extension.
     pub browser: bool,

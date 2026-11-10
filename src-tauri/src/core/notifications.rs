@@ -26,7 +26,7 @@ const IMAGE_TYPES: [&str; 4] = ["png", "jpeg", "webp", "gif"];
 pub enum NotificationSource {
     /// Sent to the local HTTP API by a script or tool.
     Api,
-    /// Raised by Islet itself (battery, settings test).
+    /// Raised by Lintel itself (battery, settings test).
     System,
     /// Raised by an island widget, such as the timer.
     Widget,
@@ -34,7 +34,7 @@ pub enum NotificationSource {
     Browser,
 }
 
-/// Built-in icons for notifications Islet raises itself. The page draws
+/// Built-in icons for notifications Lintel raises itself. The page draws
 /// them as vector icons; senders on the API use `icon` text instead.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -117,8 +117,8 @@ fn default_app(source: NotificationSource) -> &'static str {
     match source {
         NotificationSource::Api => "Script",
         NotificationSource::Browser => "Website",
-        NotificationSource::System => "Islet",
-        NotificationSource::Widget => "Islet",
+        NotificationSource::System => "Lintel",
+        NotificationSource::Widget => "Lintel",
     }
 }
 
@@ -239,7 +239,7 @@ mod tests {
             .push(input("Timer done"), None, NotificationSource::Widget, 2)
             .unwrap();
         assert_eq!(a.app, "Script");
-        assert_eq!(b.app, "Islet");
+        assert_eq!(b.app, "Lintel");
         assert_eq!(a.body, "");
         assert!(b.id > a.id);
         assert_eq!(

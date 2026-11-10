@@ -4,7 +4,7 @@
     "windows": [
       {
         "label": "island",
-        "title": "Islet",
+        "title": "Lintel",
         "url": "island.html",
         "width": 1000,
         "height": 800,
@@ -21,7 +21,7 @@
       },
       {
         "label": "settings",
-        "title": "Islet Settings",
+        "title": "Lintel Settings",
         "url": "index.html",
         "width": 880,
         "height": 640,

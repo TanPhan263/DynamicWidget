@@ -50,7 +50,7 @@ export const ja: Messages = {
   "nav.apiDesc": "スクリプトやツールから通知を送信します。",
   "nav.about": "情報",
   "nav.aboutDesc": "バージョン情報とリセット。",
-  "welcome.title": "Islet へようこそ",
+  "welcome.title": "Lintel へようこそ",
   "welcome.position": "アイランドは画面上部の中央に表示されます。",
   "welcome.positionNotch": "アイランドは画面上部の中央、ノッチの周りに表示されます。",
   "welcome.openHover": "ポインタを重ねるか {shortcut} を押すと、ウィジェットと通知のパネルが開きます。",
@@ -86,7 +86,7 @@ export const ja: Messages = {
   "general.clock24": "24 時間表示",
   "general.login": "ログイン時に起動",
   "general.language": "言語",
-  "general.languageDesc": "Islet のメニュー、ラベル、通知の言語です。",
+  "general.languageDesc": "Lintel のメニュー、ラベル、通知の言語です。",
   "general.languageSystem": "システムに合わせる",
 
   "style.label": "アイランドのスタイル",
@@ -163,7 +163,7 @@ export const ja: Messages = {
 
   "music.title": "ミュージックバー",
   "music.desc":
-    "音楽、ビデオ、通話など、いずれかのアプリが音声を再生している間、アイランドの横にバーが表示されます。曲名は Spotify と Apple Music（macOS がアプリごとに一度だけ操作の許可を求めます）、および Islet ブラウザ拡張機能を通じて Web サイトから取得します。",
+    "音楽、ビデオ、通話など、いずれかのアプリが音声を再生している間、アイランドの横にバーが表示されます。曲名は Spotify と Apple Music（macOS がアプリごとに一度だけ操作の許可を求めます）、および Lintel ブラウザ拡張機能を通じて Web サイトから取得します。",
   "music.show": "ミュージックバーを表示",
   "music.position": "位置",
   "music.positionDesc": "アイランドの下に配置すると、曲名はバーの下に表示されます。",
@@ -186,16 +186,16 @@ export const ja: Messages = {
   "music.playing": "サウンド再生中",
 
   "browser.title": "Web サイトの通知",
-  "browser.desc": "Islet ブラウザ拡張機能は、Gmail、Slack、Facebook、Discord など、通知を許可したサイトからの通知を転送します。",
+  "browser.desc": "Lintel ブラウザ拡張機能は、Gmail、Slack、Facebook、Discord など、通知を許可したサイトからの通知を転送します。",
   "browser.apiOff": "拡張機能はローカル API 経由で接続します。使用するには API を有効にしてください。",
   "browser.step1": "Chrome、Edge、Brave、Arc で拡張機能のページ（chrome://extensions）を開き、デベロッパーモードをオンにします。",
   "browser.step2": "「パッケージ化されていない拡張機能を読み込む」をクリックし、拡張機能のフォルダを選択します。",
-  "browser.step3": "ブラウザのツールバーにある Islet アイコンをクリックし、ペアリングトークンを貼り付けて Connect をクリックします。",
+  "browser.step3": "ブラウザのツールバーにある Lintel アイコンをクリックし、ペアリングトークンを貼り付けて Connect をクリックします。",
   "browser.folder": "拡張機能のフォルダ",
   "browser.folderDesc": "手順 2 でこのフォルダを読み込みます。",
   "browser.showFolder": "フォルダを表示",
   "browser.token": "ペアリングトークン",
-  "browser.tokenDesc": "このトークンを持つ拡張機能だけが Islet に通知を送信できます。",
+  "browser.tokenDesc": "このトークンを持つ拡張機能だけが Lintel に通知を送信できます。",
   "browser.unavailable": "利用できません",
   "browser.showToken": "トークンを表示",
   "browser.hideToken": "トークンを隠す",
@@ -203,7 +203,7 @@ export const ja: Messages = {
   "browser.replaceDesc": "現在のトークンを使用しているブラウザの接続を解除します。新しいトークンを各拡張機能に貼り付けてください。",
   "browser.generate": "新しいトークンを生成",
   "browser.note":
-    "通知はサイトがタブで開いている間だけ届きます。ブラウザの通知と重複しないよう、{path} でブラウザの通知をオフにしてください。サイトからの通知は引き続き Islet に届きます。",
+    "通知はサイトがタブで開いている間だけ届きます。ブラウザの通知と重複しないよう、{path} でブラウザの通知をオフにしてください。サイトからの通知は引き続き Lintel に届きます。",
   "browser.pathMac": "「システム設定」→「通知」",
   "browser.pathWindows": "「設定」→「システム」→「通知」",
 

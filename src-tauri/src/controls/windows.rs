@@ -27,7 +27,7 @@ use super::{Change, Controls};
 use crate::errors::{AppError, AppResult};
 use crate::platform::windows::audio::endpoint_volume;
 
-/// Console programs started from Islet would flash a window without this.
+/// Console programs started from Lintel would flash a window without this.
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 pub fn read() -> Controls {
@@ -116,7 +116,7 @@ fn set_radios(kind: Option<RadioKind>, on: bool) -> AppResult<()> {
             .map_err(|e| AppError::Platform(e.to_string()))?;
         if status != RadioAccessStatus::Allowed {
             return Err(AppError::Platform(
-                "Windows didn't let Islet switch this; check Settings → Privacy & security → Radios"
+                "Windows didn't let Lintel switch this; check Settings → Privacy & security → Radios"
                     .into(),
             ));
         }

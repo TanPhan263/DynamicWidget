@@ -154,7 +154,7 @@ impl Engine {
         }
         self.last_full_screen_check = Some(now);
         let st = actions::state(&self.app);
-        // While Islet is in front it can't tell; keep the last answer.
+        // While Lintel is in front it can't tell; keep the last answer.
         let Some(full_screen) = st.adapter.full_screen() else {
             return;
         };
@@ -231,7 +231,7 @@ pub fn spawn(app: AppHandle) {
     let _ = window.set_ignore_cursor_events(true);
 
     let spawned = thread::Builder::new()
-        .name("islet-island".into())
+        .name("lintel-island".into())
         .spawn(move || {
             let mut engine = Engine {
                 app: app.clone(),
