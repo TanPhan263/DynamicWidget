@@ -14,6 +14,7 @@ import {
   releaseFocus,
   setDoNotDisturb,
   setIslandRect,
+  setUiLanguage,
 } from "../shared/commands";
 import { listenAll } from "../shared/events";
 import { MAX_ISLAND_STOCKS, PANEL_SIZE_RANGE, widgetAppName, type Settings, type UiSnapshot, type WidgetId, type WidgetSpan } from "../shared/types";
@@ -37,6 +38,7 @@ import { themeLook } from "../shared/themes";
 import { useAmbient } from "./ambient";
 import { MusicBars } from "./MusicBars";
 import { Compact, Expanded, Peek } from "./views";
+import { resolveLanguage, setLanguage, useLanguage } from "../shared/i18n";
 import type { WidgetAction } from "./widgets/Widgets";
 
 /** Hover must last this long before the panel opens, so crossing the island on the way to the menu bar does nothing. */
@@ -161,6 +163,13 @@ export function Island() {
   }, []);
 
   const settings = snap?.settings;
+  // The island speaks the chosen language and tells the core, which writes
+  // the tray menu and system notifications.
+  const language = useLanguage();
+  useEffect(() => setLanguage(resolveLanguage(settings?.language)), [settings?.language]);
+  useEffect(() => {
+    if (snap) setUiLanguage(language).catch(() => {});
+  }, [language, !!snap]);
   const trigger = settings?.expandTrigger ?? "hover";
   const view: View = viewOf(state, trigger);
 

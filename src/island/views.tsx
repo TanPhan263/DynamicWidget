@@ -21,6 +21,7 @@ import { NotificationIcon } from "./NotificationIcon";
 import { SlidingNumber } from "./SlidingNumber";
 import type { TimerApi } from "./useTimer";
 import { WidgetGrid } from "./WidgetGrid";
+import { t, type MessageKey } from "../shared/i18n";
 import { changeTone, TILE, Widget, type MediaApi, type QuickActionsApi, type StocksApi } from "./widgets/Widgets";
 
 const iconButton =
@@ -96,8 +97,8 @@ export function Compact({ shape, wings, recordingSince, onStopRecording, pinned,
     left = (
       <button
         type="button"
-        aria-label="Stop recording"
-        title="Stop recording"
+        aria-label={t("island.stopRecording")}
+        title={t("island.stopRecording")}
         className="grid size-5 place-items-center rounded-full outline-none hover:bg-white/[0.14] focus-visible:ring-2 focus-visible:ring-white/40"
         onClick={(e) => {
           e.stopPropagation();
@@ -176,13 +177,13 @@ export function Compact({ shape, wings, recordingSince, onStopRecording, pinned,
           {/* Shown even when the player can't be controlled (a website on macOS), greyed out. */}
           <div
             className="flex shrink-0 items-center gap-0.5"
-            title={np.controls ? undefined : `Control it in ${np.app}`}
+            title={np.controls ? undefined : t("island.controlIn", { app: np.app })}
             onPointerEnter={() => music.onControlsHover(true)}
             onPointerLeave={() => music.onControlsHover(false)}
           >
-            {button("Previous track", "previous", <SkipBack className="size-3" fill="currentColor" aria-hidden="true" />)}
-            {button("Pause", "play-pause", <Pause className="size-3.5" fill="currentColor" aria-hidden="true" />)}
-            {button("Next track", "next", <SkipForward className="size-3" fill="currentColor" aria-hidden="true" />)}
+            {button(t("media.previous"), "previous", <SkipBack className="size-3" fill="currentColor" aria-hidden="true" />)}
+            {button(t("media.pause"), "play-pause", <Pause className="size-3.5" fill="currentColor" aria-hidden="true" />)}
+            {button(t("media.next"), "next", <SkipForward className="size-3" fill="currentColor" aria-hidden="true" />)}
           </div>
         </div>
       );
@@ -305,7 +306,7 @@ export function Peek({ n, topInset, now, onDismiss }: PeekProps) {
       <button
         type="button"
         className={iconButton}
-        aria-label="Dismiss"
+        aria-label={t("common.dismiss")}
         onClick={(e) => {
           e.stopPropagation();
           onDismiss();
@@ -344,9 +345,9 @@ interface ExpandedProps {
   scroll: boolean;
 }
 
-const TABS: { id: Tab; label: string; icon: typeof Bell }[] = [
-  { id: "widgets", label: "Widgets", icon: LayoutGrid },
-  { id: "notifications", label: "Notifications", icon: Bell },
+const TABS: { id: Tab; label: MessageKey; icon: typeof Bell }[] = [
+  { id: "widgets", label: "nav.widgets", icon: LayoutGrid },
+  { id: "notifications", label: "nav.notifications", icon: Bell },
 ];
 
 export function Expanded(p: ExpandedProps) {
@@ -357,15 +358,15 @@ export function Expanded(p: ExpandedProps) {
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10" style={{ background: p.backdrop }} />
       <header className="flex h-[30px] shrink-0 items-center justify-between">
         <div className="flex gap-0.5 rounded-full bg-white/[0.06] p-0.5 ring-1 ring-white/[0.06] ring-inset" role="tablist">
-          {TABS.map((t) => {
-            const active = p.tab === t.id;
+          {TABS.map((item) => {
+            const active = p.tab === item.id;
             return (
               <button
-                key={t.id}
+                key={item.id}
                 type="button"
                 role="tab"
                 aria-selected={active}
-                onClick={() => p.onTab(t.id)}
+                onClick={() => p.onTab(item.id)}
                 className={cn(
                   "relative inline-flex h-[26px] items-center gap-1.5 rounded-full px-3.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-white/40",
                   active ? "text-white" : "text-white/50 hover:text-white/80",
@@ -378,8 +379,8 @@ export function Expanded(p: ExpandedProps) {
                     transition={{ type: "spring", stiffness: 500, damping: 38 }}
                   />
                 )}
-                <span className="relative">{t.label}</span>
-                {t.id === "notifications" && count > 0 && (
+                <span className="relative">{t(item.label)}</span>
+                {item.id === "notifications" && count > 0 && (
                   <span className="relative grid h-4 min-w-4 place-items-center rounded-full bg-white/90 px-1 text-[10px] font-semibold text-black tabular-nums">
                     {count}
                   </span>
@@ -393,13 +394,13 @@ export function Expanded(p: ExpandedProps) {
             type="button"
             className={cn(iconButton, p.settings.doNotDisturb && "bg-violet-400/20 text-violet-300 hover:bg-violet-400/30 hover:text-violet-200")}
             aria-pressed={p.settings.doNotDisturb}
-            aria-label="Do Not Disturb"
-            title={p.settings.doNotDisturb ? "Do Not Disturb is on" : "Do Not Disturb"}
+            aria-label={t("common.doNotDisturb")}
+            title={p.settings.doNotDisturb ? t("island.dndOn") : t("common.doNotDisturb")}
             onClick={p.onToggleDnd}
           >
             <Moon className="size-3.5" fill={p.settings.doNotDisturb ? "currentColor" : "none"} />
           </button>
-          <button type="button" className={iconButton} aria-label="Settings" title="Settings" onClick={p.onSettings}>
+          <button type="button" className={iconButton} aria-label={t("common.settings")} title={t("common.settings")} onClick={p.onSettings}>
             <Settings className="size-3.5" />
           </button>
         </div>
@@ -434,9 +435,9 @@ export function Expanded(p: ExpandedProps) {
                 )}
               />
             ) : (
-              <Empty icon={LayoutGrid} title="No widgets">
+              <Empty icon={LayoutGrid} title={t("island.noWidgets")}>
                 <button type="button" className="h-7 rounded-full bg-white px-3.5 text-xs font-medium text-black hover:bg-white/90" onClick={p.onSettings}>
-                  Choose widgets
+                  {t("island.chooseWidgets")}
                 </button>
               </Empty>
             )
@@ -479,7 +480,7 @@ function NotificationList({
 }) {
   if (notifications.length === 0) {
     return (
-      <Empty icon={Inbox} title="No notifications" />
+      <Empty icon={Inbox} title={t("island.noNotifications")} />
     );
   }
   return (
@@ -505,7 +506,7 @@ function NotificationList({
                 <div className="truncate text-[13px] font-semibold tracking-tight">{n.title}</div>
                 {n.body && <div className="line-clamp-2 text-xs text-white/60">{n.body}</div>}
               </div>
-              <button type="button" className={cn(iconButton, "size-6")} aria-label={`Dismiss ${n.title}`} onClick={() => onDismiss(n.id)}>
+              <button type="button" className={cn(iconButton, "size-6")} aria-label={t("common.dismissItem", { name: n.title })} onClick={() => onDismiss(n.id)}>
                 <X className="size-3" />
               </button>
             </motion.li>
@@ -517,7 +518,7 @@ function NotificationList({
         className="self-end rounded-full bg-white/[0.06] px-3 py-1 text-xs font-medium text-white/60 ring-1 ring-white/[0.06] transition-colors ring-inset hover:bg-white/[0.12] hover:text-white"
         onClick={onClearAll}
       >
-        Clear all
+        {t("island.clearAll")}
       </button>
     </div>
   );

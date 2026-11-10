@@ -2,6 +2,7 @@
 //! System widget and charging live activity, and turns battery transitions
 //! into notifications.
 
+use crate::i18n::{text, Text};
 use std::thread;
 use std::time::Duration;
 
@@ -102,30 +103,31 @@ pub fn battery_events(prev: &BatteryInfo, cur: &BatteryInfo) -> Vec<BatteryEvent
     events
 }
 
-fn event_notification(e: BatteryEvent, b: &BatteryInfo) -> (NotificationInput, Symbol) {
-    let pct = b.percent.round() as u32;
+fn event_notification(e: BatteryEvent, b: &BatteryInfo, lang: &str) -> (NotificationInput, Symbol) {
+    let pct = (b.percent.round() as u32).to_string();
+    let tr = |t: Text| text(lang, t).replace("{pct}", &pct);
     let (title, body, symbol, accent) = match e {
         BatteryEvent::PluggedIn => (
-            "Charging".to_string(),
-            format!("{pct}% · power connected"),
+            tr(Text::Charging),
+            tr(Text::PowerConnected),
             Symbol::BatteryCharging,
             "#22c55e",
         ),
         BatteryEvent::Unplugged => (
-            "On battery".to_string(),
-            format!("{pct}% remaining"),
+            tr(Text::OnBattery),
+            tr(Text::Remaining),
             Symbol::Battery,
             "#737373",
         ),
         BatteryEvent::Full => (
-            "Fully charged".to_string(),
-            "You can unplug the charger".to_string(),
+            tr(Text::FullyCharged),
+            tr(Text::Unplug),
             Symbol::BatteryFull,
             "#22c55e",
         ),
         BatteryEvent::Low(t) => (
-            format!("Battery at {}%", t as u32),
-            "Connect a charger soon".to_string(),
+            text(lang, Text::BatteryAt).replace("{pct}", &(t as u32).to_string()),
+            tr(Text::ChargeSoon),
             if t <= 10.0 {
                 Symbol::BatteryWarning
             } else {
@@ -245,7 +247,8 @@ pub fn spawn(app: AppHandle) {
                 if let (Some(prev), Some(cur)) = (&prev_battery, &stats.battery) {
                     if st.read(|i| i.settings.battery_alerts) {
                         for e in battery_events(prev, cur) {
-                            let (input, symbol) = event_notification(e, cur);
+                            let lang = st.read(|i| i.ui_language);
+                            let (input, symbol) = event_notification(e, cur, lang);
                             if let Err(e) = actions::push_notification(
                                 &app,
                                 input,
@@ -335,7 +338,7 @@ mod tests {
             BatteryEvent::Full,
             BatteryEvent::Low(10.0),
         ] {
-            let (input, symbol) = event_notification(e, &b(10.0, PowerState::Discharging));
+            let (input, symbol) = event_notification(e, &b(10.0, PowerState::Discharging), "en");
             assert!(center
                 .push(input, Some(symbol), NotificationSource::System, 0)
                 .is_ok());

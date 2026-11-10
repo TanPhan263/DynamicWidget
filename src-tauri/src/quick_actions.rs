@@ -86,11 +86,17 @@ fn record(app: &AppHandle) -> AppResult<Option<bool>> {
     if let Some(path) = recording.map(|r| r.finish()).transpose()?.flatten() {
         let _ = Command::new("open").arg("-R").arg(&path).spawn();
         let name = path.file_name().map(|n| n.to_string_lossy().into_owned());
+        let lang = actions::state(app).read(|i| i.ui_language);
         let _ = actions::push_notification(
             app,
             NotificationInput {
-                title: "Screen recording saved".into(),
-                body: name.map(|n| format!("Desktop · {n}")),
+                title: crate::i18n::text(lang, crate::i18n::Text::RecordingSaved).into(),
+                body: name.map(|n| {
+                    format!(
+                        "{} · {n}",
+                        crate::i18n::text(lang, crate::i18n::Text::Desktop)
+                    )
+                }),
                 app: Some("Islet".into()),
                 icon: None,
                 accent: Some("#dc2626".into()),

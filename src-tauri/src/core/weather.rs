@@ -95,8 +95,28 @@ fn first(list: &[Text]) -> String {
         .unwrap_or_default()
 }
 
-pub fn parse(body: &str) -> Result<Weather, String> {
+/// wttr.in's own code for a language, where it differs from ours.
+fn wttr_lang(lang: &str) -> &str {
+    if lang == "zh" {
+        "zh-cn"
+    } else {
+        lang
+    }
+}
+
+/// `lang` other than English also reads wttr.in's translated description.
+pub fn parse(body: &str, lang: &str) -> Result<Weather, String> {
     let w: Wttr = serde_json::from_str(body).map_err(|e| format!("unexpected response: {e}"))?;
+    // With `lang=xx`, each condition also carries `"lang_xx": [{"value": …}]`.
+    let translated = (lang != "en")
+        .then(|| serde_json::from_str::<serde_json::Value>(body).ok())
+        .flatten()
+        .and_then(|v| {
+            v["current_condition"][0][format!("lang_{}", wttr_lang(lang))][0]["value"]
+                .as_str()
+                .map(|s| s.trim().to_string())
+        })
+        .filter(|s| !s.is_empty());
     let now = w.current_condition.first().ok_or("no current weather")?;
     let days = w
         .weather
@@ -128,30 +148,36 @@ pub fn parse(body: &str) -> Result<Weather, String> {
         temp_c: num(&now.temp_c)?,
         feels_like_c: num(&now.feels_like_c)?,
         code: num(&now.weather_code)? as u32,
-        description: first(&now.weather_desc),
+        description: translated.unwrap_or_else(|| first(&now.weather_desc)),
         days,
     })
 }
 
-static CACHE: Mutex<Option<(Weather, Instant)>> = Mutex::new(None);
+static CACHE: Mutex<Option<(Weather, Instant, &'static str)>> = Mutex::new(None);
 
-/// The current weather, fetched at most once every 15 minutes. Blocks.
-pub fn current() -> AppResult<Weather> {
+/// The current weather in `lang`, fetched at most once every 15 minutes
+/// (or when the language changes). Blocks.
+pub fn current(lang: &'static str) -> AppResult<Weather> {
     let mut cache = CACHE.lock().unwrap_or_else(|e| e.into_inner());
-    if let Some((w, at)) = cache.as_ref() {
-        if at.elapsed() < FRESH {
+    if let Some((w, at, cached_lang)) = cache.as_ref() {
+        if at.elapsed() < FRESH && *cached_lang == lang {
             return Ok(w.clone());
         }
     }
+    let url = if lang == "en" {
+        URL.to_string()
+    } else {
+        format!("{URL}&lang={}", wttr_lang(lang))
+    };
     let fetched = market::agent()
-        .get(URL)
+        .get(&url)
         .call()
         .map_err(|e| e.to_string())
         .and_then(|r| r.into_string().map_err(|e| e.to_string()))
-        .and_then(|body| parse(&body));
+        .and_then(|body| parse(&body, lang));
     match fetched {
         Ok(w) => {
-            *cache = Some((w.clone(), Instant::now()));
+            *cache = Some((w.clone(), Instant::now(), lang));
             Ok(w)
         }
         Err(e) => {
@@ -159,7 +185,7 @@ pub fn current() -> AppResult<Weather> {
             // An older reading beats none while offline.
             cache
                 .as_ref()
-                .map(|(w, _)| w.clone())
+                .map(|(w, _, _)| w.clone())
                 .ok_or_else(|| AppError::Platform(format!("weather unavailable: {e}")))
         }
     }
@@ -171,7 +197,8 @@ mod tests {
 
     const SAMPLE: &str = r#"{
       "current_condition": [{"temp_C": "30", "FeelsLikeC": "34", "weatherCode": "176",
-        "weatherDesc": [{"value": "Patchy rain nearby"}], "humidity": "65"}],
+        "weatherDesc": [{"value": "Patchy rain nearby"}], "lang_vi": [{"value": "Có mưa rải rác gần đó"}],
+        "humidity": "65"}],
       "nearest_area": [{"areaName": [{"value": "An Phu Dong"}], "country": [{"value": "Vietnam"}]}],
       "weather": [
         {"date": "2026-11-10", "maxtempC": "32", "mintempC": "24",
@@ -183,7 +210,7 @@ mod tests {
 
     #[test]
     fn reads_wttr() {
-        let w = parse(SAMPLE).unwrap();
+        let w = parse(SAMPLE, "en").unwrap();
         assert_eq!(w.place, "An Phu Dong");
         assert_eq!((w.temp_c, w.feels_like_c, w.code), (30.0, 34.0, 176));
         assert_eq!(w.description, "Patchy rain nearby");
@@ -195,15 +222,32 @@ mod tests {
 
     #[test]
     fn rejects_garbage() {
-        assert!(parse("Unknown location").is_err());
-        assert!(parse(r#"{"current_condition": [], "nearest_area": [], "weather": []}"#).is_err());
+        assert!(parse("Unknown location", "en").is_err());
+        assert!(parse(
+            r#"{"current_condition": [], "nearest_area": [], "weather": []}"#,
+            "en"
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn reads_the_translated_description_when_there_is_one() {
+        assert_eq!(
+            parse(SAMPLE, "vi").unwrap().description,
+            "Có mưa rải rác gần đó"
+        );
+        // No Japanese in the sample: English stands in.
+        assert_eq!(
+            parse(SAMPLE, "ja").unwrap().description,
+            "Patchy rain nearby"
+        );
     }
 
     /// Asks wttr.in for real; run with `cargo test -- --ignored`.
     #[test]
     #[ignore]
     fn live_weather_loads() {
-        let w = current().unwrap();
+        let w = current("vi").unwrap();
         assert!(!w.days.is_empty());
         println!("{w:?}");
     }

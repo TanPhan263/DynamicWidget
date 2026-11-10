@@ -1,5 +1,7 @@
 // Formatting helpers shared by the island and Settings pages.
 
+import { getLanguage, t } from "./i18n";
+
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /** "9:05" or "09:05" (24-hour), plus the period for 12-hour clocks. */
@@ -7,7 +9,11 @@ export function clockParts(d: Date, use24: boolean): { time: string; period: str
   const h = d.getHours();
   const m = pad(d.getMinutes());
   if (use24) return { time: `${pad(h)}:${m}`, period: "" };
-  return { time: `${h % 12 || 12}:${m}`, period: h < 12 ? "AM" : "PM" };
+  // "PM", "午後", "CH"…: the day period as the current language writes it.
+  const period = new Intl.DateTimeFormat(getLanguage(), { hour: "numeric", hour12: true })
+    .formatToParts(d)
+    .find((p) => p.type === "dayPeriod")?.value;
+  return { time: `${h % 12 || 12}:${m}`, period: period ?? (h < 12 ? "AM" : "PM") };
 }
 
 /** A price with sensible precision: "342.37", "74,328" or "0.0412". */
@@ -18,12 +24,12 @@ export function shortSymbol(symbol: string): string {
 
 export function formatPrice(price: number): string {
   const digits = Math.abs(price) >= 10_000 ? 0 : Math.abs(price) >= 1 ? 2 : 4;
-  return price.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return price.toLocaleString(getLanguage(), { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
 /** "47.5M" or "622K": volume in the locale's short form. */
 export function formatVolume(v: number): string {
-  return v.toLocaleString(undefined, { notation: "compact", maximumFractionDigits: 1 });
+  return v.toLocaleString(getLanguage(), { notation: "compact", maximumFractionDigits: 1 });
 }
 
 /** "+1.25%" or "−0.40%", with a real minus sign. */
@@ -44,10 +50,10 @@ export function formatDuration(ms: number): string {
 /** Short age of a notification: "now", "5m", "3h", "2d". */
 export function relativeTime(then: number, now: number): string {
   const s = Math.max(0, Math.floor((now - then) / 1000));
-  if (s < 60) return "now";
-  if (s < 3600) return `${Math.floor(s / 60)}m`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h`;
-  return `${Math.floor(s / 86400)}d`;
+  if (s < 60) return t("time.now");
+  if (s < 3600) return t("time.minutes", { n: Math.floor(s / 60) });
+  if (s < 86400) return t("time.hours", { n: Math.floor(s / 3600) });
+  return t("time.days", { n: Math.floor(s / 86400) });
 }
 
 export function formatBytes(bytes: number): string {
@@ -57,8 +63,15 @@ export function formatBytes(bytes: number): string {
 }
 
 export function formatMinutes(min: number): string {
-  if (min < 60) return `${min} min`;
   const h = Math.floor(min / 60);
   const m = min % 60;
+  // Other languages write their own units ("3時間 20分", "3 Std., 20 Min.").
+  if (getLanguage() !== "en") {
+    const unit = (n: number, u: "hour" | "minute") =>
+      new Intl.NumberFormat(getLanguage(), { style: "unit", unit: u, unitDisplay: "short" }).format(n);
+    if (min < 60) return unit(min, "minute");
+    return m ? `${unit(h, "hour")} ${unit(m, "minute")}` : unit(h, "hour");
+  }
+  if (min < 60) return `${min} min`;
   return m ? `${h} h ${m} min` : `${h} h`;
 }

@@ -18,16 +18,17 @@ import {
   NowPlayingSection,
   WidgetsSection,
 } from "./sections";
+import { resolveLanguage, setLanguage, t, tSplit, useLanguage } from "../shared/i18n";
 import { useSnapshot } from "./useSnapshot";
 
 const TABS = [
-  { id: "general", label: "General", icon: Settings2, description: "Appearance, behavior and startup." },
-  { id: "notifications", label: "Notifications", icon: Bell, description: "Delivery, timing and battery alerts." },
-  { id: "music", label: "Now playing", icon: Music2, description: "Music bars and track titles." },
-  { id: "widgets", label: "Widgets", icon: LayoutGrid, description: "Choose and arrange the widgets in the panel." },
-  { id: "browser", label: "Browser", icon: Globe, description: "Website notifications through the browser extension." },
-  { id: "api", label: "API", icon: Code, description: "Send notifications from scripts and tools." },
-  { id: "about", label: "About", icon: Info, description: "Version information and reset." },
+  { id: "general", label: "nav.general", icon: Settings2, description: "nav.generalDesc" },
+  { id: "notifications", label: "nav.notifications", icon: Bell, description: "nav.notificationsDesc" },
+  { id: "music", label: "nav.music", icon: Music2, description: "nav.musicDesc" },
+  { id: "widgets", label: "nav.widgets", icon: LayoutGrid, description: "nav.widgetsDesc" },
+  { id: "browser", label: "nav.browser", icon: Globe, description: "nav.browserDesc" },
+  { id: "api", label: "nav.api", icon: Code, description: "nav.apiDesc" },
+  { id: "about", label: "nav.about", icon: Info, description: "nav.aboutDesc" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -55,14 +56,19 @@ export function App() {
   useEffect(() => {
     document.documentElement.classList.toggle("vibrant", vibrant);
   }, [vibrant]);
+  // Redraws everything when the language changes.
+  useLanguage();
+  const language = snap?.settings.language;
+  useEffect(() => setLanguage(resolveLanguage(language)), [language]);
 
   if (!snap) {
-    return <div className="grid h-dvh place-items-center text-sm text-muted-foreground">Loading…</div>;
+    return <div className="grid h-dvh place-items-center text-sm text-muted-foreground">{t("common.loading")}</div>;
   }
 
   const { settings } = snap;
   const shortcut = formatAccelerator(settings.toggleShortcut, snap.platform === "macos");
-  const current = TABS.find((t) => t.id === tab)!;
+  const openHint = tSplit(settings.expandTrigger === "hover" ? "welcome.openHover" : "welcome.openClick", "shortcut");
+  const current = TABS.find((item) => item.id === tab)!;
 
   return (
     <div className="flex h-dvh overflow-hidden">
@@ -80,16 +86,16 @@ export function App() {
             <div className="text-xs text-muted-foreground">v{snap.version}</div>
           </div>
         </div>
-        <nav aria-label="Settings sections" className="flex flex-col gap-0.5">
-          {TABS.map((t) => {
-            const active = tab === t.id;
+        <nav aria-label={t("nav.sections")} className="flex flex-col gap-0.5">
+          {TABS.map((item) => {
+            const active = tab === item.id;
             return (
               <button
-                key={t.id}
+                key={item.id}
                 type="button"
                 aria-current={active ? "page" : undefined}
-                aria-label={t.label}
-                onClick={() => setTab(t.id)}
+                aria-label={t(item.label)}
+                onClick={() => setTab(item.id)}
                 className={cn(
                   "relative flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
                   active ? "font-medium text-foreground" : "text-foreground/65 hover:text-foreground",
@@ -102,8 +108,8 @@ export function App() {
                     transition={{ type: "spring", stiffness: 500, damping: 38 }}
                   />
                 )}
-                <t.icon className={cn("relative size-4 shrink-0", active ? "text-foreground" : "text-foreground/50")} strokeWidth={1.75} aria-hidden="true" />
-                <span className="relative hidden sm:inline">{t.label}</span>
+                <item.icon className={cn("relative size-4 shrink-0", active ? "text-foreground" : "text-foreground/50")} strokeWidth={1.75} aria-hidden="true" />
+                <span className="relative hidden sm:inline">{t(item.label)}</span>
               </button>
             );
           })}
@@ -111,11 +117,11 @@ export function App() {
         <div className="mt-auto flex items-center justify-center gap-2 rounded-md px-1 py-2 sm:justify-between sm:px-2.5">
           <label htmlFor="sidebar-dnd" className="hidden items-center gap-2 text-[13px] text-foreground/65 sm:flex">
             <Moon className="size-4" aria-hidden="true" />
-            Do Not Disturb
+            {t("common.doNotDisturb")}
           </label>
           <Switch
             id="sidebar-dnd"
-            aria-label="Do Not Disturb"
+            aria-label={t("common.doNotDisturb")}
             checked={settings.doNotDisturb}
             onCheckedChange={(v) => run(() => setDoNotDisturb(v))}
           />
@@ -127,8 +133,8 @@ export function App() {
         {vibrant && <div className="absolute inset-x-0 top-0 h-8" data-tauri-drag-region />}
         <div className="mx-auto max-w-2xl space-y-7 px-6 py-9 sm:px-10">
           <header className="space-y-1 px-1">
-            <h1 className="text-[26px] leading-tight font-semibold tracking-tight">{current.label}</h1>
-            <p className="text-[13px] text-muted-foreground">{current.description}</p>
+            <h1 className="text-[26px] leading-tight font-semibold tracking-tight">{t(current.label)}</h1>
+            <p className="text-[13px] text-muted-foreground">{t(current.description)}</p>
           </header>
 
           <AnimatePresence initial={false}>
@@ -141,19 +147,20 @@ export function App() {
                 <Card className="space-y-3 p-5">
                   <div className="flex items-center gap-2 font-medium">
                     <Sparkles className="size-4" aria-hidden="true" />
-                    Welcome to Islet
+                    {t("welcome.title")}
                   </div>
                   <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                    <li>The island sits at the top center of your screen{snap.layout.notch ? ", around the notch" : ""}.</li>
+                    <li>{t(snap.layout.notch ? "welcome.positionNotch" : "welcome.position")}</li>
                     <li>
-                      {settings.expandTrigger === "hover" ? "Hover over it" : "Click it"} or press <Kbd>{shortcut}</Kbd> to open the
-                      panel with widgets and notifications.
+                      {openHint[0]}
+                      <Kbd>{shortcut}</Kbd>
+                      {openHint[1]}
                     </li>
-                    <li>New notifications appear briefly. Timers and unread counts stay visible beside the island.</li>
-                    <li>Scripts can send notifications through the local API.</li>
+                    <li>{t("welcome.alerts")}</li>
+                    <li>{t("welcome.api")}</li>
                   </ul>
                   <Button size="sm" onClick={() => run(completeOnboarding)}>
-                    Got it
+                    {t("welcome.done")}
                   </Button>
                 </Card>
               </motion.div>
@@ -210,7 +217,7 @@ export function App() {
 
 function DismissButton({ onClick }: { onClick: () => void }) {
   return (
-    <Button variant="ghost" size="icon-sm" className="absolute top-1.5 right-1.5 size-7" aria-label="Dismiss" onClick={onClick}>
+    <Button variant="ghost" size="icon-sm" className="absolute top-1.5 right-1.5 size-7" aria-label={t("common.dismiss")} onClick={onClick}>
       <X aria-hidden="true" />
     </Button>
   );

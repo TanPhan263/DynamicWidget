@@ -1,4 +1,5 @@
 import { useReducedMotion } from "motion/react";
+import { t } from "../shared/i18n";
 import { useEffect, useState } from "react";
 
 /** Gradient presets for the bars: base color, then tip color. */
@@ -47,7 +48,7 @@ export function MusicBars({ count, height, colors, flipped = false, barWidth = 3
       className="flex"
       style={{ height, gap, alignItems: flipped ? "flex-start" : "flex-end" }}
       role="img"
-      aria-label="Playing sound"
+      aria-label={t("music.playing")}
     >
       {levels.map((level, i) => (
         <span

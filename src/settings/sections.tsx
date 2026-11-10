@@ -31,6 +31,7 @@ import { StylePicker } from "./StylePicker";
 import { ThemePicker } from "./ThemePicker";
 import { readPicture, useBackgroundImages } from "../shared/background";
 import { CropDialog } from "./CropDialog";
+import { LANGUAGES, t, type LanguageSetting, type MessageKey } from "../shared/i18n";
 import type { SnapshotApi } from "./useSnapshot";
 import { WidgetList } from "./WidgetList";
 
@@ -89,11 +90,11 @@ function SizeSlider({ label, range, value, onChange }: SizeSliderProps) {
 
   return (
     <div className="flex items-center gap-2">
-      <Button variant="ghost" size="icon-sm" aria-label={`Smaller ${label}`} disabled={size <= min} onClick={() => nudge(-SIZE_STEP)}>
+      <Button variant="ghost" size="icon-sm" aria-label={t("size.smaller", { name: label })} disabled={size <= min} onClick={() => nudge(-SIZE_STEP)}>
         <Minus aria-hidden="true" />
       </Button>
       <Slider
-        aria-label={`${label} size`}
+        aria-label={t("size.slider", { name: label })}
         className="w-40"
         min={min}
         max={max}
@@ -102,13 +103,13 @@ function SizeSlider({ label, range, value, onChange }: SizeSliderProps) {
         onValueChange={([v]) => preview(v)}
         onValueCommit={([v]) => commit(v)}
       />
-      <Button variant="ghost" size="icon-sm" aria-label={`Larger ${label}`} disabled={size >= max} onClick={() => nudge(SIZE_STEP)}>
+      <Button variant="ghost" size="icon-sm" aria-label={t("size.larger", { name: label })} disabled={size >= max} onClick={() => nudge(SIZE_STEP)}>
         <Plus aria-hidden="true" />
       </Button>
       <button
         type="button"
-        title="Reset to 100%"
-        aria-label={`${label} ${size}%, reset to 100%`}
+        title={t("size.resetTitle")}
+        aria-label={t("size.reset", { name: label, size })}
         onClick={() => commit(100)}
         className="w-11 rounded-md py-1 text-right text-sm text-muted-foreground tabular-nums outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50"
       >
@@ -126,29 +127,25 @@ export function GeneralSection({ snap, api }: Props) {
   const isMac = snap.platform === "macos";
   return (
     <div className="space-y-8">
-      <Section title="Style" description="How the island appears at the top of the screen.">
+      <Section title={t("general.style")} description={t("general.styleDesc")}>
         <StylePicker
           value={s.islandStyle}
           hasNotch={snap.layout.notch !== null}
           onChange={(islandStyle) => api.update({ islandStyle })}
         />
         <RowCard>
-          <Row label="Island size" description="Scales the closed island and notification pop-ups. The notch keeps its physical size.">
-            <SizeSlider label="Island" range={ISLAND_SIZE_RANGE} value={s.islandSize} onChange={(islandSize) => api.update({ islandSize })} />
+          <Row label={t("general.islandSize")} description={t("general.islandSizeDesc")}>
+            <SizeSlider label={t("size.island")} range={ISLAND_SIZE_RANGE} value={s.islandSize} onChange={(islandSize) => api.update({ islandSize })} />
           </Row>
-          <Row label="Panel size" description="Scales the expanded panel with widgets and notifications.">
-            <SizeSlider label="Panel" range={PANEL_SIZE_RANGE} value={s.panelSize} onChange={(panelSize) => api.update({ panelSize })} />
+          <Row label={t("general.panelSize")} description={t("general.panelSizeDesc")}>
+            <SizeSlider label={t("size.panel")} range={PANEL_SIZE_RANGE} value={s.panelSize} onChange={(panelSize) => api.update({ panelSize })} />
           </Row>
         </RowCard>
       </Section>
 
       <Section
-        title="Theme"
-        description={
-          s.islandStyle === "notch"
-            ? "Background of the expanded panel. With the Notch style, the closed island stays black to blend with the notch, except with Picture."
-            : "Background of the island and the expanded panel."
-        }
+        title={t("general.theme")}
+        description={s.islandStyle === "notch" ? t("general.themeDescNotch") : t("general.themeDesc")}
       >
         <ThemePicker
           value={s.theme}
@@ -182,32 +179,47 @@ export function GeneralSection({ snap, api }: Props) {
         )}
       </Section>
 
-      <Section title="Behavior">
+      <Section title={t("general.behavior")}>
         <RowCard>
-          <Row label="Open the panel on" description="With Hover, the panel opens as soon as the pointer rests on the island.">
+          <Row label={t("general.language")} description={t("general.languageDesc")} htmlFor="language">
+            <select
+              id="language"
+              value={s.language}
+              onChange={(e) => api.update({ language: e.target.value as LanguageSetting })}
+              className="h-8 rounded-md border bg-background px-2 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            >
+              <option value="system">{t("general.languageSystem")}</option>
+              {Object.entries(LANGUAGES).map(([code, name]) => (
+                <option key={code} value={code}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </Row>
+          <Row label={t("general.openOn")} description={t("general.openOnDesc")}>
             <ToggleGroup
               type="single"
-              aria-label="Open the panel on"
+              aria-label={t("general.openOn")}
               value={s.expandTrigger}
               onValueChange={(v) => v && api.update({ expandTrigger: v as ExpandTrigger })}
             >
-              <ToggleGroupItem value="hover" aria-label="Hover">
+              <ToggleGroupItem value="hover" aria-label={t("general.hover")}>
                 <MousePointer2 aria-hidden="true" />
-                Hover
+                {t("general.hover")}
               </ToggleGroupItem>
-              <ToggleGroupItem value="click" aria-label="Click">
+              <ToggleGroupItem value="click" aria-label={t("general.click")}>
                 <Pointer aria-hidden="true" />
-                Click
+                {t("general.click")}
               </ToggleGroupItem>
             </ToggleGroup>
           </Row>
-          <Row label="Keyboard shortcut" description="Opens or closes the panel from any app." htmlFor="shortcut">
+          <Row label={t("general.shortcut")} description={t("general.shortcutDesc")} htmlFor="shortcut">
             <ShortcutInput id="shortcut" value={s.toggleShortcut} isMac={isMac} onChange={(toggleShortcut) => api.update({ toggleShortcut })} />
           </Row>
-          <Row label="Use 24-hour time" htmlFor="clock24">
+          <Row label={t("general.clock24")} htmlFor="clock24">
             <Switch id="clock24" checked={s.use24HourClock} onCheckedChange={(use24HourClock) => api.update({ use24HourClock })} />
           </Row>
-          <Row label="Launch at login" htmlFor="login">
+          <Row label={t("general.login")} htmlFor="login">
             <Switch id="login" checked={s.startAtLogin} onCheckedChange={(startAtLogin) => api.update({ startAtLogin })} />
           </Row>
         </RowCard>
@@ -229,15 +241,15 @@ export function NotificationsSection({ snap, api }: Props) {
 
   return (
     <div className="space-y-8">
-      <Section title="Delivery">
+      <Section title={t("notif.delivery")}>
         <RowCard>
-          <Row label="Do Not Disturb" description="Notifications are still collected in the list, but the island stays closed." htmlFor="dnd">
+          <Row label={t("common.doNotDisturb")} description={t("notif.dndDesc")} htmlFor="dnd">
             <Switch id="dnd" checked={s.doNotDisturb} onCheckedChange={(doNotDisturb) => api.update({ doNotDisturb })} />
           </Row>
-          <Row label="Pop-up duration" description={`${seconds} seconds`} htmlFor="seconds">
+          <Row label={t("notif.duration")} description={t("notif.seconds", { n: seconds })} htmlFor="seconds">
             <Slider
               id="seconds"
-              aria-label="Pop-up duration"
+              aria-label={t("notif.duration")}
               className="w-44"
               min={NOTIFICATION_SECONDS_RANGE[0]}
               max={NOTIFICATION_SECONDS_RANGE[1]}
@@ -247,13 +259,13 @@ export function NotificationsSection({ snap, api }: Props) {
               onValueCommit={([v]) => api.update({ notificationSeconds: v })}
             />
           </Row>
-          <Row label="Battery alerts" description="Notify when the charger is connected or removed, when the battery is full, and when it runs low." htmlFor="battery">
+          <Row label={t("notif.battery")} description={t("notif.batteryDesc")} htmlFor="battery">
             <Switch id="battery" checked={s.batteryAlerts} onCheckedChange={(batteryAlerts) => api.update({ batteryAlerts })} />
           </Row>
         </RowCard>
       </Section>
 
-      <Section title="Test" description="Send a sample notification to confirm everything works.">
+      <Section title={t("notif.test")} description={t("notif.testDesc")}>
         <Button
           variant="outline"
           onClick={() =>
@@ -273,7 +285,7 @@ export function NotificationsSection({ snap, api }: Props) {
               className="inline-flex items-center gap-2"
             >
               {sent ? <Check aria-hidden="true" /> : <Send aria-hidden="true" />}
-              {sent ? "Sent" : "Send test notification"}
+              {sent ? t("notif.sent") : t("notif.send")}
             </motion.span>
           </AnimatePresence>
         </Button>
@@ -292,8 +304,8 @@ function StocksEditor({ snap, api }: Props) {
 
   const add = () => {
     const symbol = normalizeSymbol(draft);
-    if (!symbol) return setProblem("Use a ticker symbol such as AAPL, BTC-USD or VNM.VN");
-    if (stocks.includes(symbol)) return setProblem(`${symbol} is already in the list`);
+    if (!symbol) return setProblem(t("stocks.badSymbol"));
+    if (stocks.includes(symbol)) return setProblem(t("stocks.duplicate", { symbol }));
     setProblem(null);
     setDraft("");
     api.update({ stocks: [...stocks, symbol] });
@@ -307,8 +319,8 @@ function StocksEditor({ snap, api }: Props) {
 
   return (
     <Section
-      title="Stocks"
-      description={`Symbols as written on Yahoo Finance: stocks (AAPL, VNM.VN), crypto (BTC-USD), indexes (^GSPC) and currencies (EURUSD=X). Up to ${MAX_SYMBOLS}, with prices streaming live. Show up to ${MAX_ISLAND_STOCKS} on the island, which takes turns showing them while closed.`}
+      title={t("widget.stocks")}
+      description={t("stocks.desc", { max: MAX_SYMBOLS, island: MAX_ISLAND_STOCKS })}
     >
       <RowCard>
         {stocks.length > 0 && (
@@ -320,22 +332,22 @@ function StocksEditor({ snap, api }: Props) {
                 <li key={symbol} className="flex items-center gap-3 py-2.5 pr-3 pl-5 text-sm">
                   <span className="w-20 font-mono text-xs font-medium">{symbol}</span>
                   <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                    {q?.quote ? `${q.quote.name} · ${q.quote.price.toLocaleString()} ${q.quote.currency}` : (q?.error ?? "Loading…")}
+                    {q?.quote ? `${q.quote.name} · ${q.quote.price.toLocaleString()} ${q.quote.currency}` : (q?.error ?? t("common.loading"))}
                   </span>
                   <Button
                     variant={shown ? "secondary" : "ghost"}
                     size="sm"
                     aria-pressed={shown}
-                    aria-label={`Show ${symbol} on island`}
+                    aria-label={t("stocks.showOnIsland", { symbol })}
                     disabled={!shown && islandFull}
-                    title={!shown && islandFull ? `The island shows up to ${MAX_ISLAND_STOCKS}` : undefined}
+                    title={!shown && islandFull ? t("stocks.islandLimit", { n: MAX_ISLAND_STOCKS }) : undefined}
                     onClick={() => toggleIsland(symbol)}
                     className={cn("h-7 text-xs", !shown && "text-muted-foreground")}
                   >
                     <Pin aria-hidden="true" fill={shown ? "currentColor" : "none"} />
-                    On island
+                    {t("stocks.onIsland")}
                   </Button>
-                  <Button variant="ghost" size="icon-sm" aria-label={`Remove ${symbol}`} onClick={() => remove(symbol)}>
+                  <Button variant="ghost" size="icon-sm" aria-label={t("stocks.remove", { symbol })} onClick={() => remove(symbol)}>
                     <X aria-hidden="true" />
                   </Button>
                 </li>
@@ -352,8 +364,8 @@ function StocksEditor({ snap, api }: Props) {
             }}
           >
             <Input
-              aria-label="Add symbol"
-              placeholder={full ? `Up to ${MAX_SYMBOLS} symbols` : "Add symbol, e.g. TSLA"}
+              aria-label={t("stocks.addLabel")}
+              placeholder={full ? t("stocks.full", { n: MAX_SYMBOLS }) : t("stocks.placeholder")}
               value={draft}
               disabled={full}
               spellCheck={false}
@@ -368,7 +380,7 @@ function StocksEditor({ snap, api }: Props) {
             />
             <Button type="submit" variant="outline" disabled={full || !draft.trim()}>
               <Plus aria-hidden="true" />
-              Add
+              {t("common.add")}
             </Button>
           </form>
           {problem && (
@@ -386,8 +398,8 @@ export function WidgetsSection({ snap, api }: Props) {
   return (
     <div className="space-y-8">
       <Section
-        title="Widgets"
-        description="Widgets appear in the expanded panel on a three-column grid. Sizes are columns × rows. In the panel, drag a widget to move it or drag its corner to resize it."
+        title={t("nav.widgets")}
+        description={t("widgets.desc")}
       >
         <RowCard>
           <WidgetList
@@ -410,8 +422,8 @@ export function NowPlayingSection({ snap, api }: Props) {
   return (
     <div className="space-y-8">
       <Section
-        title="Music bars"
-        description="Animated bars appear beside the island while any app plays audio, including music, videos and calls. Track titles come from Spotify and Apple Music (macOS asks once for permission to control each) and from websites through the Islet browser extension."
+        title={t("music.title")}
+        description={t("music.desc")}
       >
         <div
           className={cn(
@@ -423,34 +435,34 @@ export function NowPlayingSection({ snap, api }: Props) {
           <MusicBars count={24} height={36} barWidth={5} colors={bars.colors} flipped={bars.flipped} />
         </div>
         <RowCard>
-          <Row label="Show music bars" htmlFor="bars-on">
+          <Row label={t("music.show")} htmlFor="bars-on">
             <Switch id="bars-on" checked={bars.enabled} onCheckedChange={(enabled) => set({ enabled })} />
           </Row>
-          <Row label="Position" description="When placed below the island, the track title appears under the bars.">
+          <Row label={t("music.position")} description={t("music.positionDesc")}>
             <ToggleGroup
               type="single"
-              aria-label="Position"
+              aria-label={t("music.position")}
               value={bars.position}
               onValueChange={(v) => v && set({ position: v as BarsPosition })}
             >
-              <ToggleGroupItem value="inside">In the island</ToggleGroupItem>
-              <ToggleGroupItem value="below">Below the island</ToggleGroupItem>
+              <ToggleGroupItem value="inside">{t("music.inside")}</ToggleGroupItem>
+              <ToggleGroupItem value="below">{t("music.below")}</ToggleGroupItem>
             </ToggleGroup>
           </Row>
-          <Row label="Flip vertically" description="Bars extend downward instead of upward." htmlFor="bars-flipped">
+          <Row label={t("music.flip")} description={t("music.flipDesc")} htmlFor="bars-flipped">
             <Switch id="bars-flipped" checked={bars.flipped} onCheckedChange={(flipped) => set({ flipped })} />
           </Row>
-          <Row label="Show track title" description="Displays the track title next to the bars. With a notch, each new track is announced once instead." htmlFor="bars-title">
+          <Row label={t("music.showTitle")} description={t("music.showTitleDesc")} htmlFor="bars-title">
             <Switch id="bars-title" checked={bars.showTitle} onCheckedChange={(showTitle) => set({ showTitle })} />
           </Row>
-          <Row label="Colors" description="Choose a preset or set a custom gradient, from base to tip.">
+          <Row label={t("music.colors")} description={t("music.colorsDesc")}>
             <div className="flex flex-wrap items-center justify-end gap-2">
               {BAR_PRESETS.map((p) => (
                 <button
                   key={p.name}
                   type="button"
-                  title={p.name}
-                  aria-label={p.name}
+                  title={t(`music.preset.${p.name}` as MessageKey)}
+                  aria-label={t(`music.preset.${p.name}` as MessageKey)}
                   aria-pressed={same(p.colors, bars.colors)}
                   onClick={() => set({ colors: p.colors })}
                   className="size-6 rounded-full ring-1 ring-border ring-offset-2 ring-offset-background outline-none aria-pressed:ring-2 aria-pressed:ring-foreground focus-visible:ring-2 focus-visible:ring-ring"
@@ -459,14 +471,14 @@ export function NowPlayingSection({ snap, api }: Props) {
               ))}
               <input
                 type="color"
-                aria-label="Base color"
+                aria-label={t("music.baseColor")}
                 value={bars.colors[0]}
                 onChange={(e) => set({ colors: [e.target.value, bars.colors[1]] })}
                 className="size-7 cursor-pointer rounded-md border bg-transparent"
               />
               <input
                 type="color"
-                aria-label="Tip color"
+                aria-label={t("music.tipColor")}
                 value={bars.colors[1]}
                 onChange={(e) => set({ colors: [bars.colors[0], e.target.value] })}
                 className="size-7 cursor-pointer rounded-md border bg-transparent"
@@ -480,7 +492,7 @@ export function NowPlayingSection({ snap, api }: Props) {
 }
 
 /** A button that copies text and says so for a moment. */
-function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
+function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     if (!copied) return;
@@ -499,16 +511,12 @@ function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) 
       }}
     >
       {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
-      {copied ? "Copied" : label}
+      {copied ? t("common.copied") : t("common.copy")}
     </Button>
   );
 }
 
-const STEPS = [
-  "Open the extensions page in Chrome, Edge, Brave or Arc (chrome://extensions) and turn on Developer mode.",
-  "Click Load unpacked and choose the extension folder.",
-  "Click the Islet icon in the browser toolbar, paste the pairing token and click Connect.",
-];
+const STEPS: MessageKey[] = ["browser.step1", "browser.step2", "browser.step3"];
 
 export function BrowserSection({ snap, api }: Props) {
   const [shown, setShown] = useState(false);
@@ -518,12 +526,12 @@ export function BrowserSection({ snap, api }: Props) {
   return (
     <div className="space-y-8">
       <Section
-        title="Website notifications"
-        description="The Islet browser extension forwards notifications from Gmail, Slack, Facebook, Discord and any other site allowed to send notifications."
+        title={t("browser.title")}
+        description={t("browser.desc")}
       >
         {!snap.settings.apiEnabled && (
           <p role="alert" className="text-sm text-amber-600 dark:text-amber-400">
-            The extension connects through the local API. Enable the API to use it.
+            {t("browser.apiOff")}
           </p>
         )}
         <RowCard>
@@ -533,41 +541,39 @@ export function BrowserSection({ snap, api }: Props) {
                 <span className="grid size-5 shrink-0 place-items-center rounded-full bg-muted text-xs font-medium tabular-nums">
                   {i + 1}
                 </span>
-                <span className="text-muted-foreground">{step}</span>
+                <span className="text-muted-foreground">{t(step)}</span>
               </li>
             ))}
           </ol>
           <Row
-            label="Extension folder"
-            description={folder ? <span className="font-mono text-xs break-all">{folder}</span> : "Load this folder in step 2."}
+            label={t("browser.folder")}
+            description={folder ? <span className="font-mono text-xs break-all">{folder}</span> : t("browser.folderDesc")}
           >
             <Button variant="outline" size="sm" onClick={() => api.run(async () => setFolder(await openExtensionFolder()))}>
               <FolderOpen aria-hidden="true" />
-              Show folder
+              {t("browser.showFolder")}
             </Button>
           </Row>
-          <Row label="Pairing token" description="Only an extension with this token can send notifications to Islet.">
+          <Row label={t("browser.token")} description={t("browser.tokenDesc")}>
             <div className="flex items-center gap-2">
-              <code className="w-[18.5rem] truncate rounded-md border bg-muted/40 px-2 py-1 font-mono text-xs select-text" aria-label="Pairing token">
-                {token ? (shown ? token : "•".repeat(token.length)) : "Unavailable"}
+              <code className="w-[18.5rem] truncate rounded-md border bg-muted/40 px-2 py-1 font-mono text-xs select-text" aria-label={t("browser.token")}>
+                {token ? (shown ? token : "•".repeat(token.length)) : t("browser.unavailable")}
               </code>
-              <Button variant="ghost" size="icon-sm" aria-label={shown ? "Hide token" : "Show token"} onClick={() => setShown(!shown)}>
+              <Button variant="ghost" size="icon-sm" aria-label={shown ? t("browser.hideToken") : t("browser.showToken")} onClick={() => setShown(!shown)}>
                 {shown ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
               </Button>
               <CopyButton text={token} />
             </div>
           </Row>
-          <Row label="Replace token" description="Disconnects browsers using the current token. Paste the new token into each extension.">
+          <Row label={t("browser.replace")} description={t("browser.replaceDesc")}>
             <Button variant="outline" size="sm" onClick={() => api.run(replaceBrowserToken)}>
               <RefreshCw aria-hidden="true" />
-              Generate new token
+              {t("browser.generate")}
             </Button>
           </Row>
         </RowCard>
         <p className="text-sm text-muted-foreground">
-          Notifications arrive only while the site is open in a tab. To avoid duplicate pop-ups from the browser, turn off
-          its notifications in {isMac ? "System Settings → Notifications" : "Settings → System → Notifications"};
-          sites continue to send them to Islet.
+          {t("browser.note", { path: isMac ? t("browser.pathMac") : t("browser.pathWindows") })}
         </p>
       </Section>
     </div>
@@ -582,12 +588,12 @@ function curlExample(base: string, isWindows: boolean): string {
   return `curl -X POST ${base}/v1/notify \\\n  -H 'Content-Type: application/json' \\\n  -d '${body}'`;
 }
 
-const FIELDS: [string, string][] = [
-  ["title", "Required. Up to 120 characters."],
-  ["body", "Optional text, up to 500 characters."],
-  ["app", "Sender name shown above the title. Defaults to “Script”."],
-  ["icon", "An emoji or up to 4 characters."],
-  ["accent", "Icon background as a hex color, like #16a34a."],
+const FIELDS: [string, MessageKey][] = [
+  ["title", "api.fieldTitle"],
+  ["body", "api.fieldBody"],
+  ["app", "api.fieldApp"],
+  ["icon", "api.fieldIcon"],
+  ["accent", "api.fieldAccent"],
 ];
 
 export function ApiSection({ snap, api }: Props) {
@@ -605,12 +611,12 @@ export function ApiSection({ snap, api }: Props) {
 
   return (
     <div className="space-y-8">
-      <Section title="Local API" description="Allows scripts and tools on this computer to send notifications. Requests from web pages are rejected.">
+      <Section title={t("api.title")} description={t("api.desc")}>
         <RowCard>
-          <Row label="Enabled" htmlFor="api">
+          <Row label={t("api.enabled")} htmlFor="api">
             <Switch id="api" checked={s.apiEnabled} onCheckedChange={(apiEnabled) => api.update({ apiEnabled })} />
           </Row>
-          <Row label="Port" description={`${API_PORT_RANGE[0]}–${API_PORT_RANGE[1]}`} htmlFor="port">
+          <Row label={t("api.port")} description={`${API_PORT_RANGE[0]}–${API_PORT_RANGE[1]}`} htmlFor="port">
             <Input
               id="port"
               type="number"
@@ -624,20 +630,20 @@ export function ApiSection({ snap, api }: Props) {
               onKeyDown={(e) => e.key === "Enter" && applyPort()}
             />
           </Row>
-          <Row label="Status">
+          <Row label={t("api.status")}>
             {snap.api.running ? (
               <Badge variant="success">
                 <span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
-                Listening on {snap.api.url}
+                {t("api.listening", { url: snap.api.url ?? "" })}
               </Badge>
             ) : (
-              <Badge variant="warning">{snap.api.error ? "Port unavailable" : "Off"}</Badge>
+              <Badge variant="warning">{snap.api.error ? t("api.portUnavailable") : t("common.off")}</Badge>
             )}
           </Row>
         </RowCard>
       </Section>
 
-      <Section title="Example request">
+      <Section title={t("api.example")}>
         <div className="relative rounded-xl border bg-neutral-950 text-neutral-100 dark:bg-black/40">
           <Button
             variant="ghost"
@@ -654,7 +660,7 @@ export function ApiSection({ snap, api }: Props) {
             }}
           >
             {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
-            {copied ? "Copied" : "Copy"}
+            {copied ? t("common.copied") : t("common.copy")}
           </Button>
           <pre className="overflow-x-auto p-4 pr-24 font-mono text-xs leading-relaxed whitespace-pre-wrap select-text">{example}</pre>
         </div>
@@ -665,13 +671,13 @@ export function ApiSection({ snap, api }: Props) {
                 <dt>
                   <code className="font-mono text-xs">{name}</code>
                 </dt>
-                <dd className="text-muted-foreground">{help}</dd>
+                <dd className="text-muted-foreground">{t(help)}</dd>
               </div>
             ))}
           </dl>
         </RowCard>
         <p className="text-sm text-muted-foreground">
-          Health check: <code className="font-mono text-xs">GET {base}/v1/health</code>
+          {t("api.health")} <code className="font-mono text-xs">GET {base}/v1/health</code>
         </p>
       </Section>
     </div>
@@ -681,19 +687,19 @@ export function ApiSection({ snap, api }: Props) {
 export function AboutSection({ snap, api }: Props) {
   const [confirming, setConfirming] = useState(false);
   return (
-    <Section title="About">
+    <Section title={t("nav.about")}>
       <RowCard>
-        <Row label="Version">
+        <Row label={t("about.version")}>
           <span className="font-mono text-sm text-muted-foreground">{snap.version}</span>
         </Row>
-        <Row label="Settings file" description={<span className="font-mono text-xs break-all">{snap.settingsPath}</span>}>
+        <Row label={t("about.file")} description={<span className="font-mono text-xs break-all">{snap.settingsPath}</span>}>
           <span />
         </Row>
-        <Row label="Reset settings" description="Restores all settings to their defaults.">
+        <Row label={t("about.reset")} description={t("about.resetDesc")}>
           {confirming ? (
             <div className="flex gap-2">
               <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button
                 variant="destructive"
@@ -703,12 +709,12 @@ export function AboutSection({ snap, api }: Props) {
                   api.run(resetSettings);
                 }}
               >
-                Reset all settings
+                {t("about.resetAll")}
               </Button>
             </div>
           ) : (
             <Button variant="outline" size="sm" onClick={() => setConfirming(true)}>
-              Reset…
+              {t("about.resetButton")}
             </Button>
           )}
         </Row>

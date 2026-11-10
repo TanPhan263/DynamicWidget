@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { captureAccelerator, formatAccelerator } from "@/features/shortcuts/accelerator";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
+import { t } from "@/shared/i18n";
 import { Kbd } from "./ui/kbd";
 
 interface Props {
@@ -35,7 +36,7 @@ export function ShortcutInput({ id, value, isMac, otherValue, onChange }: Props)
         return;
       }
       if (otherValue && r.accelerator.toLowerCase() === otherValue.toLowerCase()) {
-        setHint("That shortcut is already used by the other action.");
+        setHint(t("shortcut.conflict"));
         return;
       }
       setRecording(false);
@@ -62,7 +63,7 @@ export function ShortcutInput({ id, value, isMac, otherValue, onChange }: Props)
         aria-live="polite"
       >
         {recording ? (
-          <span className="text-muted-foreground">Press keys… (Esc to cancel)</span>
+          <span className="text-muted-foreground">{t("shortcut.recording")}</span>
         ) : (
           <Kbd className="bg-transparent px-0 text-foreground">{keys}</Kbd>
         )}

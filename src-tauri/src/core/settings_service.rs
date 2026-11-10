@@ -64,6 +64,9 @@ pub enum IslandTheme {
     Graphite,
 }
 
+/// The languages Islet speaks; anything else falls back to following the system.
+pub const LANGUAGES: [&str; 8] = ["en", "zh", "vi", "ja", "ko", "es", "fr", "de"];
+
 /// Smallest and largest island size, in percent of the default size.
 pub const ISLAND_SIZE_RANGE: (u8, u8) = (50, 150);
 /// The open panel gets cramped below this.
@@ -232,6 +235,8 @@ pub struct SettingsV1 {
     pub island_style: IslandStyle,
     /// Background of the open panel and the floating island.
     pub theme: IslandTheme,
+    /// "system" or one of [`LANGUAGES`]; the pages hold the text.
+    pub language: String,
     /// The closed island and notifications.
     pub island_size: IslandSize,
     /// The open panel with notifications and widgets.
@@ -270,6 +275,7 @@ impl Default for SettingsV1 {
             expand_trigger: ExpandTrigger::Hover,
             island_style: IslandStyle::Notch,
             theme: IslandTheme::Graphite,
+            language: "system".into(),
             island_size: IslandSize::default(),
             panel_size: IslandSize::default(),
             toggle_shortcut: "CommandOrControl+Shift+Space".into(),
@@ -373,6 +379,9 @@ pub fn validate(mut s: Settings) -> AppResult<Settings> {
     s.toggle_shortcut = s.toggle_shortcut.trim().to_string();
     if s.toggle_shortcut.is_empty() {
         return Err(AppError::Validation("The shortcut cannot be empty".into()));
+    }
+    if !LANGUAGES.contains(&s.language.as_str()) {
+        s.language = "system".into();
     }
     dedup_widgets(&mut s.widgets);
     clamp_numbers(&mut s);
@@ -573,6 +582,7 @@ mod tests {
         assert_eq!(json["expandTrigger"], "hover");
         assert_eq!(json["islandStyle"], "notch");
         assert_eq!(json["theme"], "graphite");
+        assert_eq!(json["language"], "system");
         assert_eq!(json["islandSize"], 100);
         assert_eq!(json["panelSize"], 100);
         assert_eq!(json["widgetSizes"], serde_json::json!({}));

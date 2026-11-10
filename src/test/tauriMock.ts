@@ -46,6 +46,7 @@ export function baseSnapshot(): UiSnapshot {
       expandTrigger: "hover",
       islandStyle: "notch",
       theme: "graphite",
+      language: "en",
       islandSize: 100,
       panelSize: 100,
       toggleShortcut: "CommandOrControl+Shift+Space",

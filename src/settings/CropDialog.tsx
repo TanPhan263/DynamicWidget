@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import type { BackgroundSlot } from "../shared/types";
+import { t } from "../shared/i18n";
 import {
   centered,
   clampOffset,
@@ -53,7 +54,7 @@ export function CropDialog({ slot, src, onCancel, onSave, onError }: Props) {
       setZoom(1);
       setOffset(centered(size, frame, displayScale(size, frame, 1)));
     };
-    image.onerror = () => onError("This file can't be opened as an image. Use a JPEG or PNG file.");
+    image.onerror = () => onError(t("crop.badImage"));
     image.src = src;
     // A new picture or shape starts over.
   }, [src, slot]);
@@ -94,7 +95,7 @@ export function CropDialog({ slot, src, onCancel, onSave, onError }: Props) {
     canvas.width = CROP_WIDTH[slot];
     canvas.height = Math.round(CROP_WIDTH[slot] / CROP_ASPECT[slot]);
     const ctx = canvas.getContext("2d");
-    if (!ctx) return onError("This window can't prepare pictures.");
+    if (!ctx) return onError(t("crop.noCanvas"));
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(img.current, r.x, r.y, r.width, r.height, 0, 0, canvas.width, canvas.height);
     onSave(canvas.toDataURL("image/jpeg", 0.85));
@@ -123,17 +124,16 @@ export function CropDialog({ slot, src, onCancel, onSave, onError }: Props) {
         <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-[min(92vw,520px)] -translate-x-1/2 -translate-y-1/2 space-y-4 rounded-2xl border bg-card p-5 shadow-2xl outline-none">
           <div className="space-y-1">
             <Dialog.Title className="text-base font-semibold tracking-tight">
-              {slot === "panel" ? "Crop panel picture" : "Crop island picture"}
+              {t(slot === "panel" ? "crop.titlePanel" : "crop.titleIsland")}
             </Dialog.Title>
             <Dialog.Description className="text-[13px] text-muted-foreground">
-              Drag to reposition. Scroll or use the slider to zoom. Only the area inside the{" "}
-              {slot === "panel" ? "frame" : "outline"} is saved.
+              {t(slot === "panel" ? "crop.descPanel" : "crop.descIsland")}
             </Dialog.Description>
           </div>
 
           <div
             role="application"
-            aria-label="Picture position; use the arrow keys to move it"
+            aria-label={t("crop.position")}
             tabIndex={0}
             className="relative mx-auto cursor-grab touch-none overflow-hidden rounded-xl bg-neutral-950 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 active:cursor-grabbing"
             style={{ width: frame.width + margin.x * 2, height: frame.height + margin.y * 2 }}
@@ -159,16 +159,16 @@ export function CropDialog({ slot, src, onCancel, onSave, onError }: Props) {
 
           <div className="flex items-center gap-3 px-1">
             <ZoomOut className="size-4 text-muted-foreground" aria-hidden="true" />
-            <Slider aria-label="Zoom" min={1} max={MAX_ZOOM} step={0.01} value={[zoom]} onValueChange={([z]) => zoomTo(z)} />
+            <Slider aria-label={t("crop.zoom")} min={1} max={MAX_ZOOM} step={0.01} value={[zoom]} onValueChange={([z]) => zoomTo(z)} />
             <ZoomIn className="size-4 text-muted-foreground" aria-hidden="true" />
           </div>
 
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={onCancel}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button onClick={save} disabled={!natural}>
-              Apply
+              {t("crop.apply")}
             </Button>
           </div>
         </Dialog.Content>

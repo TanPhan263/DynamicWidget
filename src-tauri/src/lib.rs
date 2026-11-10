@@ -3,6 +3,7 @@ mod commands;
 mod controls;
 mod core;
 mod errors;
+mod i18n;
 mod platform;
 mod quick_actions;
 mod state;
@@ -109,6 +110,7 @@ pub fn run() {
             commands::set_background_image,
             commands::get_controls,
             commands::set_control,
+            commands::set_ui_language,
         ])
         .build(tauri::generate_context!())
         .expect("error while building Islet");

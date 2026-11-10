@@ -1,5 +1,6 @@
 import { RadioGroup } from "radix-ui";
 import { cn } from "@/lib/utils";
+import { t } from "../shared/i18n";
 import type { IslandStyle } from "../shared/types";
 
 type Preview = "hanging" | "capsule";
@@ -15,11 +16,11 @@ function options(hasNotch: boolean): Option[] {
   return [
     {
       value: "notch",
-      label: "Notch",
-      description: hasNotch ? "Wraps around the notch" : "Hangs from the top edge of the screen",
+      label: t("style.notch"),
+      description: hasNotch ? t("style.notchDesc") : t("style.notchDescNoNotch"),
       preview: "hanging",
     },
-    { value: "island", label: "Dynamic Island", description: "A floating capsule, as on iPhone", preview: "capsule" },
+    { value: "island", label: t("style.island"), description: t("style.islandDesc"), preview: "capsule" },
   ];
 }
 
@@ -52,7 +53,7 @@ interface Props {
 export function StylePicker({ value, hasNotch, onChange }: Props) {
   return (
     <RadioGroup.Root
-      aria-label="Island style"
+      aria-label={t("style.label")}
       value={value}
       onValueChange={(v) => onChange(v as IslandStyle)}
       className="grid grid-cols-1 gap-3 sm:grid-cols-3"

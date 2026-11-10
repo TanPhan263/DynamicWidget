@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getBackgroundImage } from "./commands";
 import { listenAll } from "./events";
+import { t } from "./i18n";
 import type { BackgroundSlot } from "./types";
 
 export type Pictures = Record<BackgroundSlot, string | null>;
@@ -28,7 +29,7 @@ export function readPicture(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error("That file could not be read."));
+    reader.onerror = () => reject(new Error(t("picture.readFailed")));
     reader.readAsDataURL(file);
   });
 }

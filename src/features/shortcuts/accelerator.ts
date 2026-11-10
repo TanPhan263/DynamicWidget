@@ -1,3 +1,4 @@
+import { t } from "@/shared/i18n";
 // Converts keyboard events into Tauri accelerator strings
 // ("CommandOrControl+Shift+P") and formats accelerators for display.
 
@@ -38,7 +39,7 @@ export function captureAccelerator(e: KeyLike, isMac: boolean): CaptureResult {
   if (e.code === "Escape" && !anyModifier) return { kind: "cancel" };
 
   const key = keyFromCode(e.code);
-  if (!key) return { kind: "error", message: "That key cannot be used in a global shortcut." };
+  if (!key) return { kind: "error", message: t("shortcut.badKey") };
 
   const parts: string[] = [];
   if (isMac) {
@@ -55,7 +56,7 @@ export function captureAccelerator(e: KeyLike, isMac: boolean): CaptureResult {
   if (parts.length === 0 || (parts.length === 1 && parts[0] === "Shift")) {
     return {
       kind: "error",
-      message: `Include ${isMac ? "⌘, ⌃ or ⌥" : "Ctrl, Alt or Win"} so the shortcut does not interfere with typing.`,
+      message: t("shortcut.needModifier", { keys: isMac ? `⌘, ⌃ ${t("shortcut.or")} ⌥` : `Ctrl, Alt ${t("shortcut.or")} Win` }),
     };
   }
   parts.push(key);

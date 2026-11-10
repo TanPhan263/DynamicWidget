@@ -60,8 +60,9 @@ pub async fn media_control(
 /// Opens a symbol's quote page on Yahoo Finance.
 /// Blocks on the network at most every 15 minutes; async commands run off the main thread.
 #[tauri::command]
-pub async fn get_weather() -> AppResult<crate::core::weather::Weather> {
-    crate::core::weather::current()
+pub async fn get_weather(app: AppHandle) -> AppResult<crate::core::weather::Weather> {
+    let lang = actions::state(&app).read(|i| i.ui_language);
+    crate::core::weather::current(lang)
 }
 
 #[tauri::command]
@@ -171,6 +172,16 @@ pub async fn get_controls() -> crate::controls::Controls {
 #[tauri::command]
 pub async fn set_control(change: crate::controls::Change) -> AppResult<crate::controls::Controls> {
     crate::controls::set(change)
+}
+
+/// The pages say which language they show; the tray and system
+/// notifications follow it.
+#[tauri::command]
+pub async fn set_ui_language(app: AppHandle, language: String) -> AppResult<()> {
+    let lang = crate::i18n::language(&language);
+    actions::state(&app).mutate(|i| i.ui_language = lang);
+    actions::notify_ui(&app);
+    Ok(())
 }
 
 /// The island page reports the area it covers whenever its shape changes.

@@ -53,6 +53,7 @@ import {
   type WidgetSpan,
 } from "../../shared/types";
 import { getControls, getWeather, setControl } from "../../shared/commands";
+import { getLanguage, t, type MessageKey } from "../../shared/i18n";
 import { SlidingNumber } from "../SlidingNumber";
 import type { TimerApi } from "../useTimer";
 import { monthGrid } from "./calendar";
@@ -110,14 +111,15 @@ export function ClockWidget({ now, use24, span }: { now: Date; use24: boolean } 
         {period && <span className="text-xs font-medium tracking-normal text-white/45">{period}</span>}
       </div>
       <div className={cn("text-xs", wide && !tall && "pb-1 text-right", tall && "text-sm")}>
-        <div className="text-[13px] font-medium">{now.toLocaleDateString(undefined, { weekday: "long" })}</div>
-        <div className="text-white/45">{now.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}</div>
+        <div className="text-[13px] font-medium">{now.toLocaleDateString(getLanguage(), { weekday: "long" })}</div>
+        <div className="text-white/45">{now.toLocaleDateString(getLanguage(), { month: "long", day: "numeric", year: "numeric" })}</div>
       </div>
     </Card>
   );
 }
 
-const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
+/** One-letter weekday names from Sunday, in the current language (7 Jan 2024 was a Sunday). */
+const weekdays = () => Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 7 + i).toLocaleDateString(getLanguage(), { weekday: "narrow" }));
 
 function MonthGrid({ now, big }: { now: Date; big?: boolean }) {
   const days = monthGrid(now.getFullYear(), now.getMonth(), now);
@@ -125,9 +127,9 @@ function MonthGrid({ now, big }: { now: Date; big?: boolean }) {
     <div
       className={cn("grid grid-cols-7 text-center tabular-nums", big ? "auto-rows-[30px] text-xs" : "auto-rows-[14px] text-[9.5px]")}
       role="grid"
-      aria-label="This month"
+      aria-label={t("calendar.thisMonth")}
     >
-      {WEEKDAYS.map((d, i) => (
+      {weekdays().map((d, i) => (
         <span key={`h${i}`} className="text-[0.85em] font-medium text-white/35">
           {d}
         </span>
@@ -150,14 +152,14 @@ function MonthGrid({ now, big }: { now: Date; big?: boolean }) {
 }
 
 export function CalendarWidget({ now, span }: { now: Date } & SpanProps) {
-  const month = now.toLocaleDateString(undefined, { month: "long" });
+  const month = now.toLocaleDateString(getLanguage(), { month: "long" });
   const tall = isTall(span);
   if (isWide(span)) {
     // Today's date large on the left, the month beside it.
     return (
       <Card className="flex-row gap-4 px-3 py-2">
         <div className="flex w-24 shrink-0 flex-col justify-start">
-          <div className="text-[11px] font-medium text-red-400 uppercase">{now.toLocaleDateString(undefined, { weekday: "long" })}</div>
+          <div className="text-[11px] font-medium text-red-400 uppercase">{now.toLocaleDateString(getLanguage(), { weekday: "long" })}</div>
           <div className="text-5xl leading-none font-light tracking-tight tabular-nums">{now.getDate()}</div>
           <div className="mt-1 text-xs text-white/45">
             {month} {now.getFullYear()}
@@ -212,18 +214,18 @@ export function TimerWidget({ timer, span }: { timer: TimerApi } & SpanProps) {
   const tall = isTall(span);
   if (state.status === "idle") {
     return (
-      <Card title="Timer">
+      <Card title={t("widget.timer")}>
         <div className={cn("grid flex-1 content-center gap-1.5", wide && !tall ? "grid-cols-4" : "grid-cols-2", tall && "[&>button]:h-12")}>
           {PRESETS.map((m) => (
             <button
               key={m}
               type="button"
               className={cn("flex h-8 items-baseline justify-center gap-0.5 rounded-full pt-1.5", GLASS_BUTTON)}
-              aria-label={`${m} min`}
+              aria-label={t("timer.minutes", { n: m })}
               onClick={() => timer.start(m * 60_000)}
             >
               <span className="text-[13px] font-medium tabular-nums">{m}</span>
-              <span className="text-[10px] text-white/45">min</span>
+              <span className="text-[10px] text-white/45">{t("timer.min")}</span>
             </button>
           ))}
         </div>
@@ -240,10 +242,10 @@ export function TimerWidget({ timer, span }: { timer: TimerApi } & SpanProps) {
         </span>
       </div>
       <div className={cn("flex gap-2", !tall && "flex-col")}>
-        <button type="button" className={roundButton} onClick={running ? timer.pause : timer.resume} aria-label={running ? "Pause" : "Resume"}>
+        <button type="button" className={roundButton} onClick={running ? timer.pause : timer.resume} aria-label={running ? t("timer.pause") : t("timer.resume")}>
           {running ? <Pause className="size-3.5" fill="currentColor" /> : <Play className="size-3.5" fill="currentColor" />}
         </button>
-        <button type="button" className={roundButton} onClick={timer.reset} aria-label="Cancel timer">
+        <button type="button" className={roundButton} onClick={timer.reset} aria-label={t("timer.cancel")}>
           <X className="size-3.5" />
         </button>
       </div>
@@ -284,17 +286,17 @@ export function SystemWidget({ stats }: { stats: SystemStats }) {
   let batteryDetail = "";
   if (b) {
     batteryDetail = `${Math.round(b.percent)}%`;
-    if (b.state === "charging") batteryDetail += " · charging";
+    if (b.state === "charging") batteryDetail += ` · ${t("system.charging")}`;
     else if (b.minutesRemaining && b.state === "discharging") batteryDetail += ` · ${formatMinutes(b.minutesRemaining)}`;
   }
   return (
-    <Card title="System">
+    <Card title={t("widget.system")}>
       <div className="flex flex-1 flex-col justify-center gap-2.5">
-        <Meter label="CPU" value={stats.cpuPercent} detail={`${Math.round(stats.cpuPercent)}%`} />
-        <Meter label="Memory" value={mem} detail={`${formatBytes(stats.memoryUsed)} / ${formatBytes(stats.memoryTotal)}`} />
+        <Meter label={t("system.cpu")} value={stats.cpuPercent} detail={`${Math.round(stats.cpuPercent)}%`} />
+        <Meter label={t("system.memory")} value={mem} detail={`${formatBytes(stats.memoryUsed)} / ${formatBytes(stats.memoryTotal)}`} />
         {b && (
           <Meter
-            label="Battery"
+            label={t("system.battery")}
             value={b.percent}
             detail={batteryDetail}
             tone={b.state === "charging" || b.state === "full" ? "good" : b.percent <= 20 ? "bad" : undefined}
@@ -328,12 +330,12 @@ export function NotesWidget() {
     return () => clearTimeout(id);
   }, [text]);
   return (
-    <Card title="Notes">
+    <Card title={t("widget.notes")}>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Write a note…"
-        aria-label="Quick note"
+        placeholder={t("notes.placeholder")}
+        aria-label={t("notes.label")}
         spellCheck={false}
         className="flex-1 resize-none bg-transparent text-[13px] leading-relaxed text-white/90 outline-none placeholder:text-white/30"
       />
@@ -352,15 +354,15 @@ export interface QuickActionsApi {
   run: (action: WidgetAction) => Promise<boolean | null>;
 }
 
-const QUICK_ACTIONS: { id: WidgetAction; label: string; icon: LucideIcon }[] = [
-  { id: "record", label: "Record screen", icon: Video },
-  { id: "screenshot", label: "Screenshot", icon: Camera },
-  { id: "keep-awake", label: "Keep awake", icon: Coffee },
-  { id: "do-not-disturb", label: "Do Not Disturb", icon: Moon },
-  { id: "mute", label: "Mute", icon: VolumeX },
-  { id: "lock", label: "Lock screen", icon: Lock },
-  { id: "calculator", label: "Calculator", icon: Calculator },
-  { id: "downloads", label: "Downloads", icon: FolderDown },
+const QUICK_ACTIONS: { id: WidgetAction; label: MessageKey; icon: LucideIcon }[] = [
+  { id: "record", label: "actions.record", icon: Video },
+  { id: "screenshot", label: "actions.screenshot", icon: Camera },
+  { id: "keep-awake", label: "actions.keepAwake", icon: Coffee },
+  { id: "do-not-disturb", label: "common.doNotDisturb", icon: Moon },
+  { id: "mute", label: "actions.mute", icon: VolumeX },
+  { id: "lock", label: "actions.lock", icon: Lock },
+  { id: "calculator", label: "actions.calculator", icon: Calculator },
+  { id: "downloads", label: "actions.downloads", icon: FolderDown },
 ];
 
 /** Lit colors for toggles that are on; recording is red, like the system's. */
@@ -425,7 +427,7 @@ export function QuickActionsWidget({ api, span }: { api: QuickActionsApi } & Spa
             mute: muted === true,
           };
           const pressed = on[a.id];
-          const label = a.id === "record" && api.recording ? "Stop recording" : a.label;
+          const label = a.id === "record" && api.recording ? t("island.stopRecording") : t(a.label);
           return (
             <button
               key={a.id}
@@ -494,9 +496,9 @@ export function StocksWidget({ api, span }: { api: StocksApi } & SpanProps) {
   // One row per symbol that fits the card.
   const rows = quotes.slice(0, tall ? 7 : 3);
   return (
-    <Card title="Stocks" className="px-2 pb-2">
+    <Card title={t("widget.stocks")} className="px-2 pb-2">
       {rows.length === 0 ? (
-        <p className="px-1 text-xs text-white/65">Add symbols in Settings → Widgets.</p>
+        <p className="px-1 text-xs text-white/65">{t("stocksWidget.empty")}</p>
       ) : (
         <ul className="flex flex-1 flex-col justify-start divide-y divide-white/[0.05]">
           {rows.map(({ symbol, quote, error }) => {
@@ -505,11 +507,11 @@ export function StocksWidget({ api, span }: { api: StocksApi } & SpanProps) {
             <li key={symbol} className="group/row flex items-center gap-0.5">
               <button
                 type="button"
-                title={quote ? `${quote.name} · open quote` : (error ?? "Loading…")}
+                title={quote ? t("stocksWidget.openQuote", { name: quote.name }) : (error ?? t("common.loading"))}
                 aria-label={
                   quote
                     ? `${symbol} ${formatPrice(quote.price)} ${quote.currency}, ${formatPercent(quote.changePercent)}`
-                    : `${symbol}, ${error ?? "loading"}`
+                    : `${symbol}, ${error ?? t("stocksWidget.loading")}`
                 }
                 onClick={() => onOpen(symbol)}
                 className="flex h-[27px] min-w-0 flex-1 items-center gap-2 rounded-md px-1 text-left text-[11px] transition-colors outline-none hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-white/40"
@@ -520,7 +522,7 @@ export function StocksWidget({ api, span }: { api: StocksApi } & SpanProps) {
                 </span>
                 {wide && quote && <Sparkline q={quote} className="w-20 shrink-0" />}
                 {large && quote && (
-                  <span title="Volume today" className="w-11 shrink-0 text-right tabular-nums text-white/65">
+                  <span title={t("stocksWidget.volume")} className="w-11 shrink-0 text-right tabular-nums text-white/65">
                     {quote.volume != null ? formatVolume(quote.volume) : "—"}
                   </span>
                 )}
@@ -539,14 +541,14 @@ export function StocksWidget({ api, span }: { api: StocksApi } & SpanProps) {
               <button
                 type="button"
                 aria-pressed={on}
-                aria-label={`Show ${symbol} on island`}
+                aria-label={t("stocks.showOnIsland", { symbol })}
                 disabled={!on && full}
                 title={
                   on
-                    ? "Shown on the island; click to remove"
+                    ? t("stocksWidget.shown")
                     : full
-                      ? `The island shows up to ${MAX_ISLAND_STOCKS}`
-                      : "Show on island"
+                      ? t("stocks.islandLimit", { n: MAX_ISLAND_STOCKS })
+                      : t("stocksWidget.show")
                 }
                 onClick={() => onTogglePin(symbol)}
                 className={cn(
@@ -581,8 +583,8 @@ export function MediaWidget({ api, span }: { api: MediaApi } & SpanProps) {
   const { track, playing, onCommand } = api;
   if (!track) {
     return (
-      <Card title="Now playing">
-        <p className="text-xs text-white/65">Nothing has played yet.</p>
+      <Card title={t("widget.media")}>
+        <p className="text-xs text-white/65">{t("media.nothing")}</p>
       </Card>
     );
   }
@@ -610,18 +612,18 @@ export function MediaWidget({ api, span }: { api: MediaApi } & SpanProps) {
         </div>
       </div>
       {/* A website's player is out of reach on macOS; its tab has the controls. */}
-      <div className="flex items-center justify-center gap-3" title={off ? `Control it in ${track.app}` : undefined}>
-        <button type="button" aria-label="Previous track" disabled={off} className={MEDIA_BUTTON} onClick={() => onCommand("previous")}>
+      <div className="flex items-center justify-center gap-3" title={off ? t("island.controlIn", { app: track.app }) : undefined}>
+        <button type="button" aria-label={t("media.previous")} disabled={off} className={MEDIA_BUTTON} onClick={() => onCommand("previous")}>
           <SkipBack className="size-4" fill="currentColor" aria-hidden="true" />
         </button>
-        <button type="button" aria-label={playing ? "Pause" : "Play"} disabled={off} className={cn(MEDIA_BUTTON, MEDIA_MAIN)} onClick={() => onCommand("play-pause")}>
+        <button type="button" aria-label={playing ? t("media.pause") : t("media.play")} disabled={off} className={cn(MEDIA_BUTTON, MEDIA_MAIN)} onClick={() => onCommand("play-pause")}>
           {playing ? (
             <Pause className="size-5" fill="currentColor" aria-hidden="true" />
           ) : (
             <Play className="size-5" fill="currentColor" aria-hidden="true" />
           )}
         </button>
-        <button type="button" aria-label="Next track" disabled={off} className={MEDIA_BUTTON} onClick={() => onCommand("next")}>
+        <button type="button" aria-label={t("media.next")} disabled={off} className={MEDIA_BUTTON} onClick={() => onCommand("next")}>
           <SkipForward className="size-4" fill="currentColor" aria-hidden="true" />
         </button>
       </div>
@@ -668,8 +670,8 @@ function WeatherWidget({ span }: SpanProps) {
 
   if (!weather) {
     return (
-      <Card title="Weather">
-        <p className="text-xs text-white/65">{error ?? "Loading…"}</p>
+      <Card title={t("widget.weather")}>
+        <p className="text-xs text-white/65">{error ?? t("common.loading")}</p>
       </Card>
     );
   }
@@ -697,20 +699,20 @@ function WeatherWidget({ span }: SpanProps) {
             {weather.description}
           </p>
           <p className="truncate text-[11px] text-white/50">
-            {today && `H ${degrees(today.highC)} L ${degrees(today.lowC)} · `}
-            {weather.place || `Feels ${degrees(weather.feelsLikeC)}`}
+            {today && `${t("weather.highLow", { high: degrees(today.highC), low: degrees(today.lowC) })} · `}
+            {weather.place || t("weather.feels", { temp: degrees(weather.feelsLikeC) })}
           </p>
         </div>
       </div>
       {(wide || tall) && nextDays.length > 0 && (
-        <ul className={cn("flex text-[11px] tabular-nums", wide && !tall ? "items-end gap-4" : "justify-between")} aria-label="Next days">
+        <ul className={cn("flex text-[11px] tabular-nums", wide && !tall ? "items-end gap-4" : "justify-between")} aria-label={t("weather.nextDays")}>
           {nextDays.map((d) => {
             const day = weatherIcon(d.code);
             return (
               <li key={d.date} className="flex flex-col items-center gap-1">
                 <span className="text-white/50">
                   {/* Noon keeps the date on its own day in every time zone. */}
-                  {new Date(`${d.date}T12:00:00`).toLocaleDateString(undefined, { weekday: "short" })}
+                  {new Date(`${d.date}T12:00:00`).toLocaleDateString(getLanguage(), { weekday: "short" })}
                 </span>
                 <day.icon className={cn("size-4", day.color)} aria-hidden="true" />
                 <span>
@@ -774,13 +776,13 @@ export function Widget({
 const CONTROLS_REFRESH_MS = 3000;
 
 /** `short` fits under a small tile. */
-const TOGGLES: { id: ControlToggle; key: keyof Controls; label: string; short?: string; icon: LucideIcon; on: string }[] = [
-  { id: "wifi", key: "wifi", label: "Wi-Fi", icon: Wifi, on: "bg-sky-500 text-white hover:bg-sky-400" },
-  { id: "bluetooth", key: "bluetooth", label: "Bluetooth", icon: Bluetooth, on: "bg-sky-500 text-white hover:bg-sky-400" },
-  { id: "airplane", key: "airplane", label: "Airplane mode", short: "Airplane", icon: Plane, on: "bg-orange-500 text-white hover:bg-orange-400" },
-  { id: "dark-mode", key: "darkMode", label: "Dark mode", icon: Contrast, on: "bg-white text-black hover:bg-white/90" },
-  { id: "night-light", key: "nightLight", label: "Night light", icon: Sunset, on: "bg-amber-400 text-black hover:bg-amber-300" },
-  { id: "energy-saver", key: "energySaver", label: "Energy saver", short: "Saver", icon: Leaf, on: "bg-emerald-500 text-white hover:bg-emerald-400" },
+const TOGGLES: { id: ControlToggle; key: keyof Controls; label: MessageKey; short?: MessageKey; icon: LucideIcon; on: string }[] = [
+  { id: "wifi", key: "wifi", label: "controls.wifi", icon: Wifi, on: "bg-sky-500 text-white hover:bg-sky-400" },
+  { id: "bluetooth", key: "bluetooth", label: "controls.bluetooth", icon: Bluetooth, on: "bg-sky-500 text-white hover:bg-sky-400" },
+  { id: "airplane", key: "airplane", label: "controls.airplane", short: "controls.airplaneShort", icon: Plane, on: "bg-orange-500 text-white hover:bg-orange-400" },
+  { id: "dark-mode", key: "darkMode", label: "controls.darkMode", icon: Contrast, on: "bg-white text-black hover:bg-white/90" },
+  { id: "night-light", key: "nightLight", label: "controls.nightLight", icon: Sunset, on: "bg-amber-400 text-black hover:bg-amber-300" },
+  { id: "energy-saver", key: "energySaver", label: "controls.energySaver", short: "controls.energySaverShort", icon: Leaf, on: "bg-emerald-500 text-white hover:bg-emerald-400" },
 ];
 
 const CONTROL_KEYS: Record<ControlChange["control"], keyof Controls> = {
@@ -878,14 +880,14 @@ type ToggleDef = (typeof TOGGLES)[number];
  * its name and state, depending on the room.
  */
 function ToggleTile({
-  t,
+  def,
   on,
   state,
   look,
   size = "size-10",
   onClick,
 }: {
-  t: ToggleDef;
+  def: ToggleDef;
   on: boolean;
   state: string;
   look: "icon" | "named" | "pill";
@@ -898,15 +900,15 @@ function ToggleTile({
       <div className="flex min-w-0 flex-col items-center gap-1">
         <button
           type="button"
-          aria-label={t.label}
+          aria-label={t(def.label)}
           aria-pressed={on}
-          title={`${t.label}: ${state}`}
+          title={`${t(def.label)}: ${state}`}
           onClick={onClick}
-          className={cn("grid shrink-0 place-items-center rounded-full text-white/75 hover:text-white", size, GLASS_BUTTON, on && t.on)}
+          className={cn("grid shrink-0 place-items-center rounded-full text-white/75 hover:text-white", size, GLASS_BUTTON, on && def.on)}
         >
-          <t.icon className="size-[18px]" strokeWidth={1.75} aria-hidden="true" />
+          <def.icon className="size-[18px]" strokeWidth={1.75} aria-hidden="true" />
         </button>
-        <span className="w-full truncate text-center text-[10px] leading-tight text-white/55">{t.short ?? t.label}</span>
+        <span className="w-full truncate text-center text-[10px] leading-tight text-white/55">{t(def.short ?? def.label)}</span>
       </div>
     );
   }
@@ -914,29 +916,29 @@ function ToggleTile({
     return (
       <button
         type="button"
-        aria-label={t.label}
+        aria-label={t(def.label)}
         aria-pressed={on}
-        title={`${t.label}: ${state}`}
+        title={`${t(def.label)}: ${state}`}
         onClick={onClick}
-        className={cn("grid shrink-0 place-items-center justify-self-center rounded-full text-white/75 hover:text-white", size, GLASS_BUTTON, on && t.on)}
+        className={cn("grid shrink-0 place-items-center justify-self-center rounded-full text-white/75 hover:text-white", size, GLASS_BUTTON, on && def.on)}
       >
-        <t.icon className="size-4" strokeWidth={1.75} aria-hidden="true" />
+        <def.icon className="size-4" strokeWidth={1.75} aria-hidden="true" />
       </button>
     );
   }
   return (
     <button
       type="button"
-      aria-label={t.label}
+      aria-label={t(def.label)}
       aria-pressed={on}
       onClick={onClick}
       className={cn("flex min-w-0 items-center gap-2 rounded-2xl p-1.5 pr-2.5 text-left", GLASS_BUTTON)}
     >
-      <span className={cn("grid size-8 shrink-0 place-items-center rounded-full bg-white/[0.08] text-white/75", on && t.on)}>
-        <t.icon className="size-4" strokeWidth={1.75} aria-hidden="true" />
+      <span className={cn("grid size-8 shrink-0 place-items-center rounded-full bg-white/[0.08] text-white/75", on && def.on)}>
+        <def.icon className="size-4" strokeWidth={1.75} aria-hidden="true" />
       </span>
       <span className="min-w-0">
-        <span className="block truncate text-[12px] leading-tight font-medium text-white/90">{t.label}</span>
+        <span className="block truncate text-[12px] leading-tight font-medium text-white/90">{t(def.label)}</span>
         <span className="block truncate text-[10px] leading-tight text-white/45">{state}</span>
       </span>
     </button>
@@ -957,14 +959,14 @@ export function ControlsWidget({ span }: SpanProps) {
       </Card>
     );
   }
-  const toggles = TOGGLES.filter((t) => controls[t.key] !== null).map((t) => {
-    const on = controls[t.key] === true;
-    const state = t.id === "wifi" && on && controls.wifiName ? controls.wifiName : on ? "On" : "Off";
-    return { t, on, state };
+  const toggles = TOGGLES.filter((def) => controls[def.key] !== null).map((def) => {
+    const on = controls[def.key] === true;
+    const state = def.id === "wifi" && on && controls.wifiName ? controls.wifiName : on ? t("common.on") : t("common.off");
+    return { def, on, state };
   });
   const tiles = (look: "icon" | "named" | "pill", size?: string) =>
-    toggles.map(({ t, on, state }) => (
-      <ToggleTile key={t.id} t={t} on={on} state={state} look={look} size={size} onClick={() => change({ control: t.id, value: !on })} />
+    toggles.map(({ def, on, state }) => (
+      <ToggleTile key={def.id} def={def} on={on} state={state} look={look} size={size} onClick={() => change({ control: def.id, value: !on })} />
     ));
   const volume = controls.volume;
   const brightness = controls.brightness;
@@ -973,7 +975,7 @@ export function ControlsWidget({ span }: SpanProps) {
       <div className={cn("flex flex-col justify-center", big ? "gap-2.5" : "gap-1.5")}>
         {volume !== null && (
           <LevelSlider
-            label="Volume"
+            label={t("controls.volume")}
             icon={controls.muted || volume === 0 ? VolumeX : Volume2}
             value={volume}
             big={big}
@@ -981,7 +983,7 @@ export function ControlsWidget({ span }: SpanProps) {
           />
         )}
         {brightness !== null && (
-          <LevelSlider label="Brightness" icon={Sun} value={brightness} big={big} onChange={(v) => change({ control: "brightness", value: v })} />
+          <LevelSlider label={t("controls.brightness")} icon={Sun} value={brightness} big={big} onChange={(v) => change({ control: "brightness", value: v })} />
         )}
       </div>
     );

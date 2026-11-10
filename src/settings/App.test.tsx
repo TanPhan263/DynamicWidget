@@ -31,6 +31,19 @@ describe("Settings", () => {
     expect(save?.args).toMatchObject({ settings: { expandTrigger: "click" } });
   });
 
+  it("switches the whole page to the chosen language", async () => {
+    render(<App />);
+    await flush();
+    fireEvent.change(screen.getByLabelText("Language"), { target: { value: "vi" } });
+    await flush();
+    const save = invoked.filter((c) => c.cmd === "save_settings").at(-1);
+    expect((save?.args as { settings: { language: string } }).settings.language).toBe("vi");
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Chung");
+    fireEvent.change(screen.getByLabelText("Ngôn ngữ"), { target: { value: "en" } });
+    await flush();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("General");
+  });
+
   it("picks a theme", async () => {
     render(<App />);
     await flush();

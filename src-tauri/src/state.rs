@@ -46,6 +46,8 @@ pub struct Inner {
     pub web_command: Option<(MediaCommand, Instant)>,
     /// Latest quotes by symbol, including symbols no longer followed.
     pub quotes: BTreeMap<String, QuoteState>,
+    /// The language the pages show, for the tray and system notifications.
+    pub ui_language: &'static str,
 }
 
 impl Inner {
@@ -100,6 +102,9 @@ pub struct UiSnapshot {
     /// When the running screen recording started, in Unix milliseconds.
     pub recording_since: Option<u64>,
     pub quotes: Vec<QuoteState>,
+    /// For the tray menu; the pages pick their own language.
+    #[serde(skip)]
+    pub ui_language: &'static str,
 }
 
 impl AppState {
@@ -133,6 +138,7 @@ impl AppState {
                 quotes: BTreeMap::new(),
                 web_media: None,
                 web_command: None,
+                ui_language: "en",
             }),
             adapter,
             store,
@@ -189,6 +195,7 @@ impl AppState {
             keep_awake,
             recording_since,
             quotes: g.quote_list(),
+            ui_language: g.ui_language,
         }
     }
 }

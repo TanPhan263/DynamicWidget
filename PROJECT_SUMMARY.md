@@ -150,6 +150,7 @@ The settings are stored in `settings.json` (pretty JSON, camelCase), currently `
 | schemaVersion | u32 | 1 | |
 | expandTrigger | `"hover"`\|`"click"` | hover | |
 | islandStyle | `"notch"`\|`"island"` | notch | alias `"auto"` loads as notch |
+| language | `"system"`\|`"en"`\|`"zh"`\|`"vi"`\|`"ja"`\|`"ko"`\|`"es"`\|`"fr"`\|`"de"` | system | anything else is saved as "system" (`LANGUAGES` in settings_service) |
 | theme | `"graphite"`\|`"black"`\|`"midnight"`\|`"aurora"`\|`"ember"`\|`"slate"`\|`"transparent"`\|`"picture"` | graphite | unknown names load as graphite (`#[serde(other)]` on the last variant); the old name "glass" loads as transparent (`#[serde(alias)]`) |
 | islandSize | percent | 100 | clamp 50–150. Also accepts the old names `"small"`=88, `"medium"`=100, `"large"`=112 |
 | panelSize | percent | 100 | clamp 80–150. Missing in old files → copy islandSize |
@@ -1003,3 +1004,28 @@ After that, `tauri icon source.png` generates the platform icon set, and `prune-
 - Settings uses sentence case for labels and descriptions; the tray menu uses title case (macOS menu convention).
 - "Panel" means the expanded island; "island" means the closed shape.
 - Descriptions are full sentences that say what a setting does ("Scales…", "Opens or closes…"), with no casual phrasing.
+
+## Languages (`src/shared/i18n/`, `src-tauri/src/i18n.rs`)
+
+- **Message files:**
+  - `en.ts` is the source: flat keys grouped by screen (`"general.style"`, `"controls.wifi"`), with `{name}` placeholders.
+  - `zh`, `vi`, `ja`, `ko`, `es`, `fr` and `de` are typed `Messages = Record<MessageKey, string>`, so a missing key fails `tsc`.
+  - `i18n.test.ts` checks that every translation keeps English's placeholders, and covers language detection.
+- **Runtime (`index.ts`):**
+  - A module-level current language, read with `t(key, values)` anywhere, including non-React code (accelerator errors, timer notifications, `relativeTime`).
+  - `tSplit(key, slot)` returns the text before and after a placeholder, so a React element (a `<Kbd>`) can go there.
+  - `useLanguage()` subscribes with `useSyncExternalStore`.
+  - The Settings `App` and the `Island` roots call `setLanguage(resolveLanguage(settings.language))`. "system" walks `navigator.languages` by base tag (`zh-Hant` → zh) and falls back to `en`. `setLanguage` also sets `<html lang>`.
+- **Locale formatting:**
+  - Dates and prices use `getLanguage()` as the locale; weekday initials come from `toLocaleDateString(…, { weekday: "narrow" })`.
+  - The 12-hour clock period comes from `Intl.DateTimeFormat` `dayPeriod`.
+  - `formatMinutes` uses `Intl.NumberFormat` units outside English and keeps "2 h 15 min" in English.
+- **Core:**
+  - The island calls `set_ui_language(lang)` whenever its language changes. `Inner.ui_language` (a validated static code, default "en") drives `i18n::text(lang, Text::…)`.
+  - That covers the tray menu (rebuilt by `notify_ui`), the test notification, battery notifications (`{pct}`), "Screen recording saved" and the tooltip.
+  - `get_weather` passes it to wttr.in as `&lang=` (zh → `zh-cn`) and reads `current_condition[0]["lang_<code>"][0].value` when present. The cache is keyed by language.
+  - Error messages from the core stay English.
+- **Terminology:**
+  - Island: 灵动岛 / Island (vi keeps the product name) / アイランド / 아일랜드 / isla / île / Insel.
+  - Panel: 面板 / bảng / パネル / 패널 / panel / panneau / Panel.
+

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { pushNotification } from "../shared/commands";
 import { formatDuration } from "../shared/format";
+import { t } from "../shared/i18n";
 import * as timer from "./widgets/timer";
 
 /** A short two-tone chime. Silent if audio is unavailable. */
@@ -45,9 +46,9 @@ export function useTimer() {
     chime();
     pushNotification(
       {
-        title: "Timer finished",
-        body: `${formatDuration(state.status === "running" ? state.duration : 0)} is up`,
-        app: "Timer",
+        title: t("timer.finished"),
+        body: t("timer.up", { duration: formatDuration(state.status === "running" ? state.duration : 0) }),
+        app: t("widget.timer"),
         accent: "#f59e0b",
       },
       "timer",

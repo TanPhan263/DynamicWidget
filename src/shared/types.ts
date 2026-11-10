@@ -1,3 +1,5 @@
+import { t, type LanguageSetting } from "./i18n";
+
 // Mirrors the serialized Rust types. Field names are camelCase on both sides.
 
 export type ExpandTrigger = "hover" | "click";
@@ -64,18 +66,8 @@ export function widgetAppName(id: WidgetId, platform: Platform): string | null {
 
 export const ALL_WIDGETS: readonly WidgetId[] = ["clock", "calendar", "timer", "system", "notes", "actions", "stocks", "media", "weather", "controls"];
 
-export const WIDGET_LABELS: Record<WidgetId, string> = {
-  clock: "Clock",
-  calendar: "Calendar",
-  timer: "Timer",
-  system: "System",
-  notes: "Notes",
-  actions: "Quick actions",
-  stocks: "Stocks",
-  media: "Now playing",
-  weather: "Weather",
-  controls: "Controls",
-};
+/** A widget's name in the current language. */
+export const widgetLabel = (id: WidgetId): string => t(`widget.${id}`);
 
 /** The Controls widget's state; null where this system can't read or set it. */
 export interface Controls {
@@ -150,6 +142,8 @@ export interface Settings {
   islandStyle: IslandStyle;
   /** Background of the open panel and the floating island; see shared/themes. */
   theme: IslandTheme;
+  /** "system" follows the computer; see shared/i18n. */
+  language: LanguageSetting;
   /** Closed island and notification scale in percent, within ISLAND_SIZE_RANGE. */
   islandSize: number;
   /** Open panel scale in percent, within PANEL_SIZE_RANGE. */

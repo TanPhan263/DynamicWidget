@@ -16,10 +16,11 @@ import { useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode
 import { FieldSafePointerSensor } from "@/lib/dnd";
 import { cn } from "@/lib/utils";
 import { dropWidget } from "../settings/widgetOrder";
-import { clampSpan, SMALL, WIDGET_LABELS, type WidgetId, type WidgetSpan } from "../shared/types";
+import { clampSpan, SMALL, widgetLabel, type WidgetId, type WidgetSpan } from "../shared/types";
+import { t } from "../shared/i18n";
 import { CARD_HEIGHT, GAP, WIDGET_COLUMNS } from "./geometry";
 
-const label = (id: unknown) => WIDGET_LABELS[id as WidgetId] ?? String(id);
+const label = (id: unknown) => widgetLabel(id as WidgetId);
 
 /** Card controls appear on hover or keyboard focus. */
 const control =
@@ -104,8 +105,8 @@ function ResizeHandle({ id, span, onResize, onActive }: ResizeProps) {
       <button
         type="button"
         data-no-drag
-        aria-label={`Resize ${label(id)}, ${span.cols} by ${span.rows}. Use arrow keys.`}
-        title="Drag to resize"
+        aria-label={t("grid.resize", { name: label(id), cols: span.cols, rows: span.rows })}
+        title={t("grid.dragResize")}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={(e) => finish(e, false)}
@@ -169,7 +170,7 @@ function SortableWidget({ id, span, resizing, app, onOpen, justDragged, onResize
         if (!app || justDragged() || (e.target as Element).closest(INTERACTIVE)) return;
         onOpen();
       }}
-      title={app ? `Click to open ${app}, drag to move` : undefined}
+      title={app ? t("grid.openHint", { app }) : undefined}
       className={cn("group relative grid cursor-grab", isDragging && "z-10 cursor-grabbing")}
     >
       <div
@@ -185,7 +186,7 @@ function SortableWidget({ id, span, resizing, app, onOpen, justDragged, onResize
         <button
           type="button"
           data-no-drag
-          aria-label={`Open ${app}`}
+          aria-label={t("grid.open", { app })}
           onClick={onOpen}
           className={cn(control, "absolute top-2 right-8 size-5")}
         >
@@ -197,7 +198,7 @@ function SortableWidget({ id, span, resizing, app, onOpen, justDragged, onResize
         type="button"
         {...attributes}
         onKeyDown={(e) => listeners?.onKeyDown?.(e)}
-        aria-label={`Move ${label(id)}`}
+        aria-label={t("grid.move", { name: label(id) })}
         className={cn(control, "absolute top-2 right-2 size-5")}
       >
         <GripVertical className="size-3.5" aria-hidden="true" />
@@ -235,10 +236,10 @@ export function WidgetGrid({ widgets, sizes, render, onReorder, onResize, onDrag
   );
   const position = (id: unknown) => widgets.indexOf(id as WidgetId) + 1;
   const announcements: Announcements = {
-    onDragStart: ({ active }) => `Picked up ${label(active.id)}, position ${position(active.id)} of ${widgets.length}.`,
-    onDragOver: ({ active, over }) => (over ? `${label(active.id)} is over position ${position(over.id)}.` : undefined),
-    onDragEnd: ({ active, over }) => (over ? `${label(active.id)} dropped at position ${position(over.id)}.` : undefined),
-    onDragCancel: ({ active }) => `Moving ${label(active.id)} was cancelled.`,
+    onDragStart: ({ active }) => t("dnd.pickedUp", { name: label(active.id), pos: position(active.id), count: widgets.length }),
+    onDragOver: ({ active, over }) => (over ? t("dnd.over", { name: label(active.id), pos: position(over.id) }) : undefined),
+    onDragEnd: ({ active, over }) => (over ? t("dnd.dropped", { name: label(active.id), pos: position(over.id) }) : undefined),
+    onDragCancel: ({ active }) => t("dnd.cancelled", { name: label(active.id) }),
   };
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {

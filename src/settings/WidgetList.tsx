@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { FieldSafePointerSensor } from "@/lib/dnd";
 import { cn } from "@/lib/utils";
-import { ALL_WIDGETS, clampSpan, SMALL, WIDGET_LABELS, type WidgetId, type WidgetSpan } from "../shared/types";
+import { ALL_WIDGETS, clampSpan, SMALL, widgetLabel, type WidgetId, type WidgetSpan } from "../shared/types";
+import { t } from "../shared/i18n";
 import { dropWidget, moveWidget, toggleWidget } from "./widgetOrder";
 
 type Sizes = Partial<Record<WidgetId, WidgetSpan>>;
@@ -26,7 +27,7 @@ interface Props {
   onSizesChange: (sizes: Sizes) => void;
 }
 
-const label = (id: unknown) => WIDGET_LABELS[id as WidgetId] ?? String(id);
+const label = (id: unknown) => widgetLabel(id as WidgetId);
 
 interface RowProps {
   id: WidgetId;
@@ -43,7 +44,7 @@ function RowBody({ id, enabled, sizes, onChange, onSizesChange }: RowProps) {
     <>
       <Switch
         id={`widget-${id}`}
-        aria-label={`Show ${label(id)}`}
+        aria-label={t("widgets.show", { name: label(id) })}
         checked={on}
         onCheckedChange={() => onChange(toggleWidget(enabled, id))}
       />
@@ -51,7 +52,7 @@ function RowBody({ id, enabled, sizes, onChange, onSizesChange }: RowProps) {
         {label(id)}
       </label>
       <select
-        aria-label={`${label(id)} size`}
+        aria-label={t("widgets.size", { name: label(id) })}
         value={spanKey(sizes[id] ?? SMALL)}
         onChange={(e) => {
           const [cols, rows] = e.target.value.split("x").map(Number);
@@ -70,7 +71,7 @@ function RowBody({ id, enabled, sizes, onChange, onSizesChange }: RowProps) {
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label={`Move ${label(id)} earlier`}
+            aria-label={t("widgets.earlier", { name: label(id) })}
             disabled={index === 0}
             onClick={() => onChange(moveWidget(enabled, id, -1))}
           >
@@ -79,7 +80,7 @@ function RowBody({ id, enabled, sizes, onChange, onSizesChange }: RowProps) {
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label={`Move ${label(id)} later`}
+            aria-label={t("widgets.later", { name: label(id) })}
             disabled={index === enabled.length - 1}
             onClick={() => onChange(moveWidget(enabled, id, 1))}
           >
@@ -109,7 +110,7 @@ function SortableRow(props: RowProps) {
         type="button"
         {...attributes}
         {...listeners}
-        aria-label={`Drag to reorder ${label(props.id)}`}
+        aria-label={t("widgets.reorder", { name: label(props.id) })}
         className={cn(
           "grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50",
           isDragging ? "cursor-grabbing" : "cursor-grab",
@@ -134,10 +135,10 @@ export function WidgetList({ enabled, sizes, onChange, onSizesChange }: Props) {
   );
   const position = (id: unknown) => enabled.indexOf(id as WidgetId) + 1;
   const announcements: Announcements = {
-    onDragStart: ({ active }) => `Picked up ${label(active.id)}, position ${position(active.id)} of ${enabled.length}.`,
-    onDragOver: ({ active, over }) => (over ? `${label(active.id)} is over position ${position(over.id)}.` : undefined),
-    onDragEnd: ({ active, over }) => (over ? `${label(active.id)} dropped at position ${position(over.id)}.` : undefined),
-    onDragCancel: ({ active }) => `Moving ${label(active.id)} was cancelled.`,
+    onDragStart: ({ active }) => t("dnd.pickedUp", { name: label(active.id), pos: position(active.id), count: enabled.length }),
+    onDragOver: ({ active, over }) => (over ? t("dnd.over", { name: label(active.id), pos: position(over.id) }) : undefined),
+    onDragEnd: ({ active, over }) => (over ? t("dnd.dropped", { name: label(active.id), pos: position(over.id) }) : undefined),
+    onDragCancel: ({ active }) => t("dnd.cancelled", { name: label(active.id) }),
   };
 
   return (

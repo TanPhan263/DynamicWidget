@@ -2,6 +2,7 @@
 //! IPC commands. Each action mutates core state under the lock, then
 //! notifies the pages and the tray after the lock is released.
 
+use crate::i18n::{text, Text};
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -77,11 +78,12 @@ pub fn push_notification(
 }
 
 pub fn send_test_notification(app: &AppHandle) -> AppResult<Notification> {
+    let lang = state(app).read(|i| i.ui_language);
     push_notification(
         app,
         NotificationInput {
-            title: "Hello from Islet".into(),
-            body: Some("Notifications from scripts, timers and your battery show up here.".into()),
+            title: text(lang, Text::TestTitle).into(),
+            body: Some(text(lang, Text::TestBody).into()),
             app: Some("Islet".into()),
             icon: None,
             accent: Some("#171717".into()),

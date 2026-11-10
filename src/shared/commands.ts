@@ -24,6 +24,9 @@ export const saveSettings = (settings: Settings) => invoke<UiSnapshot>("save_set
 
 export const resetSettings = () => invoke<UiSnapshot>("reset_settings");
 
+/** The language the pages show, so the tray menu and system notifications match. */
+export const setUiLanguage = (language: string) => invoke<void>("set_ui_language", { language });
+
 export const completeOnboarding = () => invoke<UiSnapshot>("complete_onboarding");
 
 export const dismissError = () => invoke<UiSnapshot>("dismiss_error");

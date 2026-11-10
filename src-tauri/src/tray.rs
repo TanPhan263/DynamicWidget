@@ -6,6 +6,7 @@ use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Wry};
 
 use crate::actions;
+use crate::i18n::{text, Text};
 use crate::state::UiSnapshot;
 
 const TRAY_ID: &str = "islet";
@@ -19,7 +20,7 @@ fn icon(dnd: bool) -> Image<'static> {
 
 fn tooltip(snap: &UiSnapshot) -> String {
     if snap.settings.do_not_disturb {
-        "Islet: Do Not Disturb".into()
+        text(snap.ui_language, Text::TooltipDnd).into()
     } else {
         "Islet".into()
     }
@@ -54,17 +55,22 @@ pub fn shortcut_label(accelerator: &str) -> String {
 
 fn build_menu(app: &AppHandle, snap: &UiSnapshot) -> tauri::Result<Menu<Wry>> {
     let s = &snap.settings;
+    let tr = |t: Text| text(snap.ui_language, t);
     let open = MenuItem::with_id(
         app,
         "open",
-        format!("Open Island    {}", shortcut_label(&s.toggle_shortcut)),
+        format!(
+            "{}    {}",
+            tr(Text::OpenIsland),
+            shortcut_label(&s.toggle_shortcut)
+        ),
         true,
         None::<&str>,
     )?;
     let dnd = CheckMenuItem::with_id(
         app,
         "dnd",
-        "Do Not Disturb",
+        tr(Text::DoNotDisturb),
         true,
         s.do_not_disturb,
         None::<&str>,
@@ -72,20 +78,20 @@ fn build_menu(app: &AppHandle, snap: &UiSnapshot) -> tauri::Result<Menu<Wry>> {
     let hide = CheckMenuItem::with_id(
         app,
         "hide",
-        "Hide Island",
+        tr(Text::HideIsland),
         true,
         snap.island_hidden,
         None::<&str>,
     )?;
-    let test = MenuItem::with_id(app, "test", "Send Test Notification", true, None::<&str>)?;
+    let test = MenuItem::with_id(app, "test", tr(Text::SendTest), true, None::<&str>)?;
     let api_label = match (&snap.api.url, &snap.api.error) {
         (Some(url), _) => format!("API: {url}"),
-        (None, Some(_)) => "API: Port Unavailable".into(),
-        (None, None) => "API: Off".into(),
+        (None, Some(_)) => tr(Text::ApiPortUnavailable).into(),
+        (None, None) => tr(Text::ApiOff).into(),
     };
     let api = MenuItem::with_id(app, "api", api_label, false, None::<&str>)?;
-    let settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "Quit Islet", true, None::<&str>)?;
+    let settings = MenuItem::with_id(app, "settings", tr(Text::Settings), true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", tr(Text::Quit), true, None::<&str>)?;
     let (s1, s2, s3) = (
         PredefinedMenuItem::separator(app)?,
         PredefinedMenuItem::separator(app)?,
