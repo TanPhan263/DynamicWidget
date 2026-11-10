@@ -1,4 +1,4 @@
-import { Bell, BellRing, Inbox, LayoutGrid, Moon, Music2, Settings, Timer, X } from "lucide-react";
+import { Bell, BellRing, Inbox, LayoutGrid, Moon, Music2, Pause, Settings, SkipBack, SkipForward, Timer, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
@@ -6,6 +6,7 @@ import { clockParts, formatDuration, formatPercent, formatPrice, relativeTime } 
 import type {
   BatteryInfo,
   IslandNotification,
+  MediaCommand,
   NowPlaying,
   Quote,
   Settings as SettingsData,
@@ -20,7 +21,7 @@ import { NotificationIcon } from "./NotificationIcon";
 import { SlidingNumber } from "./SlidingNumber";
 import type { TimerApi } from "./useTimer";
 import { WidgetGrid } from "./WidgetGrid";
-import { changeTone, Widget, type QuickActionsApi, type StocksApi } from "./widgets/Widgets";
+import { changeTone, Widget, type MediaApi, type QuickActionsApi, type StocksApi } from "./widgets/Widgets";
 
 const iconButton =
   "grid size-7 shrink-0 place-items-center rounded-full text-white/80 transition-colors outline-none hover:bg-white/[0.14] hover:text-white focus-visible:ring-2 focus-visible:ring-white/40 active:scale-95";
@@ -62,8 +63,17 @@ interface CompactProps {
   onStopRecording: () => void;
   /** The quote pinned to the island, if any. */
   pinned: Quote | null;
-  /** Music bars in the wings while sound plays, with what plays if known. */
-  music: { colors: [string, string]; flipped: boolean; nowPlaying: NowPlaying | null; showTitle: boolean } | null;
+  /** While sound plays: what plays if known; `bars` is false when the bars sit below the island. */
+  music: {
+    colors: [string, string];
+    flipped: boolean;
+    bars: boolean;
+    nowPlaying: NowPlaying | null;
+    showTitle: boolean;
+    onCommand: (command: MediaCommand) => void;
+    /** The pointer is over the buttons, so hovering must not open the panel. */
+    onControlsHover: (over: boolean) => void;
+  } | null;
   timer: TimerApi;
   unread: number;
   now: Date;
@@ -132,21 +142,49 @@ export function Compact({ shape, wings, recordingSince, onStopRecording, pinned,
     ) : (
       <Music2 className="size-4" style={{ color: music.colors[1] }} aria-hidden="true" />
     );
-    right = <MusicBars count={4} height={14} colors={music.colors} flipped={music.flipped} />;
+    right = music.bars ? <MusicBars count={4} height={14} colors={music.colors} flipped={music.flipped} /> : null;
     const np = music.nowPlaying;
     if (music.showTitle && np) {
-      middle = (
-        <motion.span
-          key={np.title}
-          className="min-w-0 flex-1 truncate text-center font-medium"
-          title={np.artist ? `${np.title} · ${np.artist}` : np.title}
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={ISLAND_SPRING}
+      const button = (label: string, command: MediaCommand, icon: ReactNode) => (
+        <button
+          type="button"
+          aria-label={label}
+          disabled={!np.controls}
+          className="grid size-5 place-items-center rounded-full text-white/85 outline-none hover:bg-white/[0.16] hover:text-white focus-visible:ring-2 focus-visible:ring-white/40 active:scale-90 disabled:pointer-events-none disabled:opacity-35"
+          onClick={(e) => {
+            // The island itself opens the panel on click.
+            e.stopPropagation();
+            music.onCommand(command);
+          }}
         >
-          {np.title}
-          {np.artist && <span className="text-white/70"> · {np.artist}</span>}
-        </motion.span>
+          {icon}
+        </button>
+      );
+      middle = (
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          <motion.span
+            key={np.title}
+            className="min-w-0 flex-1 truncate text-center font-medium"
+            title={np.artist ? `${np.title} · ${np.artist}` : np.title}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={ISLAND_SPRING}
+          >
+            {np.title}
+            {np.artist && <span className="text-white/70"> · {np.artist}</span>}
+          </motion.span>
+          {/* Shown even when the player can't be controlled (a website on macOS), greyed out. */}
+          <div
+            className="flex shrink-0 items-center gap-0.5"
+            title={np.controls ? undefined : `Control it in ${np.app}`}
+            onPointerEnter={() => music.onControlsHover(true)}
+            onPointerLeave={() => music.onControlsHover(false)}
+          >
+            {button("Previous track", "previous", <SkipBack className="size-3" fill="currentColor" aria-hidden="true" />)}
+            {button("Pause", "play-pause", <Pause className="size-3.5" fill="currentColor" aria-hidden="true" />)}
+            {button("Next track", "next", <SkipForward className="size-3" fill="currentColor" aria-hidden="true" />)}
+          </div>
+        </div>
       );
     }
   } else if (pinned) {
@@ -278,6 +316,7 @@ interface ExpandedProps {
   onOpenApp: (id: WidgetId) => void;
   actions: QuickActionsApi;
   stocks: StocksApi;
+  media: MediaApi;
 }
 
 const TABS: { id: Tab; label: string; icon: typeof Bell }[] = [
@@ -364,6 +403,7 @@ export function Expanded(p: ExpandedProps) {
                   <Widget id={id} span={span} now={p.now} use24={p.settings.use24HourClock} timer={p.timer} stats={p.stats}
                     actions={p.actions}
                     stocks={p.stocks}
+                    media={p.media}
                   />
                 )}
               />

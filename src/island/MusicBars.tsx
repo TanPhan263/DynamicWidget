@@ -24,16 +24,15 @@ function beat(count: number): number[] {
 
 interface Props {
   count: number;
-  /** Height of the tallest bar, in px. */
   height: number;
   colors: [string, string];
-  /** Bars hang down from the top instead of standing up. */
   flipped?: boolean;
   barWidth?: number;
+  gap?: number;
 }
 
 /** A row of bars that spring to new heights several times a second while sound plays. */
-export function MusicBars({ count, height, colors, flipped = false, barWidth = 3 }: Props) {
+export function MusicBars({ count, height, colors, flipped = false, barWidth = 3, gap = 2 }: Props) {
   const reduce = useReducedMotion();
   const [levels, setLevels] = useState(() => beat(count));
   useEffect(() => {
@@ -45,14 +44,12 @@ export function MusicBars({ count, height, colors, flipped = false, barWidth = 3
 
   return (
     <span
-      className="flex gap-[2px]"
-      style={{ height, alignItems: flipped ? "flex-start" : "flex-end" }}
+      className="flex"
+      style={{ height, gap, alignItems: flipped ? "flex-start" : "flex-end" }}
       role="img"
       aria-label="Playing sound"
     >
       {levels.map((level, i) => (
-        // A CSS transition runs on the compositor; a JS spring per bar cost a
-        // main-thread animation for every bar several times a second.
         <span
           key={i}
           className="h-full rounded-full"

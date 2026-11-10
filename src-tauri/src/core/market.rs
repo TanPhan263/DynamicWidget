@@ -8,6 +8,10 @@
 //! - the poller loads the chart endpoint for names, currencies, the previous
 //!   close and today's sparkline, every few minutes (every minute while the
 //!   stream is down, so prices still move).
+//!
+//! Vietnamese stocks (`.VN`) skip Yahoo, whose data for them is delayed:
+//! the VN poller reads live prices from VPS every few seconds, and the
+//! chart round reads the sparkline from VNDirect's 1-minute bars.
 
 use std::collections::BTreeMap;
 use std::io::ErrorKind;
@@ -47,6 +51,23 @@ const STREAM_FRESH: Duration = Duration::from_secs(300);
 const TICK: Duration = Duration::from_millis(500);
 /// Enough points for a smooth sparkline.
 const MAX_POINTS: usize = 60;
+const VN_EVERY: Duration = Duration::from_secs(3);
+const VPS_URL: &str = "https://bgapidatafeed.vps.com.vn/getliststockdata/";
+const VPS_INDEX_URL: &str = "https://bgapidatafeed.vps.com.vn/getlistindexdetail/";
+/// `^NAME.VN` index names, with their VPS code and VNDirect bar symbol.
+const VN_INDEXES: &[(&str, &str, &str)] = &[
+    ("VNINDEX", "10", "VNINDEX"),
+    ("VINDEX", "10", "VNINDEX"),
+    ("VN30", "11", "VN30"),
+    ("HNX", "02", "HNX"),
+    ("HNXINDEX", "02", "HNX"),
+    ("HNX30", "12", "HNX30"),
+    ("UPCOM", "03", "UPCOM"),
+    ("UPCOMINDEX", "03", "UPCOM"),
+];
+const VND_BARS_URL: &str = "https://dchart-api.vndirect.com.vn/dchart/history";
+/// Covers weekends and Tet, so the latest session is always in range.
+const VND_LOOKBACK_SECS: u64 = 14 * 86_400;
 const USER_AGENT: &str =
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Islet";
 
@@ -62,6 +83,8 @@ pub struct Quote {
     pub currency: String,
     /// Today's prices, oldest first, for a sparkline.
     pub points: Vec<f64>,
+    /// Shares traded today, when the source reports it.
+    pub volume: Option<f64>,
     /// Unix time in milliseconds.
     pub updated_at: u64,
 }
@@ -114,8 +137,12 @@ impl QuoteState {
             change_percent: 0.0,
             currency: String::new(),
             points: Vec::new(),
+            volume: None,
             updated_at: now_ms,
         });
+        if tick.volume.is_some() {
+            q.volume = tick.volume;
+        }
         if let Some(pc) = tick.previous_close.filter(|p| p.is_finite() && *p > 0.0) {
             q.previous_close = pc;
         }
@@ -144,6 +171,8 @@ pub struct Tick {
     pub symbol: String,
     pub price: f64,
     pub previous_close: Option<f64>,
+    /// Shares traded today; Yahoo's stream leaves it out.
+    pub volume: Option<f64>,
 }
 
 /// Reads a stream message: JSON whose `message` is a base64 protobuf
@@ -185,6 +214,7 @@ pub fn decode_tick(text: &str) -> Option<Tick> {
         symbol: normalize_symbol(&symbol?)?,
         price,
         previous_close,
+        volume: None,
     })
 }
 
@@ -273,6 +303,7 @@ struct Meta {
     previous_close: Option<f64>,
     short_name: Option<String>,
     long_name: Option<String>,
+    regular_market_volume: Option<f64>,
 }
 
 #[derive(Deserialize)]
@@ -343,13 +374,16 @@ pub fn parse_chart(body: &str, now_ms: u64) -> Result<Quote, String> {
         change_percent: change / previous_close * 100.0,
         currency: meta.currency.unwrap_or_default(),
         points: downsample(points, MAX_POINTS),
+        volume: meta.regular_market_volume.filter(|v| v.is_finite()),
         updated_at: now_ms,
     })
 }
 
-fn agent() -> ureq::Agent {
+pub(crate) fn agent() -> ureq::Agent {
     let mut builder = ureq::AgentBuilder::new()
         .timeout(Duration::from_secs(10))
+        // VPS lists a dead address first; fail it fast so the next one is tried.
+        .timeout_connect(Duration::from_secs(2))
         .user_agent(USER_AGENT);
     if let Ok(tls) = native_tls::TlsConnector::new() {
         builder = builder.tls_connector(Arc::new(tls));
@@ -358,6 +392,9 @@ fn agent() -> ureq::Agent {
 }
 
 fn fetch(agent: &ureq::Agent, symbol: &str) -> Result<Quote, String> {
+    if is_vn(symbol) {
+        return fetch_vn(agent, symbol);
+    }
     let url = format!(
         "https://query1.finance.yahoo.com/v8/finance/chart/{}?interval=5m&range=1d",
         url_symbol(symbol)
@@ -371,6 +408,175 @@ fn fetch(agent: &ureq::Agent, symbol: &str) -> Result<Quote, String> {
     parse_chart(&body, now_ms())
 }
 
+fn is_vn(symbol: &str) -> bool {
+    symbol.ends_with(".VN")
+}
+
+/// The VPS code and VNDirect bar symbol of an index such as `^VNINDEX.VN`.
+fn vn_index(symbol: &str) -> Option<(&'static str, &'static str)> {
+    let name = symbol.strip_prefix('^')?.strip_suffix(".VN")?;
+    VN_INDEXES
+        .iter()
+        .find(|(n, _, _)| *n == name)
+        .map(|(_, code, bars)| (*code, *bars))
+}
+
+fn get_text(agent: &ureq::Agent, url: &str) -> Result<String, String> {
+    agent
+        .get(url)
+        .call()
+        .map_err(|e| format!("offline? {e}"))?
+        .into_string()
+        .map_err(|e| e.to_string())
+}
+
+#[derive(Deserialize)]
+struct VpsRow {
+    sym: String,
+    #[serde(rename = "lastPrice")]
+    last_price: Option<f64>,
+    /// Reference price: the previous session's close.
+    r: Option<f64>,
+    /// Volume today, in lots of 10 shares.
+    lot: Option<f64>,
+}
+
+/// Reads VPS's snapshot rows, which quote prices in thousands of dong.
+pub fn parse_vps(body: &str) -> Result<Vec<Tick>, String> {
+    let rows: Vec<VpsRow> =
+        serde_json::from_str(body).map_err(|e| format!("unexpected response: {e}"))?;
+    let ok = |p: Option<f64>| p.filter(|p| p.is_finite() && *p > 0.0);
+    Ok(rows
+        .into_iter()
+        .filter_map(|row| {
+            let reference = ok(row.r)?;
+            // lastPrice is 0 until the first trade of the session.
+            let price = ok(row.last_price).unwrap_or(reference);
+            Some(Tick {
+                symbol: format!("{}.VN", row.sym.to_ascii_uppercase()),
+                price: price * 1000.0,
+                previous_close: Some(reference * 1000.0),
+                volume: row.lot.filter(|v| v.is_finite()).map(|v| v * 10.0),
+            })
+        })
+        .collect())
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct VpsIndexRow {
+    mc: String,
+    c_index: Option<f64>,
+    /// Reference value: the previous session's close.
+    o_index: Option<f64>,
+    /// Shares traded today across the index.
+    vol: Option<f64>,
+}
+
+/// Reads VPS's index rows (in points) as ticks for the wanted index symbols.
+pub fn parse_vps_indexes(body: &str, symbols: &[String]) -> Result<Vec<Tick>, String> {
+    let rows: Vec<VpsIndexRow> =
+        serde_json::from_str(body).map_err(|e| format!("unexpected response: {e}"))?;
+    let ok = |p: Option<f64>| p.filter(|p| p.is_finite() && *p > 0.0);
+    Ok(symbols
+        .iter()
+        .filter_map(|symbol| {
+            let (code, _) = vn_index(symbol)?;
+            let row = rows.iter().find(|r| r.mc == code)?;
+            let reference = ok(row.o_index)?;
+            Some(Tick {
+                symbol: symbol.clone(),
+                price: ok(row.c_index).unwrap_or(reference),
+                previous_close: Some(reference),
+                volume: row.vol.filter(|v| v.is_finite()),
+            })
+        })
+        .collect())
+}
+
+/// Live prices for `.VN` stocks and indexes, at most one request each.
+fn fetch_vps(agent: &ureq::Agent, symbols: &[String]) -> Result<Vec<Tick>, String> {
+    let (indexes, stocks): (Vec<String>, Vec<String>) =
+        symbols.iter().cloned().partition(|s| vn_index(s).is_some());
+    let mut ticks = Vec::new();
+    if !stocks.is_empty() {
+        let codes: Vec<String> = stocks
+            .iter()
+            .map(|s| url_symbol(s.trim_end_matches(".VN")))
+            .collect();
+        ticks.extend(parse_vps(&get_text(agent, &format!("{VPS_URL}{}", codes.join(",")))?)?);
+    }
+    if !indexes.is_empty() {
+        let mut codes: Vec<&str> = indexes.iter().filter_map(|s| vn_index(s)).map(|(c, _)| c).collect();
+        codes.dedup();
+        let body = get_text(agent, &format!("{VPS_INDEX_URL}{}", codes.join(",")))?;
+        ticks.extend(parse_vps_indexes(&body, &indexes)?);
+    }
+    Ok(ticks)
+}
+
+#[derive(Deserialize)]
+struct Bars {
+    t: Vec<u64>,
+    c: Vec<f64>,
+}
+
+/// Closes of the latest session in VNDirect's 1-minute bars, times `scale`.
+pub fn parse_vnd_bars(body: &str, scale: f64) -> Vec<f64> {
+    let Ok(bars) = serde_json::from_str::<Bars>(body) else {
+        return Vec::new();
+    };
+    // Sessions are split by the day in Vietnam (UTC+7).
+    let day = |t: u64| (t + 7 * 3600) / 86_400;
+    let Some(last) = bars.t.last().map(|t| day(*t)) else {
+        return Vec::new();
+    };
+    let closes = bars
+        .t
+        .iter()
+        .zip(bars.c)
+        .filter(|(t, c)| day(**t) == last && c.is_finite())
+        .map(|(_, c)| c * scale)
+        .collect();
+    downsample(closes, MAX_POINTS)
+}
+
+fn fetch_vn(agent: &ureq::Agent, symbol: &str) -> Result<Quote, String> {
+    let tick = fetch_vps(agent, &[symbol.to_string()])?
+        .into_iter()
+        .next()
+        .ok_or("not found on HOSE, HNX or UPCoM")?;
+    // Stocks are quoted in thousands of dong, indexes in points.
+    let (code, scale, currency) = match vn_index(symbol) {
+        Some((_, bars)) => (bars, 1.0, ""),
+        None => (symbol.trim_end_matches(".VN"), 1000.0, "VND"),
+    };
+    let to = now_ms() / 1000;
+    let url = format!(
+        "{VND_BARS_URL}?resolution=1&symbol={}&from={}&to={to}",
+        url_symbol(code),
+        to - VND_LOOKBACK_SECS
+    );
+    // The sparkline is optional; the price still shows without it.
+    let points = get_text(agent, &url)
+        .map(|b| parse_vnd_bars(&b, scale))
+        .unwrap_or_default();
+    let mut q = Quote {
+        symbol: symbol.to_string(),
+        name: code.to_string(),
+        price: tick.price,
+        previous_close: tick.previous_close.unwrap_or(tick.price),
+        change: 0.0,
+        change_percent: 0.0,
+        currency: currency.into(),
+        points,
+        volume: tick.volume,
+        updated_at: 0,
+    };
+    set_price(&mut q, tick.price, now_ms());
+    Ok(q)
+}
+
 /// The symbols to refresh, or none while nothing shows quotes.
 fn wanted(s: &Settings) -> Vec<String> {
     let shown = s.widgets.contains(&WidgetId::Stocks) || !s.island_stocks.is_empty();
@@ -381,6 +587,11 @@ fn wanted(s: &Settings) -> Vec<String> {
     }
 }
 
+/// The wanted symbols Yahoo's stream should carry.
+fn streamed(s: &Settings) -> Vec<String> {
+    wanted(s).into_iter().filter(|s| !is_vn(s)).collect()
+}
+
 fn emit_quotes(app: &AppHandle) {
     let quotes = actions::state(app).read(|i| i.quote_list());
     let _ = app.emit(QUOTES_CHANGED, &quotes);
@@ -389,7 +600,47 @@ fn emit_quotes(app: &AppHandle) {
 pub fn spawn(app: AppHandle) {
     let streaming = Arc::new(AtomicBool::new(false));
     spawn_poller(app.clone(), streaming.clone());
-    spawn_streamer(app, streaming);
+    spawn_streamer(app.clone(), streaming);
+    spawn_vn_poller(app);
+}
+
+fn spawn_vn_poller(app: AppHandle) {
+    let spawned = thread::Builder::new()
+        .name("islet-market-vn".into())
+        .spawn(move || {
+            let agent = agent();
+            loop {
+                let st = actions::state(&app);
+                if st.read(|i| i.quitting) {
+                    break;
+                }
+                let symbols: Vec<String> = st.read(|i| wanted(&i.settings))
+                    .into_iter()
+                    .filter(|s| is_vn(s))
+                    .collect();
+                if !symbols.is_empty() {
+                    match fetch_vps(&agent, &symbols) {
+                        Ok(ticks) => {
+                            // The chart round creates entries; ticks only move them.
+                            st.mutate(|i| {
+                                for tick in &ticks {
+                                    if let Some(entry) = i.quotes.get_mut(&tick.symbol) {
+                                        entry.apply_tick(tick, now_ms());
+                                    }
+                                }
+                            });
+                            emit_quotes(&app);
+                        }
+                        Err(e) => log::debug!("VN prices failed: {e}"),
+                    }
+                }
+                // shortcut: polls around the clock, add a HOSE trading-hours check if the traffic matters.
+                thread::sleep(VN_EVERY);
+            }
+        });
+    if let Err(e) = spawned {
+        log::error!("VN price thread did not start: {e}");
+    }
 }
 
 fn spawn_poller(app: AppHandle, streaming: Arc<AtomicBool>) {
@@ -456,7 +707,7 @@ fn spawn_streamer(app: AppHandle, streaming: Arc<AtomicBool>) {
                 if st.read(|i| i.quitting) {
                     break;
                 }
-                let symbols = st.read(|i| wanted(&i.settings));
+                let symbols = st.read(|i| streamed(&i.settings));
                 if symbols.is_empty() {
                     thread::sleep(TICK);
                     continue;
@@ -505,7 +756,7 @@ fn stream(app: &AppHandle, symbols: &[String], streaming: &AtomicBool) -> Result
 
     let (mut dirty, mut last_emit, mut last_ping) = (false, Instant::now(), Instant::now());
     loop {
-        let (quitting, now_wanted) = st.read(|i| (i.quitting, wanted(&i.settings)));
+        let (quitting, now_wanted) = st.read(|i| (i.quitting, streamed(&i.settings)));
         if quitting || now_wanted != symbols {
             let _ = ws.close(None);
             return Ok(());
@@ -585,6 +836,7 @@ mod tests {
             symbol: "AAPL".into(),
             price: 350.0,
             previous_close: None,
+            volume: None,
         };
         s.apply_tick(&tick, 2);
         let q = s.quote.clone().unwrap();
@@ -648,6 +900,55 @@ mod tests {
             }
         };
         assert!(tick.price > 0.0, "{tick:?}");
+    }
+
+    #[test]
+    fn vps_rows_become_ticks_in_dong() {
+        let body = r#"[{"sym":"VNM","lastPrice":57.5,"r":56.9,"lot":16570},{"sym":"FPT","lastPrice":0,"r":51.7},{"sym":"X","r":0}]"#;
+        let ticks = parse_vps(body).unwrap();
+        assert_eq!(ticks.len(), 2);
+        assert_eq!(ticks[0].symbol, "VNM.VN");
+        assert_eq!(ticks[0].price, 57_500.0);
+        assert_eq!(ticks[0].previous_close, Some(56_900.0));
+        assert_eq!(ticks[0].volume, Some(165_700.0));
+        assert_eq!(ticks[1].volume, None);
+        // No trade yet: the reference price stands in.
+        assert_eq!(ticks[1].price, 51_700.0);
+        assert!(parse_vps("<html>").is_err());
+    }
+
+    #[test]
+    fn vnd_bars_keep_only_the_latest_session() {
+        // 1793932080 is 2026-11-06 09:28 in Vietnam; +3 days is 2026-11-09.
+        let (fri, mon) = (1_793_932_080u64, 1_793_932_080u64 + 3 * 86_400);
+        let body = format!(r#"{{"t":[{fri},{mon},{}],"c":[50.0,51.0,51.7],"s":"ok"}}"#, mon + 60);
+        assert_eq!(parse_vnd_bars(&body, 1000.0), vec![51_000.0, 51_700.0]);
+        assert!(parse_vnd_bars("{}", 1000.0).is_empty());
+    }
+
+    #[test]
+    fn vps_index_rows_match_index_symbols() {
+        let body = r#"[{"mc":"10","cIndex":1724.87,"oIndex":1714.32,"vol":67609420},{"mc":"12","cIndex":224.2,"oIndex":224.2}]"#;
+        let wanted = ["^VINDEX.VN".to_string(), "^VNINDEX.VN".into(), "^VN30.VN".into()];
+        let ticks = parse_vps_indexes(body, &wanted).unwrap();
+        assert_eq!(ticks.len(), 2, "VN30 has no row");
+        assert_eq!(ticks[0].symbol, "^VINDEX.VN");
+        assert_eq!(ticks[1].price, 1724.87);
+        assert_eq!(ticks[1].previous_close, Some(1714.32));
+        assert_eq!(ticks[1].volume, Some(67_609_420.0));
+        assert_eq!(vn_index("VNINDEX.VN"), None, "an index needs the ^");
+    }
+
+    /// Hits the network; run with `cargo test -- --ignored`.
+    #[test]
+    #[ignore]
+    fn live_vn_quotes_load() {
+        let agent = agent();
+        let q = fetch(&agent, "FPT.VN").unwrap();
+        assert!(q.price > 1000.0 && q.currency == "VND", "{q:?}");
+        assert!(fetch(&agent, "ZZZZ.VN").is_err());
+        let idx = fetch(&agent, "^VINDEX.VN").unwrap();
+        assert!(idx.price > 100.0 && !idx.points.is_empty(), "{idx:?}");
     }
 
     #[test]

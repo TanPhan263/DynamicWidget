@@ -1,4 +1,4 @@
-import { getSettings, sendMedia, sendNotification, setStatus } from "./islet.js";
+import { getSettings, sendMedia, sendNotification, setStatus, takeMediaCommand } from "./islet.js";
 import { shortHost, siteFor } from "./sites.js";
 
 /** At most this many notifications per site per minute reach Islet. */
@@ -7,6 +7,13 @@ const RATE_LIMIT = 12;
 const DUPLICATE_MS = 3000;
 /** Islet accepts icons up to 12 KiB as a data URL. */
 const IMAGE_MAX = 11 * 1024;
+/** How often Islet is asked for a play, pause or skip for the media tab. */
+const COMMAND_POLL_MS = 1000;
+/** After the tab's last report, it can still be resumed for this long. */
+const COMMAND_WINDOW_MS = 10 * 60_000;
+
+/** The tab that last reported media, and when. */
+let mediaTab = null;
 
 const sent = new Map(); // host -> recent send times
 const seen = new Map(); // notification key -> last time
@@ -17,8 +24,23 @@ chrome.runtime.onMessage.addListener((message, sender) => {
   // Some web apps (Outlook among them) raise notifications from an iframe.
   // Those are named after the frame's own site, never the tab's.
   if (message?.type === "notification") forward(message, sender.url ?? sender.tab.url).catch(() => {});
-  if (message?.type === "media" && sender.frameId === 0) forwardMedia(message, sender.tab.url).catch(() => {});
+  if (message?.type === "media" && sender.frameId === 0) {
+    mediaTab = { id: sender.tab.id, at: Date.now() };
+    forwardMedia(message, sender.tab.url).catch(() => {});
+  }
 });
+
+// Each poll calls an extension API, which also keeps this worker alive
+// while a tab can still be controlled.
+setInterval(() => pollMediaCommand().catch(() => {}), COMMAND_POLL_MS);
+
+async function pollMediaCommand() {
+  if (!mediaTab || Date.now() - mediaTab.at > COMMAND_WINDOW_MS) return;
+  const settings = await getSettings();
+  if (!settings.enabled || !settings.token) return;
+  const command = await takeMediaCommand(settings);
+  if (command) await chrome.tabs.sendMessage(mediaTab.id, { type: "media-command", command }, { frameId: 0 });
+}
 
 function allowed(host, now) {
   const times = (sent.get(host) ?? []).filter((t) => now - t < 60_000);

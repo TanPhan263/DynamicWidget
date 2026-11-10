@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { baseSnapshot, emit, invoked, resetMock } from "../test/tauriMock";
 import { Island } from "./Island";
 
@@ -107,6 +107,44 @@ describe("Island", () => {
     act(() => emit("island-toggle"));
     fireEvent.click(await screen.findByRole("button", { name: "Open Activity Monitor" }));
     expect(opened()).toEqual([{ widget: "calendar" }, { widget: "system" }]);
+  });
+
+  it("plays, pauses and skips from the Now playing widget, and resumes after a pause", async () => {
+    const snap = baseSnapshot();
+    snap.settings.widgets = ["media"];
+    resetMock(snap);
+    render(<Island />);
+    await flush();
+    const song = { title: "Blinding Lights", artist: "The Weeknd", app: "Spotify", image: null, controls: true, browser: false };
+    act(() => emit("system-stats", { ...snap.stats, audioPlaying: true, nowPlaying: song }));
+    act(() => emit("island-toggle"));
+    const sent = () => invoked.filter((c) => c.cmd === "media_control").map((c) => c.args);
+
+    fireEvent.click(screen.getByRole("button", { name: "Next track" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+    expect(sent()).toEqual([
+      { player: "Spotify", command: "next", browser: false },
+      { player: "Spotify", command: "play-pause", browser: false },
+    ]);
+
+    // Paused: the core reports nothing, but the track stays to resume.
+    act(() => emit("system-stats", { ...snap.stats, audioPlaying: false, nowPlaying: null }));
+    expect(screen.getAllByText("Blinding Lights").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "Play" }));
+    expect(sent().at(-1)).toEqual({ player: "Spotify", command: "play-pause", browser: false });
+  });
+
+  it("leaves a website's player to its tab where it can't be controlled", async () => {
+    const snap = baseSnapshot();
+    snap.settings.widgets = ["media"];
+    resetMock(snap);
+    render(<Island />);
+    await flush();
+    const site = { title: "Lofi beats", artist: "", app: "YouTube", image: null, controls: false, browser: true };
+    act(() => emit("system-stats", { ...snap.stats, audioPlaying: true, nowPlaying: site }));
+    act(() => emit("island-toggle"));
+    expect(screen.getByRole("button", { name: "Pause" })).toBeDisabled();
+    expect(screen.getAllByText("YouTube").length).toBeGreaterThan(0);
   });
 
   it("runs quick actions", async () => {
@@ -255,7 +293,7 @@ describe("Island", () => {
     expect(screen.getByRole("img", { name: "Playing sound" })).toBeInTheDocument();
   });
 
-  it("puts the bars and the title below the island when set", async () => {
+  it("puts only the bars below the island; over a notch the title peeks inside", async () => {
     const snap = baseSnapshot();
     snap.settings.musicBars = { ...snap.settings.musicBars, position: "below", flipped: true };
     resetMock(snap);
@@ -264,11 +302,64 @@ describe("Island", () => {
     const song = { title: "Lofi beats", artist: "Chill", app: "YouTube", image: null };
     act(() => emit("system-stats", { ...snap.stats, audioPlaying: true, nowPlaying: song }));
     const island = container.querySelector(".island")!;
-    // Nothing in the wings, and no peek: the title is under the island.
-    expect(island).toHaveClass("compact");
-    expect(island).not.toHaveTextContent("Lofi beats");
+    expect(island).toHaveClass("peek");
+    expect(island).toHaveTextContent("Lofi beats");
+    // Every title on the page is inside the island.
+    expect(screen.getAllByText("Lofi beats").every((el) => island.contains(el))).toBe(true);
     expect(screen.getByRole("img", { name: "Playing sound" })).not.toBeNull();
-    expect(screen.getByText("Lofi beats")).toBeInTheDocument();
+  });
+
+  it("puts media buttons beside the pinned title, and hovering them keeps the island closed", async () => {
+    const snap = baseSnapshot();
+    snap.layout = { platform: "windows", notch: null, menuBarHeight: 0 };
+    snap.settings.islandStyle = "island";
+    resetMock(snap);
+    const { container } = render(<Island />);
+    await flush();
+    const song = { title: "Lofi beats", artist: "Chill", app: "Spotify", image: null, controls: true, browser: false };
+    act(() => emit("system-stats", { ...snap.stats, audioPlaying: true, nowPlaying: song }));
+    const island = container.querySelector(".island")!;
+    const next = within(island as HTMLElement).getByRole("button", { name: "Next track" });
+
+    // Over the buttons, hovering does not open the panel.
+    fireEvent.pointerOver(next);
+    act(() => emit("island-hover", true));
+    act(() => vi.advanceTimersByTime(500));
+    expect(island).toHaveClass("compact");
+
+    fireEvent.click(next);
+    expect(island).toHaveClass("compact");
+    expect(invoked).toContainEqual({ cmd: "media_control", args: { player: "Spotify", command: "next", browser: false } });
+
+    // A player Islet can't control keeps its buttons, greyed out.
+    act(() => emit("system-stats", { ...snap.stats, audioPlaying: true, nowPlaying: { ...song, app: "coursera.org", controls: false } }));
+    expect(within(island as HTMLElement).getByRole("button", { name: "Pause" })).toBeDisabled();
+    act(() => emit("system-stats", { ...snap.stats, audioPlaying: true, nowPlaying: song }));
+
+    // Moving on to the rest of the island opens it as usual.
+    fireEvent.pointerOut(next);
+    act(() => vi.advanceTimersByTime(500));
+    expect(container.querySelector(".island")).toHaveClass("expanded");
+  });
+
+  it("pins the title inside a floating island while the bars sit below", async () => {
+    const snap = baseSnapshot();
+    snap.layout = { platform: "windows", notch: null, menuBarHeight: 0 };
+    snap.settings.islandStyle = "island";
+    snap.settings.musicBars = { ...snap.settings.musicBars, position: "below" };
+    resetMock(snap);
+    const { container } = render(<Island />);
+    await flush();
+    const song = { title: "Lofi beats", artist: "Chill", app: "YouTube", image: null };
+    act(() => emit("system-stats", { ...snap.stats, audioPlaying: true, nowPlaying: song }));
+    const island = container.querySelector(".island")!;
+    expect(island).toHaveClass("compact");
+    expect(island).toHaveTextContent("Lofi beats");
+    expect(screen.getAllByText("Lofi beats").every((el) => island.contains(el))).toBe(true);
+    // One set of bars, under the island rather than in it.
+    const bars = screen.getAllByRole("img", { name: "Playing sound" });
+    expect(bars).toHaveLength(1);
+    expect(island.contains(bars[0])).toBe(false);
   });
 
   it("sizes the island and the panel separately but keeps the notch", async () => {

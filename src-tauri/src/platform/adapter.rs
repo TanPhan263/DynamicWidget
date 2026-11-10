@@ -2,7 +2,7 @@ use tauri::{AppHandle, Monitor, WebviewWindow};
 
 use crate::core::geometry::{DisplayGeometry, Point, Rect};
 use crate::core::island::IslandLayout;
-use crate::core::media::NowPlaying;
+use crate::core::media::{MediaCommand, NowPlaying};
 use crate::errors::AppResult;
 
 /// Converts core intent into OS operations. Everything above this trait is
@@ -31,4 +31,6 @@ pub trait PlatformAdapter: Send + Sync {
     fn audio_playing(&self) -> bool;
     /// The track a desktop player is playing, if it can be asked.
     fn now_playing(&self) -> Option<NowPlaying>;
+    /// Plays, pauses or skips on `player` (a [`NowPlaying::app`]).
+    fn media_control(&self, player: &str, command: MediaCommand) -> AppResult<()>;
 }

@@ -5,11 +5,11 @@
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::core::http_api::{MediaSink, Sink, TokenSource};
+use crate::core::http_api::{CommandSource, MediaSink, Sink, TokenSource};
 use crate::core::island::ISLAND_LABEL;
 use crate::core::notifications::{
     now_ms, Notification, NotificationInput, NotificationSource, Symbol,
@@ -127,10 +127,38 @@ pub fn api_sink(app: &AppHandle) -> Sink {
 /// Keeps what the browser reports playing; the system monitor shows it.
 fn media_sink(app: &AppHandle) -> MediaSink {
     let app = app.clone();
+    // The extension repeats reports while playing; log only changes.
+    let last = std::sync::Mutex::new(String::new());
     Arc::new(move |input| {
+        let seen = format!(
+            "playing={} app={:?} title={:?} artist={:?}",
+            input.playing, input.app, input.title, input.artist
+        );
+        if let Ok(mut last) = last.lock() {
+            if *last != seen {
+                log::info!("browser media: {seen}");
+                *last = seen;
+            }
+        }
         let now_playing = input.now_playing()?;
         state(&app).mutate(|i| i.web_media = Some((now_playing, Instant::now())));
         Ok(())
+    })
+}
+
+/// A press older than this is dropped, so a late pickup never surprises.
+const WEB_COMMAND_FRESH: Duration = Duration::from_secs(10);
+
+/// The extension collects a waiting play, pause or skip through this.
+fn command_source(app: &AppHandle) -> CommandSource {
+    let app = app.clone();
+    Arc::new(move || {
+        state(&app).mutate(|i| {
+            i.web_command
+                .take()
+                .filter(|(_, at)| at.elapsed() < WEB_COMMAND_FRESH)
+                .map(|(c, _)| c)
+        })
     })
 }
 
@@ -200,7 +228,7 @@ fn widget_app(widget: WidgetId) -> Option<Launch> {
             WidgetId::Calendar => "/System/Applications/Calendar.app",
             WidgetId::System => "/System/Applications/Utilities/Activity Monitor.app",
             WidgetId::Notes => "/System/Applications/Notes.app",
-            WidgetId::Actions | WidgetId::Stocks => return None,
+            WidgetId::Actions | WidgetId::Stocks | WidgetId::Media => return None,
         }))
     } else if cfg!(target_os = "windows") {
         Some(match widget {
@@ -210,7 +238,7 @@ fn widget_app(widget: WidgetId) -> Option<Launch> {
             WidgetId::Notes => Launch::Explorer(
                 r"shell:AppsFolder\Microsoft.MicrosoftStickyNotes_8wekyb3d8bbwe!App",
             ),
-            WidgetId::Actions | WidgetId::Stocks => return None,
+            WidgetId::Actions | WidgetId::Stocks | WidgetId::Media => return None,
         })
     } else {
         None
@@ -256,6 +284,7 @@ pub fn apply_api(app: &AppHandle) {
         port,
         api_sink(app),
         media_sink(app),
+        command_source(app),
         browser_token(app),
     );
     if let Err(e) = result {

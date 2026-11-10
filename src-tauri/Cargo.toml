@@ -38,6 +38,9 @@ core-graphics = "0.25"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62", features = [
+  "Foundation_Collections",
+  "Media_Control",
+  "Storage_Streams",
   "Win32_Foundation",
   "Win32_Media_Audio",
   "Win32_Media_Audio_Endpoints",

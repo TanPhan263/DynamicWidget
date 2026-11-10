@@ -25,7 +25,7 @@ use serde::Serialize;
 use serde_json::json;
 use tiny_http::{Header, Response, Server};
 
-use super::media::MediaInput;
+use super::media::{MediaCommand, MediaInput};
 use super::notifications::{Notification, NotificationInput, NotificationSource};
 use super::pairing;
 use crate::errors::{AppError, AppResult};
@@ -36,6 +36,8 @@ pub type Sink =
     Arc<dyn Fn(NotificationInput, NotificationSource) -> AppResult<Notification> + Send + Sync>;
 /// Takes what the browser is playing.
 pub type MediaSink = Arc<dyn Fn(MediaInput) -> AppResult<()> + Send + Sync>;
+/// Hands the extension the button press waiting for its tab, if any.
+pub type CommandSource = Arc<dyn Fn() -> Option<MediaCommand> + Send + Sync>;
 /// Reads the current pairing token, so a new token applies without a restart.
 pub type TokenSource = Arc<dyn Fn() -> String + Send + Sync>;
 
@@ -55,6 +57,8 @@ pub enum Route {
     Notify(NotificationInput, NotificationSource),
     /// What a website plays; only the paired extension sends this.
     Media(MediaInput),
+    /// The extension collects a play, pause or skip for its tab.
+    MediaCommand,
 }
 
 #[derive(Debug, PartialEq)]
@@ -119,6 +123,8 @@ pub fn route(req: &ApiRequest, port: u16, token: &str) -> Result<Route, Rejectio
         ("GET", "/v1/health") => Ok(Route::Health {
             paired: source == NotificationSource::Browser,
         }),
+        ("GET", "/v1/media/command") if source == NotificationSource::Browser => Ok(Route::MediaCommand),
+        ("GET", "/v1/media/command") => Err(reject(401, "Only the paired browser extension takes media commands")),
         ("POST", "/v1/notify" | "/v1/media") => {
             let json = req.content_type.is_some_and(|c| {
                 c.trim()
@@ -152,7 +158,9 @@ pub fn route(req: &ApiRequest, port: u16, token: &str) -> Result<Route, Rejectio
                 .map(|input| Route::Notify(input, source))
                 .map_err(|e| reject(400, format!("Invalid notification: {e}")))
         }
-        (_, "/v1/health" | "/v1/notify" | "/v1/media") => Err(reject(405, "Method not allowed")),
+        (_, "/v1/health" | "/v1/notify" | "/v1/media" | "/v1/media/command") => {
+            Err(reject(405, "Method not allowed"))
+        }
         _ => Err(reject(404, "Not found. Use POST /v1/notify")),
     }
 }
@@ -185,6 +193,7 @@ impl ApiServer {
         port: u16,
         sink: Sink,
         media: MediaSink,
+        commands: CommandSource,
         token: TokenSource,
     ) -> AppResult<()> {
         if enabled && self.running.as_ref().is_some_and(|r| r.port == port) {
@@ -207,7 +216,7 @@ impl ApiServer {
         let worker = server.clone();
         let thread = thread::Builder::new()
             .name("islet-api".into())
-            .spawn(move || serve(&worker, port, &sink, &media, &token))
+            .spawn(move || serve(&worker, port, &sink, &media, &commands, &token))
             .map_err(|e| AppError::Api(e.to_string()))?;
         log::info!("notification API listening on 127.0.0.1:{port}");
         self.running = Some(Running {
@@ -253,7 +262,14 @@ fn reply(status: u16, body: serde_json::Value) -> Response<std::io::Cursor<Vec<u
         .with_header(content_type)
 }
 
-fn serve(server: &Server, port: u16, sink: &Sink, media: &MediaSink, token: &TokenSource) {
+fn serve(
+    server: &Server,
+    port: u16,
+    sink: &Sink,
+    media: &MediaSink,
+    commands: &CommandSource,
+    token: &TokenSource,
+) {
     // `incoming_requests` ends when `unblock` is called.
     for mut request in server.incoming_requests() {
         let too_big = request.body_length().is_some_and(|n| n > MAX_BODY_BYTES);
@@ -300,6 +316,7 @@ fn serve(server: &Server, port: u16, sink: &Sink, media: &MediaSink, token: &Tok
                 Ok(()) => reply(200, json!({ "ok": true })),
                 Err(e) => reply(400, json!({ "ok": false, "error": e.to_string() })),
             },
+            Ok(Route::MediaCommand) => reply(200, json!({ "ok": true, "command": commands() })),
             Err(r) => reply(r.status, json!({ "ok": false, "error": r.message })),
         };
         if let Err(e) = request.respond(response) {
@@ -386,6 +403,30 @@ mod tests {
         };
         assert_eq!(input.title, "Song");
         assert!(input.playing);
+    }
+
+    #[test]
+    fn only_the_extension_takes_media_commands() {
+        let script = req("GET", "/v1/media/command", b"");
+        assert_eq!(route(&script, PORT, TOKEN).unwrap_err().status, 401);
+        let auth = format!("Bearer {TOKEN}");
+        let ext = ApiRequest {
+            origin: Some("chrome-extension://abc"),
+            authorization: Some(&auth),
+            ..req("GET", "/v1/media/command", b"")
+        };
+        assert_eq!(route(&ext, PORT, TOKEN), Ok(Route::MediaCommand));
+        let post = ApiRequest {
+            method: "POST",
+            ..ext
+        };
+        assert_eq!(route(&post, PORT, TOKEN).unwrap_err().status, 405);
+        let page = ApiRequest {
+            origin: Some("https://evil.example"),
+            authorization: Some(&auth),
+            ..req("GET", "/v1/media/command", b"")
+        };
+        assert_eq!(route(&page, PORT, TOKEN).unwrap_err().status, 403);
     }
 
     #[test]

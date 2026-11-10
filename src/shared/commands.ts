@@ -1,7 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   IslandNotification,
+  MediaCommand,
   NotificationInput,
+  NowPlaying,
   NotificationSymbol,
   QuickAction,
   Settings,
@@ -45,6 +47,10 @@ export const openWidgetApp = (widget: WidgetId) => invoke<void>("open_widget_app
 
 /** Runs a quick action; toggles resolve to their new state when it is known. */
 export const runQuickAction = (action: QuickAction) => invoke<boolean | null>("run_quick_action", { action });
+
+/** Plays, pauses or skips on the player the Now playing widget shows. */
+export const mediaControl = (track: NowPlaying, command: MediaCommand) =>
+  invoke<void>("media_control", { player: track.app, command, browser: track.browser });
 
 /** Opens a symbol's quote page in the browser. */
 export const openStockPage = (symbol: string) => invoke<void>("open_stock_page", { symbol });

@@ -184,6 +184,7 @@ pub fn spawn(app: AppHandle) {
                 .map_err(|e| log::info!("battery info unavailable: {e}"))
                 .ok();
             let mut prev_battery: Option<BatteryInfo> = None;
+            let mut prev_playing: Option<NowPlaying> = None;
             loop {
                 let st = actions::state(&app);
                 if st.read(|i| i.quitting) {
@@ -207,11 +208,26 @@ pub fn spawn(app: AppHandle) {
                         .filter(|(_, at)| at.elapsed() < WEB_FRESH)
                         .map(|(np, _)| np.clone())
                 });
+                let from_web = matches!(web, Some(Some(_)));
                 stats.now_playing = match web {
                     Some(np @ Some(_)) => np,
                     _ if stats.audio_playing => st.adapter.now_playing(),
                     _ => None,
                 };
+                if stats.now_playing != prev_playing {
+                    match &stats.now_playing {
+                        Some(np) => log::info!(
+                            "now playing ({}): app={:?} title={:?} artist={:?} image={}",
+                            if from_web { "browser" } else { "desktop player" },
+                            np.app,
+                            np.title,
+                            np.artist,
+                            np.image.is_some()
+                        ),
+                        None => log::info!("now playing: nothing (sound playing: {})", stats.audio_playing),
+                    }
+                    prev_playing = stats.now_playing.clone();
+                }
 
                 if let (Some(prev), Some(cur)) = (&prev_battery, &stats.battery) {
                     if st.read(|i| i.settings.battery_alerts) {

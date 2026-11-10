@@ -80,6 +80,47 @@ describe("page.js media", () => {
   });
 });
 
+describe("page.js media commands", () => {
+  const command = (c) => document.dispatchEvent(new CustomEvent("islet:media-command", { detail: c }));
+
+  it("uses the page's own Media Session handlers", () => {
+    const set = vi.fn();
+    Object.defineProperty(navigator, "mediaSession", {
+      configurable: true,
+      value: { playbackState: "playing", metadata: null, setActionHandler: set },
+    });
+    window.eval(pageScript);
+    const next = vi.fn();
+    navigator.mediaSession.setActionHandler("nexttrack", next);
+    // The page's own call still reaches the browser.
+    expect(set).toHaveBeenCalledWith("nexttrack", next);
+    command("next");
+    expect(next).toHaveBeenCalledWith({ action: "nexttrack" });
+  });
+
+  it("pauses and resumes the media element when the page has no handlers", () => {
+    Object.defineProperty(navigator, "mediaSession", { configurable: true, value: undefined });
+    document.body.innerHTML = "<video></video>";
+    const video = document.querySelector("video");
+    let paused = false;
+    Object.defineProperty(video, "paused", { configurable: true, get: () => paused });
+    video.pause = vi.fn(() => (paused = true));
+    video.play = vi.fn(() => {
+      paused = false;
+      return Promise.resolve();
+    });
+    window.eval(pageScript);
+    command("play-pause");
+    expect(video.pause).toHaveBeenCalled();
+    command("play-pause");
+    expect(video.play).toHaveBeenCalled();
+    // Unknown commands do nothing. (Each test's eval adds a listener, so count deltas.)
+    const [pauses, plays] = [video.pause.mock.calls.length, video.play.mock.calls.length];
+    command("rm -rf");
+    expect([video.pause.mock.calls.length, video.play.mock.calls.length]).toEqual([pauses, plays]);
+  });
+});
+
 describe("sites.js", () => {
   it("names known sites, subdomains included", () => {
     expect(siteFor("mail.google.com")?.name).toBe("Gmail");

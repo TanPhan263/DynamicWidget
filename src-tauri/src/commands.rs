@@ -8,6 +8,7 @@ use crate::actions::{self, SHORTCUT_CONFLICT};
 use crate::core::geometry::Rect;
 use crate::core::island::{WINDOW_HEIGHT, WINDOW_WIDTH};
 use crate::core::market;
+use crate::core::media::MediaCommand;
 use crate::core::notifications::{Notification, NotificationInput, NotificationSource, Symbol};
 use crate::core::settings_service::{self, Settings, WidgetId};
 use crate::core::shortcut_service;
@@ -36,6 +37,23 @@ pub async fn replace_browser_token(app: AppHandle) -> AppResult<UiSnapshot> {
 #[tauri::command]
 pub async fn run_quick_action(app: AppHandle, action: QuickAction) -> AppResult<Option<bool>> {
     quick_actions::run(&app, action)
+}
+
+/// Plays, pauses or skips on the player the Now playing widget shows.
+#[tauri::command]
+pub async fn media_control(
+    app: AppHandle,
+    player: String,
+    command: MediaCommand,
+    browser: bool,
+) -> AppResult<()> {
+    let st = actions::state(&app);
+    if browser {
+        // The extension collects it within a second or so.
+        st.mutate(|i| i.web_command = Some((command, std::time::Instant::now())));
+        return Ok(());
+    }
+    st.adapter.media_control(&player, command)
 }
 
 /// Opens a symbol's quote page on Yahoo Finance.

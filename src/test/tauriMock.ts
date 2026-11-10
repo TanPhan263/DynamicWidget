@@ -63,6 +63,7 @@ export function baseSnapshot(): UiSnapshot {
           changePercent: -0.523,
           currency: "USD",
           points: [344, 341, 343, 342.37],
+          volume: 47_499_490,
           updatedAt: 1,
         },
         error: null,

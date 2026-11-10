@@ -7,9 +7,12 @@ import {
   FolderDown,
   Lock,
   Moon,
+  Music2,
   Pause,
   Pin,
   Play,
+  SkipBack,
+  SkipForward,
   StickyNote,
   Timer as TimerIcon,
   TrendingUp,
@@ -22,10 +25,12 @@ import {
 import { motion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { clockParts, formatBytes, formatDuration, formatMinutes, formatPercent, formatPrice } from "../../shared/format";
+import { clockParts, formatBytes, formatDuration, formatMinutes, formatPercent, formatPrice, formatVolume } from "../../shared/format";
 import {
   errorMessage,
   MAX_ISLAND_STOCKS,
+  type MediaCommand,
+  type NowPlaying,
   type Quote,
   type QuickAction,
   type QuoteState,
@@ -446,6 +451,8 @@ export function StocksWidget({ api, span }: { api: StocksApi } & SpanProps) {
   const full = pinned.length >= MAX_ISLAND_STOCKS;
   const wide = isWide(span);
   const tall = isTall(span);
+  // Only the full-width card has room for volume.
+  const large = (span?.cols ?? 1) >= 3;
   // One row per symbol that fits the card.
   const rows = quotes.slice(0, tall ? 7 : 3);
   return (
@@ -474,6 +481,11 @@ export function StocksWidget({ api, span }: { api: StocksApi } & SpanProps) {
                   {wide && quote && <span className="ml-1.5 text-white/65">{quote.name}</span>}
                 </span>
                 {wide && quote && <Sparkline q={quote} className="w-20 shrink-0" />}
+                {large && quote && (
+                  <span title="Volume today" className="w-11 shrink-0 text-right tabular-nums text-white/65">
+                    {quote.volume != null ? formatVolume(quote.volume) : "—"}
+                  </span>
+                )}
                 {quote ? (
                   <>
                     {/* Live ticks roll the digits that changed. */}
@@ -515,6 +527,64 @@ export function StocksWidget({ api, span }: { api: StocksApi } & SpanProps) {
   );
 }
 
+export interface MediaApi {
+  /** What plays now, or what played last while paused. */
+  track: NowPlaying | null;
+  playing: boolean;
+  onCommand: (command: MediaCommand) => void;
+}
+
+const MEDIA_BUTTON =
+  "grid size-8 place-items-center rounded-full text-white/85 transition-colors outline-none hover:bg-white/[0.14] hover:text-white active:scale-95 focus-visible:ring-2 focus-visible:ring-white/40 disabled:pointer-events-none disabled:opacity-35";
+
+export function MediaWidget({ api, span }: { api: MediaApi } & SpanProps) {
+  const { track, playing, onCommand } = api;
+  if (!track) {
+    return (
+      <Card title="Now playing" icon={Music2}>
+        <p className="text-xs text-white/65">Nothing has played yet.</p>
+      </Card>
+    );
+  }
+  const art = isWide(span) || isTall(span) ? 56 : 40;
+  const off = !track.controls;
+  return (
+    <Card className="justify-between gap-2">
+      <div className="flex min-w-0 items-center gap-2.5">
+        {track.image ? (
+          <img src={track.image} alt="" width={art} height={art} className="shrink-0 rounded-lg bg-white/10 object-cover" style={{ width: art, height: art }} />
+        ) : (
+          <span className="grid shrink-0 place-items-center rounded-lg bg-white/10" style={{ width: art, height: art }}>
+            <Music2 className="size-5 text-white/70" aria-hidden="true" />
+          </span>
+        )}
+        <div className="min-w-0">
+          <p className="truncate text-[13px] font-semibold" title={track.title}>
+            {track.title}
+          </p>
+          <p className="truncate text-[11px] text-white/65">{track.artist || track.app}</p>
+        </div>
+      </div>
+      {/* A website's player is out of reach on macOS; its tab has the controls. */}
+      <div className="flex items-center justify-center gap-1" title={off ? `Control it in ${track.app}` : undefined}>
+        <button type="button" aria-label="Previous track" disabled={off} className={MEDIA_BUTTON} onClick={() => onCommand("previous")}>
+          <SkipBack className="size-4" fill="currentColor" aria-hidden="true" />
+        </button>
+        <button type="button" aria-label={playing ? "Pause" : "Play"} disabled={off} className={MEDIA_BUTTON} onClick={() => onCommand("play-pause")}>
+          {playing ? (
+            <Pause className="size-5" fill="currentColor" aria-hidden="true" />
+          ) : (
+            <Play className="size-5" fill="currentColor" aria-hidden="true" />
+          )}
+        </button>
+        <button type="button" aria-label="Next track" disabled={off} className={MEDIA_BUTTON} onClick={() => onCommand("next")}>
+          <SkipForward className="size-4" fill="currentColor" aria-hidden="true" />
+        </button>
+      </div>
+    </Card>
+  );
+}
+
 export function Widget({
   id,
   span,
@@ -524,6 +594,7 @@ export function Widget({
   stats,
   actions,
   stocks,
+  media,
 }: {
   id: WidgetId;
   span?: WidgetSpan;
@@ -533,6 +604,7 @@ export function Widget({
   stats: SystemStats;
   actions: QuickActionsApi;
   stocks: StocksApi;
+  media: MediaApi;
 }) {
   switch (id) {
     case "clock":
@@ -549,5 +621,7 @@ export function Widget({
       return <QuickActionsWidget api={actions} span={span} />;
     case "stocks":
       return <StocksWidget api={stocks} span={span} />;
+    case "media":
+      return <MediaWidget api={media} span={span} />;
   }
 }

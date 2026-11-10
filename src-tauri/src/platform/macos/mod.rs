@@ -8,7 +8,7 @@ use tauri::{AppHandle, Monitor, WebviewWindow};
 use super::adapter::PlatformAdapter;
 use crate::core::geometry::{DisplayGeometry, Point, Rect};
 use crate::core::island::IslandLayout;
-use crate::core::media::NowPlaying;
+use crate::core::media::{MediaCommand, NowPlaying};
 use crate::errors::AppResult;
 
 /// macOS works in global points with the origin at the top-left corner of
@@ -55,5 +55,9 @@ impl PlatformAdapter for MacAdapter {
 
     fn now_playing(&self) -> Option<NowPlaying> {
         media::now_playing()
+    }
+
+    fn media_control(&self, player: &str, command: MediaCommand) -> AppResult<()> {
+        media::control(player, command)
     }
 }

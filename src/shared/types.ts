@@ -18,7 +18,7 @@ export function clampSpan(cols: number, rows: number): WidgetSpan {
     rows: Math.min(WIDGET_MAX_ROWS, Math.max(1, Math.round(rows))),
   };
 }
-export type WidgetId = "clock" | "calendar" | "timer" | "system" | "notes" | "actions" | "stocks";
+export type WidgetId = "clock" | "calendar" | "timer" | "system" | "notes" | "actions" | "stocks" | "media";
 
 /** One-tap system actions in the Quick actions widget. */
 export type QuickAction = "keep-awake" | "screenshot" | "mute" | "lock" | "calculator" | "downloads" | "record";
@@ -34,6 +34,7 @@ export function widgetAppName(id: WidgetId, platform: Platform): string | null {
       notes: "Notes",
       actions: null,
       stocks: null,
+      media: null,
     };
     return apps[id];
   }
@@ -46,13 +47,14 @@ export function widgetAppName(id: WidgetId, platform: Platform): string | null {
       notes: "Sticky Notes",
       actions: null,
       stocks: null,
+      media: null,
     };
     return apps[id];
   }
   return null;
 }
 
-export const ALL_WIDGETS: readonly WidgetId[] = ["clock", "calendar", "timer", "system", "notes", "actions", "stocks"];
+export const ALL_WIDGETS: readonly WidgetId[] = ["clock", "calendar", "timer", "system", "notes", "actions", "stocks", "media"];
 
 export const WIDGET_LABELS: Record<WidgetId, string> = {
   clock: "Clock",
@@ -62,6 +64,7 @@ export const WIDGET_LABELS: Record<WidgetId, string> = {
   notes: "Notes",
   actions: "Quick actions",
   stocks: "Stocks",
+  media: "Now playing",
 };
 
 /** Most symbols the Stocks widget follows. */
@@ -85,6 +88,8 @@ export interface Quote {
   currency: string;
   /** Today's prices, oldest first. */
   points: number[];
+  /** Shares traded today, when the source reports it. */
+  volume: number | null;
   updatedAt: number;
 }
 
@@ -192,7 +197,13 @@ export interface NowPlaying {
   /** The player or website, such as "Spotify" or "YouTube". */
   app: string;
   image: string | null;
+  /** Islet can play, pause and skip it. */
+  controls: boolean;
+  /** A website reported it; its buttons go through the extension. */
+  browser: boolean;
 }
+
+export type MediaCommand = "play-pause" | "next" | "previous";
 
 export type BarsPosition = "inside" | "below";
 

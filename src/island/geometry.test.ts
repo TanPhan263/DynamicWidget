@@ -1,5 +1,6 @@
 import {
   contentShape,
+  CONTROLS_WIDTH,
   EXPANDED_WIDTH,
   expandedHeight,
   islandBox,
@@ -7,6 +8,7 @@ import {
   MAX_VISIBLE_ROWS,
   shapeFor,
   widgetRows,
+  TITLE_WIDTH,
   WING,
   WINDOW_HEIGHT,
   WINDOW_WIDTH,
@@ -38,6 +40,14 @@ describe("island geometry", () => {
     const b = islandBox(notch, "expanded", { wings: false, rows: 2 });
     expect(b.width).toBe(EXPANDED_WIDTH);
     expect(b.height).toBeLessThanOrEqual(420);
+  });
+
+  it("widens for the pinned title and its buttons", () => {
+    const plain = islandBox(edge, "compact", { wings: false, rows: 1 }).width;
+    expect(islandBox(edge, "compact", { wings: false, rows: 1, title: true }).width).toBe(plain + TITLE_WIDTH);
+    expect(islandBox(edge, "compact", { wings: false, rows: 1, title: true, controls: true }).width).toBe(
+      plain + TITLE_WIDTH + CONTROLS_WIDTH,
+    );
   });
 
   it("hangs from the top edge on Windows", () => {

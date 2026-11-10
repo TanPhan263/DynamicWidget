@@ -8,7 +8,7 @@ use crate::core::geometry::Rect;
 use crate::core::http_api::{ApiServer, ApiStatus};
 use crate::core::island::IslandLayout;
 use crate::core::market::QuoteState;
-use crate::core::media::NowPlaying;
+use crate::core::media::{MediaCommand, NowPlaying};
 use crate::core::notifications::{Notification, NotificationCenter};
 use crate::core::pairing::TokenStore;
 use crate::core::settings_service::{LoadOutcome, Settings, SettingsStore};
@@ -39,6 +39,8 @@ pub struct Inner {
     pub browser_token: String,
     /// What a website last said it plays, and when.
     pub web_media: Option<(Option<NowPlaying>, Instant)>,
+    /// A button press waiting for the extension to collect, and when.
+    pub web_command: Option<(MediaCommand, Instant)>,
     /// Latest quotes by symbol, including symbols no longer followed.
     pub quotes: BTreeMap<String, QuoteState>,
 }
@@ -126,6 +128,7 @@ impl AppState {
                 browser_token,
                 quotes: BTreeMap::new(),
                 web_media: None,
+                web_command: None,
             }),
             adapter,
             store,

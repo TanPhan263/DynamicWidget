@@ -1,4 +1,4 @@
-import { clockParts, formatBytes, formatDuration, formatMinutes, formatPercent, formatPrice, relativeTime } from "./format";
+import { clockParts, formatBytes, formatDuration, formatMinutes, formatPercent, formatPrice, formatVolume, relativeTime } from "./format";
 
 describe("clock", () => {
   it("formats 12- and 24-hour time", () => {
@@ -48,6 +48,7 @@ describe("sizes and minutes", () => {
 describe("prices", () => {
   it("keeps sensible precision", () => {
     expect(formatPrice(342.371)).toBe((342.37).toLocaleString(undefined, { minimumFractionDigits: 2 }));
+    expect(formatVolume(47_499_490)).toBe((47_499_490).toLocaleString(undefined, { notation: "compact", maximumFractionDigits: 1 }));
     expect(formatPrice(74328.77)).toBe((74329).toLocaleString());
     expect(formatPrice(0.04123)).toBe((0.0412).toLocaleString(undefined, { minimumFractionDigits: 4 }));
   });

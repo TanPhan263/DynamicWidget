@@ -31,7 +31,9 @@ export interface Box {
 
 export const WING = 64;
 /** Extra width for the now-playing title pinned in the compact island. */
-export const TITLE_WIDTH = 150;
+export const TITLE_WIDTH = 40;
+/** Extra width for the previous, play/pause and next buttons beside that title. */
+export const CONTROLS_WIDTH = 60;
 export const EXPANDED_WIDTH = 640;
 export const PEEK_WIDTH = 420;
 export const PEEK_BODY = 72;
@@ -161,7 +163,7 @@ export function contentShape(shape: Shape, scale: number): Shape {
 }
 
 /** The island's rectangle in window CSS pixels for a view. */
-export function islandBox(shape: Shape, view: View, opts: { wings: boolean; rows: number; scale?: number; title?: boolean }): Box {
+export function islandBox(shape: Shape, view: View, opts: { wings: boolean; rows: number; scale?: number; title?: boolean; controls?: boolean }): Box {
   const scale = opts.scale ?? 1;
   let width: number;
   let height: number;
@@ -177,7 +179,11 @@ export function islandBox(shape: Shape, view: View, opts: { wings: boolean; rows
     default: {
       // The notch itself never scales; the wings beside it do.
       const base = shape.hugsNotch ? shape.compactWidth : shape.compactWidth * scale;
-      width = base + (opts.wings ? WING * 2 * scale : 0) + (opts.title ? TITLE_WIDTH * scale : 0);
+      width =
+        base +
+        (opts.wings ? WING * 2 * scale : 0) +
+        (opts.title ? TITLE_WIDTH * scale : 0) +
+        (opts.controls ? CONTROLS_WIDTH * scale : 0);
       height = shape.hugsNotch ? shape.compactHeight : shape.compactHeight * scale;
     }
   }
@@ -186,10 +192,10 @@ export function islandBox(shape: Shape, view: View, opts: { wings: boolean; rows
   const big = view !== "compact";
   const bottomRadius = shape.attached
     ? big
-      ? 32 * scale
+      ? 20 * scale
       : Math.min(12, height / 2)
     : big
-      ? 36 * scale
+      ? 22 * scale
       : height / 2;
   return {
     x: Math.round((WINDOW_WIDTH - width) / 2),

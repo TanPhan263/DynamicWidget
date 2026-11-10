@@ -49,6 +49,17 @@ export async function sendMedia(settings, payload) {
   }
 }
 
+/** The play, pause or skip waiting in Islet for the playing tab, or null. */
+export async function takeMediaCommand(settings) {
+  try {
+    const res = await request(settings, "/v1/media/command");
+    if (!res.ok) return null;
+    return (await res.json()).command ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** Sends one notification and returns the resulting status. */
 export async function sendNotification(settings, payload) {
   const post = (body) =>

@@ -1,13 +1,14 @@
 mod audio;
 mod displays;
 mod island;
+mod media;
 
 use tauri::{AppHandle, Monitor, WebviewWindow};
 
 use super::adapter::PlatformAdapter;
 use crate::core::geometry::{DisplayGeometry, Point, Rect};
 use crate::core::island::IslandLayout;
-use crate::core::media::NowPlaying;
+use crate::core::media::{MediaCommand, NowPlaying};
 use crate::errors::AppResult;
 
 /// Windows works in physical pixels of the virtual screen. Tauri marks the
@@ -53,9 +54,11 @@ impl PlatformAdapter for WindowsAdapter {
         audio::output_peak().is_some_and(|peak| peak > audio::SILENCE)
     }
 
-    // shortcut: no desktop-player titles on Windows yet (websites still work
-    // through the extension); add Windows.Media.Control when needed.
     fn now_playing(&self) -> Option<NowPlaying> {
-        None
+        media::now_playing()
+    }
+
+    fn media_control(&self, player: &str, command: MediaCommand) -> AppResult<()> {
+        media::control(player, command)
     }
 }

@@ -16,6 +16,11 @@ export function formatPrice(price: number): string {
   return price.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
+/** "47.5M" or "622K": volume in the locale's short form. */
+export function formatVolume(v: number): string {
+  return v.toLocaleString(undefined, { notation: "compact", maximumFractionDigits: 1 });
+}
+
 /** "+1.25%" or "−0.40%", with a real minus sign. */
 export function formatPercent(p: number): string {
   const v = Math.abs(p).toFixed(2);

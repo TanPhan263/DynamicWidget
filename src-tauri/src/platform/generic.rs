@@ -6,7 +6,7 @@ use tauri::{AppHandle, Monitor, WebviewWindow};
 use super::adapter::PlatformAdapter;
 use crate::core::geometry::{DisplayGeometry, Point, Rect};
 use crate::core::island::IslandLayout;
-use crate::core::media::NowPlaying;
+use crate::core::media::{MediaCommand, NowPlaying};
 use crate::errors::{AppError, AppResult};
 
 pub struct GenericAdapter;
@@ -55,5 +55,9 @@ impl PlatformAdapter for GenericAdapter {
 
     fn now_playing(&self) -> Option<NowPlaying> {
         None
+    }
+
+    fn media_control(&self, _player: &str, _command: MediaCommand) -> AppResult<()> {
+        Err(AppError::Platform("media controls are not available here".into()))
     }
 }

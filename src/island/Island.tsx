@@ -5,6 +5,7 @@ import {
   clearNotifications,
   dismissNotification,
   getSnapshot,
+  mediaControl,
   openSettings,
   openStockPage,
   openWidgetApp,
@@ -99,6 +100,20 @@ export function Island() {
   const snapRef = useRef(snap);
   snapRef.current = snap;
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // Hovering the island's media buttons must not open the panel under them.
+  const islandHovered = useRef(false);
+  const overControls = useRef(false);
+  const scheduleHover = (hover: boolean) => {
+    clearTimeout(hoverTimer.current);
+    const trigger = snapRef.current?.settings.expandTrigger ?? "hover";
+    hoverTimer.current = setTimeout(
+      () => {
+        if (hover && overControls.current) return;
+        dispatch({ type: "hover", hover, trigger });
+      },
+      hover ? HOVER_IN_MS : HOVER_OUT_MS,
+    );
+  };
 
   useEffect(() => {
     getSnapshot().then(setSnap).catch(() => {});
@@ -123,12 +138,8 @@ export function Island() {
       },
       "island-toggle": () => dispatch({ type: "toggle" }),
       "island-hover": (hover) => {
-        clearTimeout(hoverTimer.current);
-        const trigger = snapRef.current?.settings.expandTrigger ?? "hover";
-        hoverTimer.current = setTimeout(
-          () => dispatch({ type: "hover", hover, trigger }),
-          hover ? HOVER_IN_MS : HOVER_OUT_MS,
-        );
+        islandHovered.current = hover;
+        scheduleHover(hover);
       },
     });
   }, []);
@@ -185,12 +196,18 @@ export function Island() {
   // Music bars while sound plays: in the wings, or under the island.
   const bars = settings?.musicBars;
   const nowPlaying = snap?.stats.nowPlaying ?? null;
+  // The widget keeps the last track after a pause, so it can be resumed.
+  const [recentTrack, setRecentTrack] = useState(nowPlaying);
+  useEffect(() => {
+    if (nowPlaying) setRecentTrack(nowPlaying);
+  }, [nowPlaying]);
   const playing = !!bars?.enabled && ((snap?.stats.audioPlaying ?? false) || nowPlaying !== null);
   const barsInside = playing && bars?.position === "inside";
   const barsBelow = playing && bars?.position === "below";
+  // The title always sits inside the island; only the bars may go below it.
   // Beside the notch there is no middle, so there the title only peeks.
   const titlePinned =
-    barsInside &&
+    (barsInside || barsBelow) &&
     !!bars?.showTitle &&
     nowPlaying !== null &&
     !!shape &&
@@ -206,7 +223,7 @@ export function Island() {
   const lastTrack = useRef<string | null>(null);
   useEffect(() => {
     const s = snapRef.current?.settings;
-    if (track && track !== lastTrack.current && nowPlaying && s?.musicBars.position === "inside" && s.musicBars.showTitle && shape?.hugsNotch) {
+    if (track && track !== lastTrack.current && nowPlaying && s?.musicBars.showTitle && shape?.hugsNotch) {
       dispatch({
         type: "media",
         notification: {
@@ -241,7 +258,9 @@ export function Island() {
     view === "expanded"
       ? islandScale(settings?.panelSize ?? 100, PANEL_SIZE_RANGE)
       : islandScale(settings?.islandSize ?? 100);
-  const box = shape ? islandBox(shape, view, { wings, rows, scale, title: titlePinned }) : null;
+  const box = shape
+    ? islandBox(shape, view, { wings, rows, scale, title: titlePinned, controls: titlePinned })
+    : null;
   const inner = shape ? contentShape(shape, scale) : null;
 
   // Tell the core where the island is, so only that area takes clicks.
@@ -378,7 +397,25 @@ export function Island() {
             wings={wings}
             recordingSince={recordingSince}
             pinned={pinned}
-            music={barsInside && bars ? { colors: bars.colors, flipped: bars.flipped, nowPlaying, showTitle: titlePinned } : null}
+            music={
+              (barsInside || titlePinned) && bars
+                ? {
+                    colors: bars.colors,
+                    flipped: bars.flipped,
+                    bars: barsInside,
+                    nowPlaying,
+                    showTitle: titlePinned,
+                    onCommand: (command) => {
+                      if (nowPlaying) mediaControl(nowPlaying, command).catch(() => {});
+                    },
+                    onControlsHover: (over) => {
+                      overControls.current = over;
+                      // Leaving the buttons for the rest of the island opens it as usual.
+                      if (!over && islandHovered.current) scheduleHover(true);
+                    },
+                  }
+                : null
+            }
             onStopRecording={() => {
               runQuickAction("record").catch(() => {});
             }}
@@ -431,6 +468,14 @@ export function Island() {
                 });
               },
             }}
+            media={{
+              track: nowPlaying ?? recentTrack,
+              playing: nowPlaying !== null,
+              onCommand: (command) => {
+                const track = nowPlaying ?? recentTrack;
+                if (track) mediaControl(track, command).catch(() => {});
+              },
+            }}
             actions={{
               keepAwake: snap.keepAwake,
               recording: recordingSince !== null,
@@ -450,7 +495,7 @@ export function Island() {
           </ViewLayer>
         </AnimatePresence>
       </motion.div>
-      {/* Under the island: the bars and the title, over whatever is on screen.
+      {/* Under the island: the bars only (the title stays inside), over whatever is on screen.
           Outside the island's rectangle, so clicks pass through it. */}
       <AnimatePresence>
         {barsBelow && bars && view === "compact" && (
@@ -468,20 +513,11 @@ export function Island() {
               <MusicBars
                 count={24}
                 height={22 * scale}
-                barWidth={Math.max(1, (box.width * 0.6 - 23 * 2) / 24)}
+                barWidth={Math.max(1, ((box.width * 0.6) / 24) * 0.4)}
                 colors={bars.colors}
                 flipped={bars.flipped}
               />
             </span>
-            {bars.showTitle && nowPlaying && (
-              <span
-                className="max-w-full truncate rounded-full bg-black/85 px-3 py-1 text-[11px] text-white"
-                style={{ zoom: scale }}
-              >
-                <span className="font-semibold">{nowPlaying.title}</span>
-                {nowPlaying.artist && <span className="text-white/80"> · {nowPlaying.artist}</span>}
-              </span>
-            )}
           </motion.div>
         )}
       </AnimatePresence>

@@ -14,6 +14,13 @@ document.addEventListener("islet:notification", (e) => {
     .catch(() => {});
 });
 
+// Islet's play, pause and skip buttons, from the worker to page.js.
+const COMMANDS = ["play-pause", "next", "previous"];
+chrome.runtime.onMessage.addListener((message) => {
+  if (message?.type !== "media-command" || !COMMANDS.includes(message.command)) return;
+  document.dispatchEvent(new CustomEvent("islet:media-command", { detail: message.command }));
+});
+
 document.addEventListener("islet:media", (e) => {
   if (typeof e.detail !== "string" || e.detail.length > 2000) return;
   let m;

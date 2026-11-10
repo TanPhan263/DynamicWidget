@@ -57,6 +57,42 @@
     }
   }, 3000);
 
+  // Islet's play, pause and skip buttons. The page's own Media Session
+  // handlers do it best (they keep its UI in step), so they are kept here as
+  // the page sets them; otherwise the <video>/<audio> element is used.
+  const handlers = {};
+  const session = navigator.mediaSession;
+  if (window === window.top && typeof session?.setActionHandler === "function") {
+    const set = session.setActionHandler.bind(session);
+    session.setActionHandler = (action, handler) => {
+      handlers[action] = handler;
+      return set(action, handler);
+    };
+  }
+  const run = (action, fallback) => {
+    const handler = handlers[action];
+    if (typeof handler === "function") handler({ action });
+    else fallback?.();
+  };
+  if (window === window.top) document.addEventListener("islet:media-command", (e) => {
+    try {
+      const all = [...document.querySelectorAll("video, audio")];
+      const playing = all.find((m) => !m.paused);
+      if (e.detail === "play-pause") {
+        if (playing) run("pause", () => playing.pause());
+        else run("play", () => (all.find((m) => m.currentTime > 0) ?? all[0])?.play()?.catch(() => {}));
+      } else if (e.detail === "next") {
+        run("nexttrack");
+      } else if (e.detail === "previous") {
+        run("previoustrack", () => {
+          if (playing) playing.currentTime = 0;
+        });
+      }
+    } catch {
+      // Never break the page.
+    }
+  });
+
   // `registration.showNotification(title, options)` called from the page.
   const proto = window.ServiceWorkerRegistration?.prototype;
   const show = proto?.showNotification;
