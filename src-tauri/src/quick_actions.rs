@@ -143,9 +143,7 @@ fn toggle_mute() -> AppResult<Option<bool>> {
 
 #[cfg(target_os = "windows")]
 fn toggle_mute() -> AppResult<Option<bool>> {
-    platform::press_mute_key();
-    // The mute key toggles without saying which way.
-    Ok(None)
+    platform::toggle_mute().map(Some)
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
@@ -295,9 +293,6 @@ mod platform {
         SetThreadExecutionState, ES_CONTINUOUS, ES_DISPLAY_REQUIRED, ES_SYSTEM_REQUIRED,
     };
     use windows::Win32::System::Shutdown::LockWorkStation;
-    use windows::Win32::UI::Input::KeyboardAndMouse::{
-        keybd_event, KEYEVENTF_KEYUP, VK_VOLUME_MUTE,
-    };
 
     use crate::errors::{AppError, AppResult};
 
@@ -309,11 +304,18 @@ mod platform {
         unsafe { LockWorkStation() }.map_err(|e| AppError::Platform(e.to_string()))
     }
 
-    pub fn press_mute_key() {
-        let key = VK_VOLUME_MUTE.0 as u8;
+    /// Flips the default output's mute through Core Audio and returns the new
+    /// state, so the button can show it (the mute key can't say which way it went).
+    pub fn toggle_mute() -> AppResult<bool> {
+        let fail =
+            |e: windows::core::Error| AppError::Platform(format!("could not change mute: {e}"));
+        let volume = crate::platform::windows::audio::endpoint_volume()
+            .ok_or_else(|| AppError::Platform("no sound output".into()))?;
+        // SAFETY: COM calls on the endpoint's own interface.
         unsafe {
-            keybd_event(key, 0, Default::default(), 0);
-            keybd_event(key, 0, KEYEVENTF_KEYUP, 0);
+            let muted = !volume.GetMute().map_err(fail)?.as_bool();
+            volume.SetMute(muted, std::ptr::null()).map_err(fail)?;
+            Ok(muted)
         }
     }
 

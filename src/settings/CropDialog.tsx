@@ -53,7 +53,7 @@ export function CropDialog({ slot, src, onCancel, onSave, onError }: Props) {
       setZoom(1);
       setOffset(centered(size, frame, displayScale(size, frame, 1)));
     };
-    image.onerror = () => onError("That file isn't a picture this app can show. Try a JPEG or PNG.");
+    image.onerror = () => onError("This file can't be opened as an image. Use a JPEG or PNG file.");
     image.src = src;
     // A new picture or shape starts over.
   }, [src, slot]);
@@ -123,11 +123,11 @@ export function CropDialog({ slot, src, onCancel, onSave, onError }: Props) {
         <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-[min(92vw,520px)] -translate-x-1/2 -translate-y-1/2 space-y-4 rounded-2xl border bg-card p-5 shadow-2xl outline-none">
           <div className="space-y-1">
             <Dialog.Title className="text-base font-semibold tracking-tight">
-              {slot === "panel" ? "Frame the panel picture" : "Frame the island picture"}
+              {slot === "panel" ? "Crop panel picture" : "Crop island picture"}
             </Dialog.Title>
             <Dialog.Description className="text-[13px] text-muted-foreground">
-              Drag to move it, scroll or use the slider to zoom. Only what's inside the{" "}
-              {slot === "panel" ? "frame" : "pill"} is kept.
+              Drag to reposition. Scroll or use the slider to zoom. Only the area inside the{" "}
+              {slot === "panel" ? "frame" : "outline"} is saved.
             </Dialog.Description>
           </div>
 
@@ -168,7 +168,7 @@ export function CropDialog({ slot, src, onCancel, onSave, onError }: Props) {
               Cancel
             </Button>
             <Button onClick={save} disabled={!natural}>
-              Use picture
+              Apply
             </Button>
           </div>
         </Dialog.Content>

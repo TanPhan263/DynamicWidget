@@ -19,7 +19,7 @@ function options(hasNotch: boolean): Option[] {
       description: hasNotch ? "Wraps around the notch" : "Hangs from the top edge of the screen",
       preview: "hanging",
     },
-    { value: "island", label: "Dynamic Island", description: "A floating capsule, like on iPhone", preview: "capsule" },
+    { value: "island", label: "Dynamic Island", description: "A floating capsule, as on iPhone", preview: "capsule" },
   ];
 }
 

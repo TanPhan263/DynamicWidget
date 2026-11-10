@@ -479,7 +479,7 @@ function NotificationList({
 }) {
   if (notifications.length === 0) {
     return (
-      <Empty icon={Inbox} title="You're all caught up" />
+      <Empty icon={Inbox} title="No notifications" />
     );
   }
   return (

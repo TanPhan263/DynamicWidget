@@ -1,5 +1,6 @@
 mod actions;
 mod commands;
+mod controls;
 mod core;
 mod errors;
 mod platform;
@@ -106,6 +107,8 @@ pub fn run() {
             commands::get_weather,
             commands::get_background_image,
             commands::set_background_image,
+            commands::get_controls,
+            commands::set_control,
         ])
         .build(tauri::generate_context!())
         .expect("error while building Islet");

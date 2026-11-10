@@ -150,7 +150,7 @@ The settings are stored in `settings.json` (pretty JSON, camelCase), currently `
 | schemaVersion | u32 | 1 | |
 | expandTrigger | `"hover"`\|`"click"` | hover | |
 | islandStyle | `"notch"`\|`"island"` | notch | alias `"auto"` loads as notch |
-| theme | `"graphite"`\|`"black"`\|`"midnight"`\|`"aurora"`\|`"ember"`\|`"slate"`\|`"glass"`\|`"picture"` | graphite | unknown names load as graphite (`#[serde(other)]` on the last variant) |
+| theme | `"graphite"`\|`"black"`\|`"midnight"`\|`"aurora"`\|`"ember"`\|`"slate"`\|`"transparent"`\|`"picture"` | graphite | unknown names load as graphite (`#[serde(other)]` on the last variant); the old name "glass" loads as transparent (`#[serde(alias)]`) |
 | islandSize | percent | 100 | clamp 50–150. Also accepts the old names `"small"`=88, `"medium"`=100, `"large"`=112 |
 | panelSize | percent | 100 | clamp 80–150. Missing in old files → copy islandSize |
 | toggleShortcut | string | `CommandOrControl+Shift+Space` | trimmed, non-empty, must parse as a Tauri accelerator |
@@ -220,6 +220,8 @@ interface UiSnapshot { settings; notifications: IslandNotification[] /*newest fi
   islandHidden: boolean; lastError: string|null; warnings: string[]; platform; version: string; settingsPath: string;
   browserToken: string; keepAwake: boolean; recordingSince: number|null; quotes: QuoteState[] /*same order as settings.stocks*/ }
 type QuickAction = "keep-awake"|"screenshot"|"mute"|"lock"|"calculator"|"downloads"|"record";
+type ControlChange = { control: "wifi"|"bluetooth"|"airplane"|"dark-mode"|"night-light"|"energy-saver"; value: boolean }
+                   | { control: "volume"|"brightness"; value: number }; // 0..1, NaN refused, brightness floored at 0.05
 ```
 
 The frontend mirrors the constants: `NOTIFICATION_SECONDS_RANGE [2,30]`, `ISLAND_SIZE_RANGE [50,150]`, `PANEL_SIZE_RANGE [80,150]`, `API_PORT_RANGE [1024,65535]`, `MAX_SYMBOLS 8`, `MAX_ISLAND_STOCKS 3`, `WIDGET_MAX_COLS 3`, `WIDGET_MAX_ROWS 2`.
@@ -514,7 +516,7 @@ Prices come from Yahoo Finance's public data, with no key. Quotes are only fetch
 |---|---|---|
 | keep-awake (toggle) | spawn `caffeinate -d -i -w <own pid>` (it also exits when Islet does). On = child still running | a thread calls `SetThreadExecutionState(ES_CONTINUOUS|ES_SYSTEM_REQUIRED|ES_DISPLAY_REQUIRED)` and blocks on a channel. Dropping the sender ends it and resets to `ES_CONTINUOUS` |
 | screenshot | `open /System/Applications/Utilities/Screenshot.app` | `explorer ms-screenclip:` |
-| mute (toggle) | `osascript`: `set m to not (output muted of (get volume settings))`, `set volume output muted m`, `return m`. "true"/"false" → state. Anything else → error "this sound output cannot be muted" | `keybd_event(VK_VOLUME_MUTE)` down and up. Returns null (the direction is unknown) |
+| mute (toggle) | `osascript`: `set m to not (output muted of (get volume settings))`, `set volume output muted m`, `return m`. "true"/"false" → state. Anything else → error "this sound output cannot be muted" | Core Audio: default render endpoint (`eConsole`) → `IAudioEndpointVolume`, `SetMute(!GetMute())`. Returns the new state, so the button lights up like on macOS |
 | lock | `pmset displaysleepnow` (locks when a password is required after sleep) | `LockWorkStation()` |
 | calculator | `open /System/Applications/Calculator.app` | `calc` |
 | downloads | open `download_dir()` with the system | same |
@@ -700,7 +702,7 @@ Left and right items slide in from their side (`x ∓6`, blur 4px, spring 400/30
 
 **Expanded.** Padding 14, with padding-top `topInset + 14`.
 - **Header** (30 px tall):
-  - **Themes (`src/shared/themes.ts`):** `THEMES[id] = { label, island(picture), panel(ambient, picture) }`, both returning CSS backgrounds; the island shell uses `style.background`. `panel` is the expanded view's backdrop and always starts `#000` at the top (it meets the notch). `island` colors the shell (`backgroundColor`) only for floating shapes; attached (notch) shapes stay black, except with Picture. Graphite: the gradient below. Black: `#000`. Midnight: cover wash 0.12 over `#000 → #070b1a 40% → #0e1836`, island `#0a1024`. Aurora: teal `45 212 191 / 0.22` at 12% 90% and violet `167 139 250 / 0.24` at 92% 70% over `#000 → #05080b`, island `#061114`. Ember: amber `251 146 60 / 0.24` from below over `#000 → #120a06 55% → #1f0f08`, island `#160b06`. Slate: cover wash 0.12 over `#000 → #1a1b20 35% → #25272e`, island `#1c1d22`. Glass: `#000 → rgb(0 0 0 / 0.3) 12% → rgb(0 0 0 / 0.25)`, island `rgb(0 0 0 / 0.4)`; while open, the shell (normally `bg-black`) is made transparent so the desktop shows through. Picture: with a saved picture, the panel is `linear-gradient(180deg, #000 0%, rgb(0 0 0 / 0.6) 14%, rgb(0 0 0 / 0.35) 55%, rgb(0 0 0 / 0.5) 100%), url("<data URL>") center / cover no-repeat, #000` and the floating island is its picture under a flat `rgb(0 0 0 / 0.45)` layer. The island uses the island picture, else the panel picture. Without a panel picture it looks exactly like Graphite. `themeLook(id)` falls back to Graphite.
+  - **Themes (`src/shared/themes.ts`):** `THEMES[id] = { label, island(picture), panel(ambient, picture) }`, both returning CSS backgrounds; the island shell uses `style.background`. `panel` is the expanded view's backdrop and always starts `#000` at the top (it meets the notch). `island` colors the shell (`backgroundColor`) only for floating shapes; attached (notch) shapes stay black, except with Picture. Graphite: the gradient below. Black: `#000`. Midnight: cover wash 0.12 over `#000 → #070b1a 40% → #0e1836`, island `#0a1024`. Aurora: teal `45 212 191 / 0.22` at 12% 90% and violet `167 139 250 / 0.24` at 92% 70% over `#000 → #05080b`, island `#061114`. Ember: amber `251 146 60 / 0.24` from below over `#000 → #120a06 55% → #1f0f08`, island `#160b06`. Slate: cover wash 0.12 over `#000 → #1a1b20 35% → #25272e`, island `#1c1d22`. Transparent (named Glass before; `"glass"` still loads as it): `#000 → rgb(0 0 0 / 0.3) 12% → rgb(0 0 0 / 0.25)`, island `rgb(0 0 0 / 0.4)`; while open, the shell (normally `bg-black`) is made transparent so the desktop shows through. The shell carries `data-transparent`, and `island.css` gives every `.tile` (a marker class in `TILE`) a frosted look: a white 10%→4% gradient over `rgb(28 28 32 / 0.35)`, a 16% white top highlight, an 8% white edge and a soft shadow. A page can't blur the desktop behind its window, so this stands in for real blur. Picture: with a saved picture, the panel is `linear-gradient(180deg, #000 0%, rgb(0 0 0 / 0.6) 14%, rgb(0 0 0 / 0.35) 55%, rgb(0 0 0 / 0.5) 100%), url("<data URL>") center / cover no-repeat, #000` and the floating island is its picture under a flat `rgb(0 0 0 / 0.45)` layer. The island uses the island picture, else the panel picture. Without a panel picture it looks exactly like Graphite. `themeLook(id)` falls back to Graphite.
   - **Background pictures:** two slots, `"panel"` and `"island"` (`BackgroundSlot`), because the wide panel and the thin capsule need different crops. `useBackgroundImages()` (`src/shared/background.ts`) returns `{ panel, island }`: it calls `get_background_image` for each slot on mount and listens for `background-changed` (`{ slot, image }`). Both the island and Settings use it.
   - **Ambient glow ("glass + depth"):** the expanded view is `relative isolate`; its first child is an absolute `-z-10` layer whose background is `themeLook(settings.theme).panel(ambient)`; for Graphite that is: `radial-gradient(90% 55% at 50% 110%, rgb(ambient / 0.14), transparent 70%)` over `linear-gradient(180deg, #000 0%, #0b0b0d 45%, #111114 100%)`. The top stays pure black so it meets the notch; the cover's color is only a faint wash rising from the bottom. `ambient` comes from `useAmbient(image)` (`island/ambient.ts`): the cover of the playing (or last) track drawn onto an 8×8 canvas and averaged, then `lift`ed so its brightest channel is at least 140, keeping the hue. With no cover it's `DEFAULT_AMBIENT` = indigo `99 102 241`. The island window can't blur the desktop, so the tiles' `backdrop-blur-xl` blurs this glow instead.
   - A segmented tab list (`bg-white/[0.06] ring-1 ring-white/[0.06] rounded-full p-0.5`) with text-only tabs Widgets and Notifications (count badge `bg-white/90`, 10 px). Inactive tabs are white/50. The active tab has a sliding `layoutId` pill, `bg-white/[0.12]` with an inset top highlight and a small shadow, spring 500/38. The header's icon buttons are white/60, hover `bg-white/[0.10]`.
@@ -709,7 +711,7 @@ Left and right items slide in from their side (`x ∓6`, blur 4px, spring 400/30
   - **Widgets tab:** the WidgetGrid. It scrolls when there are more than 3 rows. With no widgets, show the "No widgets" empty state and a "Choose widgets" button that opens Settings.
   - **Notifications tab:** a list of `TILE` cards (padding 12). Each card has a 34 px icon, the app (white/60 medium) and time (white/35), the title (13 px semibold, tight), the body (white/60) clamped to 2 lines, and an X button. "Clear all" is a small glass pill. Items animate in from y -8 and exit to x 24. A "Clear all" button sits at the bottom right.
   - **Empty states** show the icon (stroke 1.5) in a 48 px `TILE` square. "Choose widgets" is a white pill with black text.
-  - **Empty notifications:** "You're all caught up", plus "Scripts can send notifications to `{apiUrl}/v1/notify`" when the API is on.
+  - **Empty notifications:** "No notifications".
 - `relativeTime`: "now" under 60 s, then "Nm", "Nh", "Nd".
 
 **NotificationIcon:** a rounded tile with 28% radius.
@@ -758,7 +760,7 @@ The card style is `TILE`: `rounded-[18px] bg-black/30` under a white/5 gradient 
   - Battery detail: "N%", plus " · charging" or " · {minutes}".
   - The battery meter is green while charging or full, and red at 20% or below.
   - Meters are 1 px tall bars with spring-animated width and `role="meter"`.
-- **Notes:** a textarea saved to `localStorage["islet.notes"]`, debounced by 300 ms, with try/catch. Placeholder "Jot something down…".
+- **Notes:** a textarea saved to `localStorage["islet.notes"]`, debounced by 300 ms, with try/catch. Placeholder "Write a note…".
 - **Quick actions:** a 4×2 grid. In order: Record screen (Video), Screenshot (Camera), Keep awake (Coffee), Do Not Disturb (Moon), Mute (VolumeX), Lock (Lock), Calculator (Calculator), Downloads (FolderDown).
   - Toggles that are on are lit: record in red, DND in violet, others amber. Mute shows the state Islet last set.
   - While recording, the Record label reads "Stop recording".
@@ -811,18 +813,18 @@ Settings follows the system appearance: `useSystemTheme` toggles the `.dark` cla
 **Tabs:**
 1. **General** ("Style, shortcut and startup.")
    - StylePicker: a Radix RadioGroup of two cards with miniature screen-top previews. "Notch" reads "Wraps around the notch" or "Hangs from the top edge of the screen". "Dynamic Island" reads "A floating capsule, like on iPhone". The chosen card gets a `foreground/60` border and an `accent/60` fill rather than a heavy ring.
-   - **Theme** section (after Style): `ThemePicker`, a RadioGroup of eight swatches (`grid-cols-4 sm:grid-cols-8`), each a 56 px miniature panel in the theme's `panel(DEFAULT_AMBIENT)` with a tiny island pill in its `island` color and three faint tiles, labeled below; the chosen one gets a 2 px foreground ring with a canvas offset. The description says the closed island stays black with the Notch style, unless the theme is Picture: the island picture then fills the attached shape too (the hardware notch covers its middle). The Picture swatch shows the saved picture, or a dashed tile with an ImagePlus icon when there is none; choosing it selects Picture and shows the two picture rows (Panel, Island), each with an empty dashed thumbnail and a "Choose…" button until a picture is saved; the button opens a hidden file input (`image/jpeg,image/png,image/webp`). Removing a picture keeps Picture selected. A chosen file is read as a data URL (`readPicture`; blob URLs are blocked by the CSP) and opened in **CropDialog** (`src/settings/CropDialog.tsx`, a Radix Dialog titled "Frame the panel picture" / "Frame the island picture"):
+   - **Theme** section (after Style): `ThemePicker`, a RadioGroup of eight swatches (`grid-cols-4 sm:grid-cols-8`), each a 56 px miniature panel in the theme's `panel(DEFAULT_AMBIENT)` with a tiny island pill in its `island` color and three faint tiles, labeled below; the chosen one gets a 2 px foreground ring with a canvas offset. The description says the closed island stays black with the Notch style, unless the theme is Picture: the island picture then fills the attached shape too (the hardware notch covers its middle). The Picture swatch shows the saved picture, or a dashed tile with an ImagePlus icon when there is none; choosing it selects Picture and shows the two picture rows (Panel, Island), each with an empty dashed thumbnail and a "Choose…" button until a picture is saved; the button opens a hidden file input (`image/jpeg,image/png,image/webp`). Removing a picture keeps Picture selected. A chosen file is read as a data URL (`readPicture`; blob URLs are blocked by the CSP) and opened in **CropDialog** (`src/settings/CropDialog.tsx`, a Radix Dialog titled "Crop panel picture" / "Crop island picture"):
      - The frame is 440 px wide with the slot's aspect (`CROP_ASPECT`: panel 4:3, island 8:1), drawn `rounded-[18px]` for the panel or `rounded-full` for the island, with a 2 px white ring. Around it (margin 20 px; 56 px above and below the island pill) the rest of the picture shows at 35% opacity.
      - The picture starts centered at zoom 1, where it just covers the frame (`displayScale = max(frameW/w, frameH/h) * zoom`). Drag (pointer capture) moves it, the wheel zooms by ×1.08 per step, the Zoom slider goes 1–4 (`MAX_ZOOM`), and the arrow keys move it 12 px when the stage (role "application") has focus. Zooming keeps the frame's center fixed (`zoomAround`), and every move is clamped so the picture always covers the frame (`clampOffset`).
-     - "Use picture" draws `sourceRect(offset, frame, scale)` into a canvas `CROP_WIDTH` wide (panel 1600, island 1200) at the slot's aspect and exports JPEG 0.85, then `set_background_image(slot, …)` and `theme: "picture"`. Cancel or Esc closes without saving; a file that won't decode closes with an error.
+     - "Apply" draws `sourceRect(offset, frame, scale)` into a canvas `CROP_WIDTH` wide (panel 1600, island 1200) at the slot's aspect and exports JPEG 0.85, then `set_background_image(slot, …)` and `theme: "picture"`. Cancel or Esc closes without saving; a file that won't decode closes with an error.
      - The math lives in `src/settings/crop.ts` with unit tests. While Picture is selected with a panel picture, a card below lists two rows: "Panel picture" (a 64×40 thumbnail) and "Island picture" (a 64×16 capsule thumbnail showing the island picture or the borrowed panel one). Each has "Change…"; Remove appears for a slot that has its own picture. The island row's hint is "Uses the panel picture until you choose one.", or, with the Notch style, that it only shows with the Dynamic Island style. Removing the panel picture returns to Graphite; removing the island picture falls back to the panel's. Failures show in the Settings error alert.
    - Island size and Panel size SizeSliders. Each has −/+ buttons (step 5), a Radix slider (step 1), and a "N%" button that resets to 100%. While dragging, live updates are throttled to at most one every 80 ms, and echoes are ignored while dragging.
    - Open on Hover or Click (ToggleGroup).
-   - The keyboard shortcut (ShortcutInput), a 24-hour clock switch, and Start at login.
+   - The keyboard shortcut (ShortcutInput), a "Use 24-hour time" switch, and "Launch at login".
 2. **Notifications:** Do Not Disturb. "Show each notification for" as a 2–30 s slider that commits on release. Battery alerts. A "Send test notification" button that briefly shows "Sent" with a check.
 3. **Now playing:**
    - A preview box (`bg-neutral-950`) with 24 bars, 36 px tall, bar width 5.
-   - Show bars; position "In the island" or "Below the island"; Upside down; Show the title.
+   - Show bars; position "In the island" or "Below the island"; "Flip vertically"; "Show track title".
    - Colors: 6 preset swatches (gradient circles, `aria-pressed`) and two `<input type=color>` for the base and tip colors.
 4. **Widgets:**
    - The WidgetList. Shown widgets come first and are sortable vertically (drag handle, or up/down buttons). Hidden widgets follow. Each row has a Switch, a label and a size `<select>` with 1×1, 2×1, 3×1, 1×2, 2×2, 3×2.
@@ -964,3 +966,40 @@ After that, `tauri icon source.png` generates the platform icon set, and `prune-
 - Islet doesn't mirror other apps' system notifications. macOS has no public API for reading them, and Windows needs a packaged MSIX app for the notification listener.
 - Website push notifications arrive only while the site is open in a tab.
 - Yahoo's free data may be delayed for some exchanges. Vietnamese `.VN` symbols avoid this (see Vietnamese stocks).
+
+## Controls widget (`src-tauri/src/controls/`)
+
+- Commands: `get_controls() -> Controls` and `set_control(change) -> Controls`, which returns the state after the change. `Controls` fields are `Option`s (`null` means the system can't do that control; the widget hides it): `wifi`, `wifiName`, `bluetooth`, `airplane`, `volume`, `muted`, `brightness`, `darkMode`, `nightLight`, `energySaver`.
+- **macOS (`controls/macos.rs`):**
+  - Wi-Fi: `networksetup -getairportpower/-setairportpower <dev>`, with the device taken from `-listallhardwareports`. The name comes from `-getairportnetwork`, which is often hidden on 14.4+ without Location access.
+  - Bluetooth: IOBluetooth's private `IOBluetoothPreference{Get,Set}ControllerPowerState`. `src-tauri/Info.plist` carries `NSBluetoothAlwaysUsageDescription`; without it TCC kills the app.
+  - Volume: AudioToolbox `vmvc` on the default output, plus CoreAudio `mute` (`platform/macos/audio.rs`). Raising the volume unmutes.
+  - Brightness: DisplayServices `DisplayServices{Get,Set}Brightness`, loaded with dlopen, on the first built-in display.
+  - Dark mode: read with `defaults read -g AppleInterfaceStyle`; set with osascript through System Events (Automation permission; `NSAppleEventsUsageDescription`).
+  - Night Shift: CoreBrightness `CBBlueLightClient` through raw `objc_msgSend` (`getBlueLightStatus:` byte 1 = enabled, `setEnabled:`).
+  - Low Power Mode: `NSProcessInfo.isLowPowerModeEnabled`. Setting it opens Battery settings.
+  - Airplane: `None`.
+- **Windows (`controls/windows.rs`):**
+  - Wi-Fi, Bluetooth and airplane: `Windows.Devices.Radios`. Airplane reads as "every radio off", and setting it switches every radio. That's a shortcut, since the real airplane switch has no public API.
+  - Wi-Fi name: `netsh wlan show interfaces` (`CREATE_NO_WINDOW`).
+  - Volume: `IAudioEndpointVolume` on eConsole (`platform/windows/audio.rs::endpoint_volume`, shared with Mute).
+  - Brightness: `\\.\LCD` with `IOCTL_VIDEO_{QUERY,SET}_DISPLAY_BRIGHTNESS`, with a fallback to PowerShell WMI `WmiSetBrightness` when the driver ignores the call.
+  - Dark mode: HKCU `Themes\Personalize` `AppsUseLightTheme`/`SystemUsesLightTheme`, then a `WM_SETTINGCHANGE "ImmersiveColorSet"` broadcast.
+  - Energy saver: `GetSystemPowerStatus().SystemStatusFlag` (`None` without a battery). Setting it opens `ms-settings:batterysaver`.
+  - Night light: `None`.
+- **Widget (`ControlsWidget` in `Widgets.tsx`):**
+  - Re-reads every 3 s while mounted.
+  - Changes apply optimistically and are sent one at a time, newest per control, so a dragged slider ends where it was released. Polls are skipped while changes are pending. On an error it shows `FloatingError` and reloads.
+  - Layout (`ToggleTile` look `icon` | `named` | `pill`):
+    - Round buttons have a fixed size, centered in their grid cells, so they stay circles. 1×1: one row of 30 px round icon buttons, then two 24 px capsule sliders.
+    - Wide, short: a 3-column grid of 40 px round buttons on the left, with 32 px sliders on the right.
+    - Narrow, tall: 44 px round buttons in threes, each with a short name below (`short`, such as "Saver"), then the sliders.
+    - Wide and tall: pills with a round icon, the name and the state ("On"/"Off"/network name) in three columns, then the sliders, all centered.
+  - Sliders (`LevelSlider`) are thick capsules with a white fill. The icon sits inside the fill with `mix-blend-difference`, so it shows on both the fill and the track. The Radix thumb is a zero-width element kept for keyboard and screen readers, and the root shows the focus ring.
+  - Toggle on colors: Wi-Fi and Bluetooth sky, airplane orange, dark mode white, night light amber, energy saver emerald.
+
+## Copy style
+
+- Settings uses sentence case for labels and descriptions; the tray menu uses title case (macOS menu convention).
+- "Panel" means the expanded island; "island" means the closed shape.
+- Descriptions are full sentences that say what a setting does ("Scales…", "Opens or closes…"), with no casual phrasing.

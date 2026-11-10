@@ -232,7 +232,9 @@ fn widget_app(widget: WidgetId) -> Option<Launch> {
             WidgetId::System => "/System/Applications/Utilities/Activity Monitor.app",
             WidgetId::Notes => "/System/Applications/Notes.app",
             WidgetId::Weather => "/System/Applications/Weather.app",
-            WidgetId::Actions | WidgetId::Stocks | WidgetId::Media => return None,
+            WidgetId::Actions | WidgetId::Stocks | WidgetId::Media | WidgetId::Controls => {
+                return None
+            }
         }))
     } else if cfg!(target_os = "windows") {
         Some(match widget {
@@ -243,7 +245,9 @@ fn widget_app(widget: WidgetId) -> Option<Launch> {
                 r"shell:AppsFolder\Microsoft.MicrosoftStickyNotes_8wekyb3d8bbwe!App",
             ),
             WidgetId::Weather => Launch::Explorer("msnweather:"),
-            WidgetId::Actions | WidgetId::Stocks | WidgetId::Media => return None,
+            WidgetId::Actions | WidgetId::Stocks | WidgetId::Media | WidgetId::Controls => {
+                return None
+            }
         })
     } else {
         None

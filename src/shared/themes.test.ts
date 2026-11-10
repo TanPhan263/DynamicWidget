@@ -21,9 +21,9 @@ it("shows the picture, darkened, only with the Picture theme", () => {
   expect(themeLook("picture").panel("1 2 3", null)).toBe(themeLook("graphite").panel("1 2 3", null));
 });
 
-it("lets the desktop show through Glass", () => {
-  expect(themeLook("glass").panel("1 2 3", null)).toMatch(/rgb\(0 0 0 \/ 0\.25\) 100%/);
-  expect(themeLook("glass").island(null)).toBe("rgb(0 0 0 / 0.4)");
+it("lets the desktop show through Transparent", () => {
+  expect(themeLook("transparent").panel("1 2 3", null)).toMatch(/rgb\(0 0 0 \/ 0\.25\) 100%/);
+  expect(themeLook("transparent").island(null)).toBe("rgb(0 0 0 / 0.4)");
 });
 
 it("falls back to Graphite for a theme it doesn't know", () => {

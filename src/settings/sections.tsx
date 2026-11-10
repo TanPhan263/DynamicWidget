@@ -126,17 +126,17 @@ export function GeneralSection({ snap, api }: Props) {
   const isMac = snap.platform === "macos";
   return (
     <div className="space-y-8">
-      <Section title="Style" description="How the island looks at the top of your screen.">
+      <Section title="Style" description="How the island appears at the top of the screen.">
         <StylePicker
           value={s.islandStyle}
           hasNotch={snap.layout.notch !== null}
           onChange={(islandStyle) => api.update({ islandStyle })}
         />
         <RowCard>
-          <Row label="Island size" description="The closed island and notifications. The notch itself keeps its size.">
+          <Row label="Island size" description="Scales the closed island and notification pop-ups. The notch keeps its physical size.">
             <SizeSlider label="Island" range={ISLAND_SIZE_RANGE} value={s.islandSize} onChange={(islandSize) => api.update({ islandSize })} />
           </Row>
-          <Row label="Panel size" description="The open panel with notifications and widgets.">
+          <Row label="Panel size" description="Scales the expanded panel with widgets and notifications.">
             <SizeSlider label="Panel" range={PANEL_SIZE_RANGE} value={s.panelSize} onChange={(panelSize) => api.update({ panelSize })} />
           </Row>
         </RowCard>
@@ -146,8 +146,8 @@ export function GeneralSection({ snap, api }: Props) {
         title="Theme"
         description={
           s.islandStyle === "notch"
-            ? "The open panel's background. The closed island stays black to match the notch, unless you choose Picture."
-            : "The background of the island and the open panel."
+            ? "Background of the expanded panel. With the Notch style, the closed island stays black to blend with the notch, except with Picture."
+            : "Background of the island and the expanded panel."
         }
       >
         <ThemePicker
@@ -184,10 +184,10 @@ export function GeneralSection({ snap, api }: Props) {
 
       <Section title="Behavior">
         <RowCard>
-          <Row label="Open the island on" description="Hover opens the panel as soon as the pointer rests on the island.">
+          <Row label="Open the panel on" description="With Hover, the panel opens as soon as the pointer rests on the island.">
             <ToggleGroup
               type="single"
-              aria-label="Open the island on"
+              aria-label="Open the panel on"
               value={s.expandTrigger}
               onValueChange={(v) => v && api.update({ expandTrigger: v as ExpandTrigger })}
             >
@@ -201,13 +201,13 @@ export function GeneralSection({ snap, api }: Props) {
               </ToggleGroupItem>
             </ToggleGroup>
           </Row>
-          <Row label="Keyboard shortcut" description="Opens or closes the island from any app." htmlFor="shortcut">
+          <Row label="Keyboard shortcut" description="Opens or closes the panel from any app." htmlFor="shortcut">
             <ShortcutInput id="shortcut" value={s.toggleShortcut} isMac={isMac} onChange={(toggleShortcut) => api.update({ toggleShortcut })} />
           </Row>
-          <Row label="24-hour clock" htmlFor="clock24">
+          <Row label="Use 24-hour time" htmlFor="clock24">
             <Switch id="clock24" checked={s.use24HourClock} onCheckedChange={(use24HourClock) => api.update({ use24HourClock })} />
           </Row>
-          <Row label="Start at login" htmlFor="login">
+          <Row label="Launch at login" htmlFor="login">
             <Switch id="login" checked={s.startAtLogin} onCheckedChange={(startAtLogin) => api.update({ startAtLogin })} />
           </Row>
         </RowCard>
@@ -231,13 +231,13 @@ export function NotificationsSection({ snap, api }: Props) {
     <div className="space-y-8">
       <Section title="Delivery">
         <RowCard>
-          <Row label="Do Not Disturb" description="Notifications are kept in the list, but the island stays closed." htmlFor="dnd">
+          <Row label="Do Not Disturb" description="Notifications are still collected in the list, but the island stays closed." htmlFor="dnd">
             <Switch id="dnd" checked={s.doNotDisturb} onCheckedChange={(doNotDisturb) => api.update({ doNotDisturb })} />
           </Row>
-          <Row label="Show each notification for" description={`${seconds} seconds`} htmlFor="seconds">
+          <Row label="Pop-up duration" description={`${seconds} seconds`} htmlFor="seconds">
             <Slider
               id="seconds"
-              aria-label="Show each notification for"
+              aria-label="Pop-up duration"
               className="w-44"
               min={NOTIFICATION_SECONDS_RANGE[0]}
               max={NOTIFICATION_SECONDS_RANGE[1]}
@@ -247,13 +247,13 @@ export function NotificationsSection({ snap, api }: Props) {
               onValueCommit={([v]) => api.update({ notificationSeconds: v })}
             />
           </Row>
-          <Row label="Battery alerts" description="Charger connected or removed, fully charged, and low battery." htmlFor="battery">
+          <Row label="Battery alerts" description="Notify when the charger is connected or removed, when the battery is full, and when it runs low." htmlFor="battery">
             <Switch id="battery" checked={s.batteryAlerts} onCheckedChange={(batteryAlerts) => api.update({ batteryAlerts })} />
           </Row>
         </RowCard>
       </Section>
 
-      <Section title="Try it" description="Sends a sample notification to the island.">
+      <Section title="Test" description="Send a sample notification to confirm everything works.">
         <Button
           variant="outline"
           onClick={() =>
@@ -387,7 +387,7 @@ export function WidgetsSection({ snap, api }: Props) {
     <div className="space-y-8">
       <Section
         title="Widgets"
-        description="Shown in the open island, three cells per row. Size is columns × rows. In the island, drag a card to move it and drag its corner to resize it."
+        description="Widgets appear in the expanded panel on a three-column grid. Sizes are columns × rows. In the panel, drag a widget to move it or drag its corner to resize it."
       >
         <RowCard>
           <WidgetList
@@ -411,7 +411,7 @@ export function NowPlayingSection({ snap, api }: Props) {
     <div className="space-y-8">
       <Section
         title="Music bars"
-        description="Bars bounce beside the island while any app plays sound: music, videos, calls. Titles come from Spotify and Apple Music (macOS asks once to let Islet control each) and from websites through the Islet browser extension."
+        description="Animated bars appear beside the island while any app plays audio, including music, videos and calls. Track titles come from Spotify and Apple Music (macOS asks once for permission to control each) and from websites through the Islet browser extension."
       >
         <div
           className={cn(
@@ -426,7 +426,7 @@ export function NowPlayingSection({ snap, api }: Props) {
           <Row label="Show music bars" htmlFor="bars-on">
             <Switch id="bars-on" checked={bars.enabled} onCheckedChange={(enabled) => set({ enabled })} />
           </Row>
-          <Row label="Position" description="Below the island, the title shows under the bars.">
+          <Row label="Position" description="When placed below the island, the track title appears under the bars.">
             <ToggleGroup
               type="single"
               aria-label="Position"
@@ -437,13 +437,13 @@ export function NowPlayingSection({ snap, api }: Props) {
               <ToggleGroupItem value="below">Below the island</ToggleGroupItem>
             </ToggleGroup>
           </Row>
-          <Row label="Upside down" description="Bars hang down instead of standing up." htmlFor="bars-flipped">
+          <Row label="Flip vertically" description="Bars extend downward instead of upward." htmlFor="bars-flipped">
             <Switch id="bars-flipped" checked={bars.flipped} onCheckedChange={(flipped) => set({ flipped })} />
           </Row>
-          <Row label="Show the title" description="Shows the title in the island next to the bars. With a notch, each new track pops up once instead." htmlFor="bars-title">
+          <Row label="Show track title" description="Displays the track title next to the bars. With a notch, each new track is announced once instead." htmlFor="bars-title">
             <Switch id="bars-title" checked={bars.showTitle} onCheckedChange={(showTitle) => set({ showTitle })} />
           </Row>
-          <Row label="Colors" description="A preset, or your own: the first color is at the base, the second at the tips.">
+          <Row label="Colors" description="Choose a preset or set a custom gradient, from base to tip.">
             <div className="flex flex-wrap items-center justify-end gap-2">
               {BAR_PRESETS.map((p) => (
                 <button
@@ -519,11 +519,11 @@ export function BrowserSection({ snap, api }: Props) {
     <div className="space-y-8">
       <Section
         title="Website notifications"
-        description="The Islet browser extension shows notifications from Gmail, Slack, Facebook, Discord and any other site you allow to notify in the browser."
+        description="The Islet browser extension forwards notifications from Gmail, Slack, Facebook, Discord and any other site allowed to send notifications."
       >
         {!snap.settings.apiEnabled && (
           <p role="alert" className="text-sm text-amber-600 dark:text-amber-400">
-            The extension talks to Islet over the local API. Turn the API on to use it.
+            The extension connects through the local API. Enable the API to use it.
           </p>
         )}
         <RowCard>
@@ -546,7 +546,7 @@ export function BrowserSection({ snap, api }: Props) {
               Show folder
             </Button>
           </Row>
-          <Row label="Pairing token" description="Only the extension holding this token can send to Islet.">
+          <Row label="Pairing token" description="Only an extension with this token can send notifications to Islet.">
             <div className="flex items-center gap-2">
               <code className="w-[18.5rem] truncate rounded-md border bg-muted/40 px-2 py-1 font-mono text-xs select-text" aria-label="Pairing token">
                 {token ? (shown ? token : "•".repeat(token.length)) : "Unavailable"}
@@ -557,17 +557,17 @@ export function BrowserSection({ snap, api }: Props) {
               <CopyButton text={token} />
             </div>
           </Row>
-          <Row label="New token" description="Unpairs browsers that use the current token. Paste the new one into each of them.">
+          <Row label="Replace token" description="Disconnects browsers using the current token. Paste the new token into each extension.">
             <Button variant="outline" size="sm" onClick={() => api.run(replaceBrowserToken)}>
               <RefreshCw aria-hidden="true" />
-              New token
+              Generate new token
             </Button>
           </Row>
         </RowCard>
         <p className="text-sm text-muted-foreground">
-          Notifications reach Islet only while the site is open in a tab. To skip the browser's own pop-ups, turn off
-          notifications for the browser in {isMac ? "System Settings → Notifications" : "Settings → System → Notifications"};
-          sites keep sending them to Islet.
+          Notifications arrive only while the site is open in a tab. To avoid duplicate pop-ups from the browser, turn off
+          its notifications in {isMac ? "System Settings → Notifications" : "Settings → System → Notifications"};
+          sites continue to send them to Islet.
         </p>
       </Section>
     </div>
@@ -605,7 +605,7 @@ export function ApiSection({ snap, api }: Props) {
 
   return (
     <div className="space-y-8">
-      <Section title="Local API" description="Lets scripts and tools on this computer send notifications. Web pages are refused.">
+      <Section title="Local API" description="Allows scripts and tools on this computer to send notifications. Requests from web pages are rejected.">
         <RowCard>
           <Row label="Enabled" htmlFor="api">
             <Switch id="api" checked={s.apiEnabled} onCheckedChange={(apiEnabled) => api.update({ apiEnabled })} />
@@ -637,7 +637,7 @@ export function ApiSection({ snap, api }: Props) {
         </RowCard>
       </Section>
 
-      <Section title="Send a notification">
+      <Section title="Example request">
         <div className="relative rounded-xl border bg-neutral-950 text-neutral-100 dark:bg-black/40">
           <Button
             variant="ghost"
@@ -689,7 +689,7 @@ export function AboutSection({ snap, api }: Props) {
         <Row label="Settings file" description={<span className="font-mono text-xs break-all">{snap.settingsPath}</span>}>
           <span />
         </Row>
-        <Row label="Reset settings" description="Restores every setting to its default.">
+        <Row label="Reset settings" description="Restores all settings to their defaults.">
           {confirming ? (
             <div className="flex gap-2">
               <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>

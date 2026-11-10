@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   BackgroundSlot,
+  ControlChange,
+  Controls,
   IslandNotification,
   MediaCommand,
   NotificationInput,
@@ -60,6 +62,12 @@ export const getBackgroundImage = (slot: BackgroundSlot) => invoke<string | null
 /** Saves a JPEG or PNG data URL as a background picture, or removes it with null. */
 export const setBackgroundImage = (slot: BackgroundSlot, image: string | null) =>
   invoke<void>("set_background_image", { slot, image });
+
+/** Wi-Fi, Bluetooth, volume and the other switches, as the system has them now. */
+export const getControls = () => invoke<Controls>("get_controls");
+
+/** Switches one control; resolves to all of them afterwards. */
+export const setControl = (change: ControlChange) => invoke<Controls>("set_control", { change });
 
 /** Today's weather; the core asks wttr.in at most every 15 minutes. */
 export const getWeather = () => invoke<Weather>("get_weather");

@@ -48,8 +48,8 @@ export const THEMES: Record<IslandTheme, ThemeLook> = {
     island: () => "#1c1d22",
     panel: (a) => `${coverWash(a, 0.12)}, linear-gradient(180deg, #000 0%, #1a1b20 35%, #25272e 100%)`,
   },
-  glass: {
-    label: "Glass",
+  transparent: {
+    label: "Transparent",
     // Nearly clear so the desktop shows through; the tiles' own dark layer keeps text readable.
     island: () => "rgb(0 0 0 / 0.4)",
     panel: () => "linear-gradient(180deg, #000 0%, rgb(0 0 0 / 0.3) 12%, rgb(0 0 0 / 0.25) 100%)",

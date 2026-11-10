@@ -1,4 +1,5 @@
 import {
+  Bluetooth,
   Calculator,
   Camera,
   Cloud,
@@ -9,28 +10,38 @@ import {
   CloudSnow,
   CloudSun,
   Coffee,
+  Contrast,
   FolderDown,
+  Leaf,
   Lock,
   Moon,
   Music2,
   Pause,
   Pin,
+  Plane,
   Play,
   SkipBack,
   SkipForward,
   Sun,
+  Sunset,
   Video,
+  Volume2,
   VolumeX,
+  Wifi,
   X,
   type LucideIcon,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState, type ReactNode } from "react";
+import { Slider } from "radix-ui";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { clockParts, formatBytes, formatDuration, formatMinutes, formatPercent, formatPrice, formatVolume, shortSymbol } from "../../shared/format";
 import {
   errorMessage,
   MAX_ISLAND_STOCKS,
+  type ControlChange,
+  type Controls,
+  type ControlToggle,
   type MediaCommand,
   type NowPlaying,
   type Quote,
@@ -41,7 +52,7 @@ import {
   type WidgetId,
   type WidgetSpan,
 } from "../../shared/types";
-import { getWeather } from "../../shared/commands";
+import { getControls, getWeather, setControl } from "../../shared/commands";
 import { SlidingNumber } from "../SlidingNumber";
 import type { TimerApi } from "../useTimer";
 import { monthGrid } from "./calendar";
@@ -57,7 +68,7 @@ export const LABEL = "text-[10px] font-semibold tracking-[0.12em] text-white/40 
 
 /** Glass tile: a dark layer under a faint white tint, over a soft blur of the background, keeps widgets readable over any theme or picture. */
 export const TILE =
-  "rounded-[18px] bg-black/30 bg-[linear-gradient(rgb(255_255_255/0.05),rgb(255_255_255/0.05))] ring-1 ring-white/[0.07] ring-inset shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] backdrop-blur-md";
+  "tile rounded-[18px] bg-black/30 bg-[linear-gradient(rgb(255_255_255/0.05),rgb(255_255_255/0.05))] ring-1 ring-white/[0.07] ring-inset shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] backdrop-blur-md";
 
 /** Round glass button used for controls inside tiles. */
 const GLASS_BUTTON =
@@ -321,7 +332,7 @@ export function NotesWidget() {
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Jot something down…"
+        placeholder="Write a note…"
         aria-label="Quick note"
         spellCheck={false}
         className="flex-1 resize-none bg-transparent text-[13px] leading-relaxed text-white/90 outline-none placeholder:text-white/30"
@@ -347,7 +358,7 @@ const QUICK_ACTIONS: { id: WidgetAction; label: string; icon: LucideIcon }[] = [
   { id: "keep-awake", label: "Keep awake", icon: Coffee },
   { id: "do-not-disturb", label: "Do Not Disturb", icon: Moon },
   { id: "mute", label: "Mute", icon: VolumeX },
-  { id: "lock", label: "Lock", icon: Lock },
+  { id: "lock", label: "Lock screen", icon: Lock },
   { id: "calculator", label: "Calculator", icon: Calculator },
   { id: "downloads", label: "Downloads", icon: FolderDown },
 ];
@@ -358,15 +369,40 @@ const ON_STYLE: Partial<Record<WidgetAction, string>> = {
   "do-not-disturb": "bg-violet-400/20 text-violet-300 hover:bg-violet-400/30 hover:text-violet-200",
 };
 
-export function QuickActionsWidget({ api, span }: { api: QuickActionsApi } & SpanProps) {
-  // The system does not report mute changes, so this is what Islet last set.
-  const [muted, setMuted] = useState<boolean | null>(null);
+/** An error that clears itself after a moment. */
+function useFlashError() {
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (!error) return;
     const id = setTimeout(() => setError(null), 2500);
     return () => clearTimeout(id);
   }, [error]);
+  return [error, setError] as const;
+}
+
+/** Failures float over a widget's buttons for a moment instead of a heading. */
+function FloatingError({ error }: { error: string | null }) {
+  return (
+    <AnimatePresence>
+      {error && (
+        <motion.p
+          role="status"
+          className="absolute inset-x-3 bottom-2.5 truncate rounded-full bg-black/80 px-3 py-1 text-center text-[11px] text-red-300 ring-1 ring-white/10 backdrop-blur"
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+        >
+          {error}
+        </motion.p>
+      )}
+    </AnimatePresence>
+  );
+}
+
+export function QuickActionsWidget({ api, span }: { api: QuickActionsApi } & SpanProps) {
+  // The system does not report mute changes, so this is what Islet last set.
+  const [muted, setMuted] = useState<boolean | null>(null);
+  const [error, setError] = useFlashError();
   const wide = isWide(span);
   const tall = isTall(span);
   const labeled = wide || tall;
@@ -410,20 +446,7 @@ export function QuickActionsWidget({ api, span }: { api: QuickActionsApi } & Spa
           );
         })}
       </div>
-      {/* Failures float over the buttons for a moment instead of a heading. */}
-      <AnimatePresence>
-        {error && (
-          <motion.p
-            role="status"
-            className="absolute inset-x-3 bottom-2.5 truncate rounded-full bg-black/80 px-3 py-1 text-center text-[11px] text-red-300 ring-1 ring-white/10 backdrop-blur"
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-          >
-            {error}
-          </motion.p>
-        )}
-      </AnimatePresence>
+      <FloatingError error={error} />
     </Card>
   );
 }
@@ -742,5 +765,257 @@ export function Widget({
       return <MediaWidget api={media} span={span} />;
     case "weather":
       return <WeatherWidget span={span} />;
+    case "controls":
+      return <ControlsWidget span={span} />;
   }
+}
+
+/** How often the controls re-read the system while the panel is open. */
+const CONTROLS_REFRESH_MS = 3000;
+
+/** `short` fits under a small tile. */
+const TOGGLES: { id: ControlToggle; key: keyof Controls; label: string; short?: string; icon: LucideIcon; on: string }[] = [
+  { id: "wifi", key: "wifi", label: "Wi-Fi", icon: Wifi, on: "bg-sky-500 text-white hover:bg-sky-400" },
+  { id: "bluetooth", key: "bluetooth", label: "Bluetooth", icon: Bluetooth, on: "bg-sky-500 text-white hover:bg-sky-400" },
+  { id: "airplane", key: "airplane", label: "Airplane mode", short: "Airplane", icon: Plane, on: "bg-orange-500 text-white hover:bg-orange-400" },
+  { id: "dark-mode", key: "darkMode", label: "Dark mode", icon: Contrast, on: "bg-white text-black hover:bg-white/90" },
+  { id: "night-light", key: "nightLight", label: "Night light", icon: Sunset, on: "bg-amber-400 text-black hover:bg-amber-300" },
+  { id: "energy-saver", key: "energySaver", label: "Energy saver", short: "Saver", icon: Leaf, on: "bg-emerald-500 text-white hover:bg-emerald-400" },
+];
+
+const CONTROL_KEYS: Record<ControlChange["control"], keyof Controls> = {
+  wifi: "wifi",
+  bluetooth: "bluetooth",
+  airplane: "airplane",
+  "dark-mode": "darkMode",
+  "night-light": "nightLight",
+  "energy-saver": "energySaver",
+  volume: "volume",
+  brightness: "brightness",
+};
+
+/**
+ * The system's controls, re-read every few seconds. Changes show at once and
+ * go to the core one at a time, newest per control, so a dragged slider
+ * ends where it was let go.
+ */
+function useControls(onError: (message: string) => void) {
+  const [controls, setControls] = useState<Controls | null>(null);
+  const pending = useRef(new Map<ControlChange["control"], ControlChange>());
+  const sending = useRef(false);
+
+  const load = () => {
+    if (sending.current || pending.current.size) return;
+    getControls()
+      .then((c) => !sending.current && !pending.current.size && setControls(c))
+      .catch(() => {});
+  };
+  useEffect(() => {
+    load();
+    const id = setInterval(load, CONTROLS_REFRESH_MS);
+    return () => clearInterval(id);
+  }, []);
+
+  const send = () => {
+    const next = pending.current.values().next().value;
+    if (sending.current || !next) return;
+    pending.current.delete(next.control);
+    sending.current = true;
+    setControl(next)
+      .then((c) => !pending.current.size && setControls(c))
+      .catch((e: unknown) => {
+        onError(errorMessage(e));
+        pending.current.clear();
+        sending.current = false;
+        load();
+      })
+      .finally(() => {
+        sending.current = false;
+        send();
+      });
+  };
+  const change = (c: ControlChange) => {
+    setControls((prev) => prev && { ...prev, [CONTROL_KEYS[c.control]]: c.value });
+    pending.current.set(c.control, c);
+    send();
+  };
+  return [controls, change] as const;
+}
+
+/** A thick capsule slider with its icon inside, like the system's own. */
+function LevelSlider({ label, icon: Icon, value, big, onChange }: { label: string; icon: LucideIcon; value: number; big?: boolean; onChange: (v: number) => void }) {
+  return (
+    <Slider.Root
+      min={0}
+      max={1}
+      step={0.01}
+      value={[value]}
+      onValueChange={([v]) => onChange(v)}
+      className={cn(
+        "relative flex w-full cursor-pointer touch-none items-center rounded-full select-none has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-white/40",
+        big ? "h-8" : "h-6",
+      )}
+    >
+      <Slider.Track className="relative h-full grow overflow-hidden rounded-full bg-white/[0.08] ring-1 ring-white/[0.06] ring-inset">
+        <Slider.Range className="absolute h-full bg-white/90" />
+      </Slider.Track>
+      {/* The thumb is the fill's edge; it stays for keyboard and screen readers. */}
+      <Slider.Thumb aria-label={label} className="block h-full w-0 outline-none" />
+      {/* Difference blending keeps the icon visible over the white fill and the dark track. */}
+      <Icon
+        className={cn("pointer-events-none absolute text-white mix-blend-difference", big ? "left-3 size-4" : "left-2 size-3.5")}
+        strokeWidth={2}
+        aria-hidden="true"
+      />
+    </Slider.Root>
+  );
+}
+
+type ToggleDef = (typeof TOGGLES)[number];
+
+/**
+ * A switch: a square icon tile, the same with its name below, or a pill with
+ * its name and state, depending on the room.
+ */
+function ToggleTile({
+  t,
+  on,
+  state,
+  look,
+  size = "size-10",
+  onClick,
+}: {
+  t: ToggleDef;
+  on: boolean;
+  state: string;
+  look: "icon" | "named" | "pill";
+  /** The round button's size, for `icon` and `named`. */
+  size?: string;
+  onClick: () => void;
+}) {
+  if (look === "named") {
+    return (
+      <div className="flex min-w-0 flex-col items-center gap-1">
+        <button
+          type="button"
+          aria-label={t.label}
+          aria-pressed={on}
+          title={`${t.label}: ${state}`}
+          onClick={onClick}
+          className={cn("grid shrink-0 place-items-center rounded-full text-white/75 hover:text-white", size, GLASS_BUTTON, on && t.on)}
+        >
+          <t.icon className="size-[18px]" strokeWidth={1.75} aria-hidden="true" />
+        </button>
+        <span className="w-full truncate text-center text-[10px] leading-tight text-white/55">{t.short ?? t.label}</span>
+      </div>
+    );
+  }
+  if (look === "icon") {
+    return (
+      <button
+        type="button"
+        aria-label={t.label}
+        aria-pressed={on}
+        title={`${t.label}: ${state}`}
+        onClick={onClick}
+        className={cn("grid shrink-0 place-items-center justify-self-center rounded-full text-white/75 hover:text-white", size, GLASS_BUTTON, on && t.on)}
+      >
+        <t.icon className="size-4" strokeWidth={1.75} aria-hidden="true" />
+      </button>
+    );
+  }
+  return (
+    <button
+      type="button"
+      aria-label={t.label}
+      aria-pressed={on}
+      onClick={onClick}
+      className={cn("flex min-w-0 items-center gap-2 rounded-2xl p-1.5 pr-2.5 text-left", GLASS_BUTTON)}
+    >
+      <span className={cn("grid size-8 shrink-0 place-items-center rounded-full bg-white/[0.08] text-white/75", on && t.on)}>
+        <t.icon className="size-4" strokeWidth={1.75} aria-hidden="true" />
+      </span>
+      <span className="min-w-0">
+        <span className="block truncate text-[12px] leading-tight font-medium text-white/90">{t.label}</span>
+        <span className="block truncate text-[10px] leading-tight text-white/45">{state}</span>
+      </span>
+    </button>
+  );
+}
+
+/** Wi-Fi, Bluetooth and the other system switches, plus volume and brightness. */
+export function ControlsWidget({ span }: SpanProps) {
+  const [error, setError] = useFlashError();
+  const [controls, change] = useControls(setError);
+  const tall = isTall(span);
+  const wide = isWide(span);
+
+  if (!controls) {
+    return (
+      <Card>
+        <p className="text-xs text-white/65">Loading…</p>
+      </Card>
+    );
+  }
+  const toggles = TOGGLES.filter((t) => controls[t.key] !== null).map((t) => {
+    const on = controls[t.key] === true;
+    const state = t.id === "wifi" && on && controls.wifiName ? controls.wifiName : on ? "On" : "Off";
+    return { t, on, state };
+  });
+  const tiles = (look: "icon" | "named" | "pill", size?: string) =>
+    toggles.map(({ t, on, state }) => (
+      <ToggleTile key={t.id} t={t} on={on} state={state} look={look} size={size} onClick={() => change({ control: t.id, value: !on })} />
+    ));
+  const volume = controls.volume;
+  const brightness = controls.brightness;
+  const sliders = (big: boolean) =>
+    (volume !== null || brightness !== null) && (
+      <div className={cn("flex flex-col justify-center", big ? "gap-2.5" : "gap-1.5")}>
+        {volume !== null && (
+          <LevelSlider
+            label="Volume"
+            icon={controls.muted || volume === 0 ? VolumeX : Volume2}
+            value={volume}
+            big={big}
+            onChange={(v) => change({ control: "volume", value: v })}
+          />
+        )}
+        {brightness !== null && (
+          <LevelSlider label="Brightness" icon={Sun} value={brightness} big={big} onChange={(v) => change({ control: "brightness", value: v })} />
+        )}
+      </div>
+    );
+
+  return (
+    <Card className={tall ? "justify-center gap-4" : "gap-2.5"}>
+      {tall && wide ? (
+        // Big: pills with names and state, sliders below, kept together in the middle.
+        <>
+          <div className="grid grid-cols-3 gap-2">{tiles("pill")}</div>
+          {sliders(true)}
+        </>
+      ) : tall ? (
+        // Narrow and tall: named tiles in threes, sliders below.
+        <>
+          <div className="grid grid-cols-3 gap-x-2 gap-y-2.5">{tiles("named", "size-11")}</div>
+          {sliders(true)}
+        </>
+      ) : wide ? (
+        // Short and wide: icon tiles on the left, sliders on the right.
+        <div className="flex flex-1 gap-3">
+          <div className="grid flex-1 grid-cols-3 content-center gap-2">{tiles("icon", "size-10")}</div>
+          <div className="flex flex-1 flex-col justify-center">{sliders(true)}</div>
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${toggles.length}, minmax(0, 1fr))` }}>
+            {/* Five fit across a single-column tile at this size. */}
+            {tiles("icon", "size-[30px]")}
+          </div>
+          <div className="mt-auto">{sliders(false)}</div>
+        </>
+      )}
+      <FloatingError error={error} />
+    </Card>
+  );
 }

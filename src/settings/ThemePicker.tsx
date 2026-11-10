@@ -91,7 +91,7 @@ export function ThemePicker({ value, onChange, pictures, onPicture, onRemovePict
         <div className="divide-y divide-black/[0.06] rounded-xl border border-black/[0.06] bg-card dark:divide-white/[0.06] dark:border-white/[0.07]">
           <PictureRow
             label="Panel"
-            hint={pictures.panel ? "The open panel." : "Choose a picture for the open panel."}
+            hint={pictures.panel ? "Fills the expanded panel." : "No picture selected."}
             picture={pictures.panel}
             shape="h-10 w-16 rounded-md"
             onChoose={() => choose("panel")}
@@ -101,10 +101,10 @@ export function ThemePicker({ value, onChange, pictures, onPicture, onRemovePict
             label="Island"
             hint={
               pictures.island
-                ? "The closed island."
+                ? "Fills the closed island."
                 : pictures.panel
-                  ? "Uses the panel picture until you choose one."
-                  : "Choose a picture for the closed island."
+                  ? "Uses the panel picture until one is selected."
+                  : "No picture selected."
             }
             picture={islandPicture}
             shape="h-4 w-16 rounded-full"

@@ -1,4 +1,4 @@
-import type { UiSnapshot } from "../shared/types";
+import type { Controls, UiSnapshot } from "../shared/types";
 
 // Shared fakes for `@tauri-apps/api`. Tests call `vi.mock` with these and
 // drive core events through `emit`.
@@ -8,6 +8,31 @@ const listeners = new Map<string, Set<Listener>>();
 export const invoked: { cmd: string; args?: unknown }[] = [];
 let snapshot: UiSnapshot;
 let background: Record<string, string | null> = {};
+
+/** A Mac's controls: no airplane mode. */
+export const MOCK_CONTROLS: Controls = {
+  wifi: true,
+  wifiName: "Home",
+  bluetooth: false,
+  airplane: null,
+  volume: 0.5,
+  muted: false,
+  brightness: 0.7,
+  darkMode: true,
+  nightLight: false,
+  energySaver: false,
+};
+let controls: Controls = MOCK_CONTROLS;
+const CONTROL_KEYS: Record<string, keyof Controls> = {
+  wifi: "wifi",
+  bluetooth: "bluetooth",
+  airplane: "airplane",
+  volume: "volume",
+  brightness: "brightness",
+  "dark-mode": "darkMode",
+  "night-light": "nightLight",
+  "energy-saver": "energySaver",
+};
 
 /** A background picture the fake core has saved. */
 export function setMockBackground(slot: "panel" | "island", image: string | null) {
@@ -85,6 +110,7 @@ export function baseSnapshot(): UiSnapshot {
 export function resetMock(snap: UiSnapshot = baseSnapshot()) {
   snapshot = snap;
   background = {};
+  controls = MOCK_CONTROLS;
   listeners.clear();
   invoked.length = 0;
 }
@@ -118,6 +144,13 @@ export const coreModule = {
           return snapshot.recordingSince !== null;
         }
         return args!.action === "mute" ? true : null;
+      case "get_controls":
+        return controls;
+      case "set_control": {
+        const { control, value } = args!.change as { control: string; value: boolean | number };
+        controls = { ...controls, [CONTROL_KEYS[control]]: value };
+        return controls;
+      }
       case "get_weather":
         return {
           place: "Hanoi",

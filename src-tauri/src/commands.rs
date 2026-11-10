@@ -161,6 +161,18 @@ pub async fn set_background_image(
     Ok(())
 }
 
+/// What the Controls widget shows: Wi-Fi, Bluetooth, volume and the rest.
+#[tauri::command]
+pub async fn get_controls() -> crate::controls::Controls {
+    crate::controls::read()
+}
+
+/// Switches one control and returns them all as they are afterwards.
+#[tauri::command]
+pub async fn set_control(change: crate::controls::Change) -> AppResult<crate::controls::Controls> {
+    crate::controls::set(change)
+}
+
 /// The island page reports the area it covers whenever its shape changes.
 #[tauri::command]
 pub async fn set_island_rect(app: AppHandle, rect: Rect) -> AppResult<()> {

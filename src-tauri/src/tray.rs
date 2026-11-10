@@ -80,8 +80,8 @@ fn build_menu(app: &AppHandle, snap: &UiSnapshot) -> tauri::Result<Menu<Wry>> {
     let test = MenuItem::with_id(app, "test", "Send Test Notification", true, None::<&str>)?;
     let api_label = match (&snap.api.url, &snap.api.error) {
         (Some(url), _) => format!("API: {url}"),
-        (None, Some(_)) => "API: port unavailable".into(),
-        (None, None) => "API: off".into(),
+        (None, Some(_)) => "API: Port Unavailable".into(),
+        (None, None) => "API: Off".into(),
     };
     let api = MenuItem::with_id(app, "api", api_label, false, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;

@@ -5,7 +5,7 @@ export type IslandStyle = "notch" | "island";
 /** Which background a picture is for: the wide open panel or the thin floating island. */
 export type BackgroundSlot = "panel" | "island";
 
-export type IslandTheme = "graphite" | "black" | "midnight" | "aurora" | "ember" | "slate" | "glass" | "picture";
+export type IslandTheme = "graphite" | "black" | "midnight" | "aurora" | "ember" | "slate" | "transparent" | "picture";
 /** Grid cells a widget covers: 1–3 columns, 1–2 rows. */
 export interface WidgetSpan {
   cols: number;
@@ -22,7 +22,7 @@ export function clampSpan(cols: number, rows: number): WidgetSpan {
     rows: Math.min(WIDGET_MAX_ROWS, Math.max(1, Math.round(rows))),
   };
 }
-export type WidgetId = "clock" | "calendar" | "timer" | "system" | "notes" | "actions" | "stocks" | "media" | "weather";
+export type WidgetId = "clock" | "calendar" | "timer" | "system" | "notes" | "actions" | "stocks" | "media" | "weather" | "controls";
 
 /** One-tap system actions in the Quick actions widget. */
 export type QuickAction = "keep-awake" | "screenshot" | "mute" | "lock" | "calculator" | "downloads" | "record";
@@ -40,6 +40,7 @@ export function widgetAppName(id: WidgetId, platform: Platform): string | null {
       stocks: null,
       media: null,
       weather: "Weather",
+      controls: null,
     };
     return apps[id];
   }
@@ -54,13 +55,14 @@ export function widgetAppName(id: WidgetId, platform: Platform): string | null {
       stocks: null,
       media: null,
       weather: "Weather",
+      controls: null,
     };
     return apps[id];
   }
   return null;
 }
 
-export const ALL_WIDGETS: readonly WidgetId[] = ["clock", "calendar", "timer", "system", "notes", "actions", "stocks", "media", "weather"];
+export const ALL_WIDGETS: readonly WidgetId[] = ["clock", "calendar", "timer", "system", "notes", "actions", "stocks", "media", "weather", "controls"];
 
 export const WIDGET_LABELS: Record<WidgetId, string> = {
   clock: "Clock",
@@ -72,7 +74,31 @@ export const WIDGET_LABELS: Record<WidgetId, string> = {
   stocks: "Stocks",
   media: "Now playing",
   weather: "Weather",
+  controls: "Controls",
 };
+
+/** The Controls widget's state; null where this system can't read or set it. */
+export interface Controls {
+  wifi: boolean | null;
+  /** The joined network, when the system says. */
+  wifiName: string | null;
+  bluetooth: boolean | null;
+  airplane: boolean | null;
+  /** 0 to 1. */
+  volume: number | null;
+  muted: boolean | null;
+  /** Built-in screen, 0 to 1. */
+  brightness: number | null;
+  darkMode: boolean | null;
+  /** Night light on Windows, Night Shift on macOS. */
+  nightLight: boolean | null;
+  /** Energy saver on Windows, Low Power Mode on macOS; switching opens its settings. */
+  energySaver: boolean | null;
+}
+
+export type ControlToggle = "wifi" | "bluetooth" | "airplane" | "dark-mode" | "night-light" | "energy-saver";
+export type ControlLevel = "volume" | "brightness";
+export type ControlChange = { control: ControlToggle; value: boolean } | { control: ControlLevel; value: number };
 
 /** The Weather widget's data, from wttr.in by way of the core. */
 export interface Weather {

@@ -413,13 +413,15 @@ export function Island() {
             ? "shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_24px_60px_rgba(0,0,0,0.55)]"
             : !shape.attached && "shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_6px_18px_rgba(0,0,0,0.3)]",
         )}
+        // Transparent gives the tiles inside a frosted look (island.css).
+        data-transparent={settings?.theme === "transparent" || undefined}
         style={{
           transformOrigin: "50% 0%",
           width: shellWidth,
-          // Glass clears the shell under the open panel so the desktop shows. The notch style stays
+          // Transparent clears the shell under the open panel so the desktop shows. The notch style stays
           // black to merge with the notch, unless the user chose a picture for it.
           background:
-            view === "expanded" && settings?.theme === "glass"
+            view === "expanded" && settings?.theme === "transparent"
               ? "transparent"
               : shape.attached && settings?.theme !== "picture"
                 ? undefined

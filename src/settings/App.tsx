@@ -21,13 +21,13 @@ import {
 import { useSnapshot } from "./useSnapshot";
 
 const TABS = [
-  { id: "general", label: "General", icon: Settings2, description: "Style, shortcut and startup." },
-  { id: "notifications", label: "Notifications", icon: Bell, description: "How notifications reach the island." },
-  { id: "music", label: "Now playing", icon: Music2, description: "Music bars and titles." },
-  { id: "widgets", label: "Widgets", icon: LayoutGrid, description: "What the open island shows." },
-  { id: "browser", label: "Browser", icon: Globe, description: "Notifications from websites." },
+  { id: "general", label: "General", icon: Settings2, description: "Appearance, behavior and startup." },
+  { id: "notifications", label: "Notifications", icon: Bell, description: "Delivery, timing and battery alerts." },
+  { id: "music", label: "Now playing", icon: Music2, description: "Music bars and track titles." },
+  { id: "widgets", label: "Widgets", icon: LayoutGrid, description: "Choose and arrange the widgets in the panel." },
+  { id: "browser", label: "Browser", icon: Globe, description: "Website notifications through the browser extension." },
   { id: "api", label: "API", icon: Code, description: "Send notifications from scripts and tools." },
-  { id: "about", label: "About", icon: Info, description: "Version and reset." },
+  { id: "about", label: "About", icon: Info, description: "Version information and reset." },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -146,10 +146,10 @@ export function App() {
                   <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
                     <li>The island sits at the top center of your screen{snap.layout.notch ? ", around the notch" : ""}.</li>
                     <li>
-                      {settings.expandTrigger === "hover" ? "Hover over it" : "Click it"} or press <Kbd>{shortcut}</Kbd> to open
-                      widgets and notifications.
+                      {settings.expandTrigger === "hover" ? "Hover over it" : "Click it"} or press <Kbd>{shortcut}</Kbd> to open the
+                      panel with widgets and notifications.
                     </li>
-                    <li>New notifications pop out for a few seconds. Timers and unread counts show beside it.</li>
+                    <li>New notifications appear briefly. Timers and unread counts stay visible beside the island.</li>
                     <li>Scripts can send notifications through the local API.</li>
                   </ul>
                   <Button size="sm" onClick={() => run(completeOnboarding)}>

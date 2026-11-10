@@ -51,8 +51,10 @@ pub enum IslandTheme {
     Aurora,
     Ember,
     Slate,
-    /// Nearly clear: the desktop shows through.
-    Glass,
+    /// Nearly clear: the desktop shows through, with frosted tiles. Saved
+    /// as "glass" before it was renamed.
+    #[serde(alias = "glass")]
+    Transparent,
     /// The user's own picture, saved by `background`.
     Picture,
     /// Black into graphite, tinted by the playing cover. Last so unknown
@@ -203,10 +205,12 @@ pub enum WidgetId {
     Media,
     /// Today's weather and the next days, from `weather`.
     Weather,
+    /// Wi-Fi, Bluetooth, volume, brightness and other switches; see `controls`.
+    Controls,
 }
 
 impl WidgetId {
-    pub const ALL: [WidgetId; 9] = [
+    pub const ALL: [WidgetId; 10] = [
         WidgetId::Clock,
         WidgetId::Calendar,
         WidgetId::Timer,
@@ -216,6 +220,7 @@ impl WidgetId {
         WidgetId::Stocks,
         WidgetId::Media,
         WidgetId::Weather,
+        WidgetId::Controls,
     ];
 }
 
@@ -577,7 +582,7 @@ mod tests {
             json["widgets"],
             serde_json::json!([
                 "clock", "calendar", "timer", "system", "notes", "actions", "stocks", "media",
-                "weather"
+                "weather", "controls"
             ])
         );
         assert_eq!(json["apiPort"], 47821);
@@ -870,5 +875,7 @@ mod tests {
         assert_eq!(s.theme, IslandTheme::Graphite);
         let s: Settings = serde_json::from_str(r#"{"theme":"aurora"}"#).unwrap();
         assert_eq!(s.theme, IslandTheme::Aurora);
+        let s: Settings = serde_json::from_str(r#"{"theme":"glass"}"#).unwrap();
+        assert_eq!(s.theme, IslandTheme::Transparent);
     }
 }

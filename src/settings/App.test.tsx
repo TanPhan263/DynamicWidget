@@ -62,7 +62,7 @@ describe("Settings", () => {
     render(<App />);
     await flush();
     // No island picture yet: it borrows the panel's, so there is nothing to remove.
-    expect(screen.getByText("Uses the panel picture until you choose one.", { exact: false })).toBeTruthy();
+    expect(screen.getByText("Uses the panel picture until one is selected.", { exact: false })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Remove island picture" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Remove panel picture" }));
     await flush();
@@ -76,7 +76,7 @@ describe("Settings", () => {
     await flush();
     const file = new File([new Uint8Array([0xff, 0xd8, 0xff])], "beach.jpg", { type: "image/jpeg" });
     fireEvent.change(screen.getByLabelText("Choose a background picture"), { target: { files: [file] } });
-    const dialog = await screen.findByRole("dialog", { name: "Frame the panel picture" });
+    const dialog = await screen.findByRole("dialog", { name: "Crop panel picture" });
     expect(dialog).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     await flush();
@@ -181,7 +181,7 @@ describe("Settings", () => {
     expect(token).not.toHaveTextContent("0123");
     fireEvent.click(screen.getByRole("button", { name: "Show token" }));
     expect(token).toHaveTextContent("0123456789abcdef0123456789abcdef");
-    fireEvent.click(screen.getByRole("button", { name: /New token/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Generate new token/ }));
     await flush();
     expect(token).toHaveTextContent("fedcba9876543210fedcba9876543210");
     fireEvent.click(screen.getByRole("button", { name: /Show folder/ }));
@@ -228,7 +228,7 @@ describe("Settings", () => {
     fireEvent.click(await screen.findByRole("radio", { name: "Below the island" }));
     await flush();
     expect(lastSave()).toMatchObject({ settings: { musicBars: { position: "below" } } });
-    fireEvent.click(screen.getByRole("switch", { name: "Upside down" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Flip vertically" }));
     await flush();
     expect(lastSave()).toMatchObject({ settings: { musicBars: { position: "below", flipped: true } } });
     fireEvent.click(screen.getByRole("button", { name: "Sunset" }));
