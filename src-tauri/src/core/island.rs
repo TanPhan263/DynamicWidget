@@ -8,7 +8,8 @@
 //! and sent to the page as an event instead of relying on `mouseenter`.
 
 use std::panic::{catch_unwind, AssertUnwindSafe};
-use std::thread;
+use std::sync::OnceLock;
+use std::thread::{self, Thread};
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
@@ -18,16 +19,35 @@ use super::geometry::{DisplayGeometry, Point};
 use crate::actions;
 
 pub const ISLAND_LABEL: &str = "island";
-/// Window size in CSS pixels. Matches `tauri.conf.json`; the page lays the
-/// island out inside it.
+/// Window width in CSS pixels, matching `tauri.conf.json`; the page lays the
+/// island out inside it. The height is stretched to the display's, so the open
+/// panel can reach the bottom; the page reads the real height from the window.
 pub const WINDOW_WIDTH: f64 = 1000.0;
-pub const WINDOW_HEIGHT: f64 = 800.0;
+/// Upper bound for rectangles the page reports; taller than any display.
+pub const MAX_WINDOW_HEIGHT: f64 = 6000.0;
 
 pub const ISLAND_HOVER: &str = "island-hover";
 pub const ISLAND_LAYOUT: &str = "island-layout";
 
 const POINTER_POLL: Duration = Duration::from_millis(30);
 const DISPLAY_POLL: Duration = Duration::from_secs(2);
+/// How often full screen is checked, and how long the thread sleeps while
+/// the island is hidden (`wake` cuts that short).
+const IDLE_POLL: Duration = Duration::from_secs(1);
+
+static ENGINE: OnceLock<Thread> = OnceLock::new();
+
+/// Wakes the engine so a hide or show takes effect now, not after `IDLE_POLL`.
+pub fn wake() {
+    if let Some(t) = ENGINE.get() {
+        t.unpark();
+    }
+}
+
+/// The island steps aside for full-screen apps unless it was asked for.
+fn shows(hidden: bool, full_screen: bool, summoned: bool) -> bool {
+    !hidden && (!full_screen || summoned)
+}
 /// Extra hit area around the island, in CSS pixels, so a fast pointer at
 /// the screen edge still counts as hovering.
 const HIT_SLOP: f64 = 4.0;
@@ -85,6 +105,8 @@ struct Engine {
     window: WebviewWindow,
     placement: Option<Placement>,
     last_display_check: Option<Instant>,
+    last_full_screen_check: Option<Instant>,
+    full_screen: bool,
     hovering: bool,
     visible: bool,
 }
@@ -123,8 +145,30 @@ impl Engine {
         self.placement = Some(Placement { display, origin });
     }
 
-    fn sync_visibility(&mut self, hidden: bool) {
-        let want = !hidden && self.placement.is_some();
+    fn refresh_full_screen(&mut self, now: Instant) {
+        if self
+            .last_full_screen_check
+            .is_some_and(|t| now.duration_since(t) < IDLE_POLL)
+        {
+            return;
+        }
+        self.last_full_screen_check = Some(now);
+        let st = actions::state(&self.app);
+        // While Islet is in front it can't tell; keep the last answer.
+        let Some(full_screen) = st.adapter.full_screen() else {
+            return;
+        };
+        if !full_screen {
+            st.mutate(|i| i.island_summoned = false);
+        }
+        if full_screen != self.full_screen {
+            log::info!("full screen: {full_screen}");
+            self.full_screen = full_screen;
+        }
+    }
+
+    fn sync_visibility(&mut self, show: bool) {
+        let want = show && self.placement.is_some();
         if want == self.visible {
             return;
         }
@@ -156,9 +200,12 @@ impl Engine {
 
     fn tick(&mut self) {
         let st = actions::state(&self.app);
-        let (hidden, rect) = st.read(|i| (i.island_hidden, i.island_rect));
-        self.refresh_display(Instant::now());
-        self.sync_visibility(hidden);
+        let now = Instant::now();
+        self.refresh_display(now);
+        self.refresh_full_screen(now);
+        let (hidden, summoned, rect) =
+            st.read(|i| (i.island_hidden, i.island_summoned, i.island_rect));
+        self.sync_visibility(shows(hidden, self.full_screen, summoned));
         if !self.visible {
             return;
         }
@@ -191,9 +238,12 @@ pub fn spawn(app: AppHandle) {
                 window,
                 placement: None,
                 last_display_check: None,
+                last_full_screen_check: None,
+                full_screen: false,
                 hovering: false,
                 visible: false,
             };
+            let _ = ENGINE.set(thread::current());
             loop {
                 if actions::state(&app).read(|i| i.quitting) {
                     break;
@@ -203,10 +253,32 @@ pub fn spawn(app: AppHandle) {
                 if catch_unwind(AssertUnwindSafe(|| engine.tick())).is_err() {
                     log::error!("island tick panicked");
                 }
-                thread::sleep(POINTER_POLL);
+                // Hidden, nothing needs the pointer; wake only to check full screen.
+                if engine.visible {
+                    thread::sleep(POINTER_POLL);
+                } else {
+                    thread::park_timeout(IDLE_POLL);
+                }
             }
         });
     if let Err(e) = spawned {
         log::error!("island engine did not start: {e}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn steps_aside_for_full_screen_unless_asked_for() {
+        assert!(super::shows(false, false, false));
+        assert!(!super::shows(false, true, false));
+        assert!(
+            super::shows(false, true, true),
+            "the shortcut brings it back"
+        );
+        assert!(
+            !super::shows(true, false, true),
+            "hidden from the tray wins"
+        );
     }
 }

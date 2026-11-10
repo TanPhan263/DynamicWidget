@@ -1708,6 +1708,7 @@ version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
+ "core-foundation",
  "core-graphics",
  "getrandom 0.3.4",
  "log",

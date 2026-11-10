@@ -38,7 +38,7 @@ export const EXPANDED_WIDTH = 640;
 export const PEEK_WIDTH = 420;
 export const PEEK_BODY = 72;
 export const WIDGET_COLUMNS = 3;
-export const CARD_HEIGHT = 132;
+export const CARD_HEIGHT = 133;
 export const GAP = 10;
 export const PADDING = 14;
 export const HEADER = 30;
@@ -106,8 +106,8 @@ export function islandScale(percent: number, range: readonly [number, number] = 
   return Math.min(range[1], Math.max(range[0], p)) / 100;
 }
 
-/** More widget rows than this scroll inside the panel. */
-export const MAX_VISIBLE_ROWS = 3;
+/** Room left between the open panel and the bottom of the screen. */
+export const SCREEN_MARGIN = 16;
 
 /**
  * Rows the widgets fill when placed in order the way CSS grid's (sparse)
@@ -142,10 +142,16 @@ export function widgetRows(spans: (WidgetSpan | undefined)[]): number {
   return Math.max(1, taken.length);
 }
 
-export function expandedHeight(shape: Shape, rows: number, scale = 1): number {
-  const visible = Math.min(rows, MAX_VISIBLE_ROWS);
-  const body = PADDING + HEADER + GAP + visible * CARD_HEIGHT + (visible - 1) * GAP + PADDING;
-  return shape.topInset + body * scale;
+/**
+ * The open panel fits every row, up to the bottom of the screen. Past that it
+ * stops at the last whole row that fits, so no row shows cut off, and the rest scroll.
+ */
+export function expandedHeight(shape: Shape, rows: number, scale = 1, screenHeight = Infinity): number {
+  const height = (n: number) => shape.topInset + (PADDING + HEADER + GAP + n * CARD_HEIGHT + (n - 1) * GAP + PADDING) * scale;
+  const room = screenHeight - shape.top - SCREEN_MARGIN;
+  let shown = Math.max(1, rows);
+  while (shown > 1 && height(shown) > room) shown--;
+  return height(shown);
 }
 
 /**
@@ -163,14 +169,18 @@ export function contentShape(shape: Shape, scale: number): Shape {
 }
 
 /** The island's rectangle in window CSS pixels for a view. */
-export function islandBox(shape: Shape, view: View, opts: { wings: boolean; rows: number; scale?: number; title?: boolean; controls?: boolean }): Box {
+export function islandBox(
+  shape: Shape,
+  view: View,
+  opts: { wings: boolean; rows: number; scale?: number; title?: boolean; controls?: boolean; screenHeight?: number },
+): Box {
   const scale = opts.scale ?? 1;
   let width: number;
   let height: number;
   switch (view) {
     case "expanded":
       width = EXPANDED_WIDTH * scale;
-      height = expandedHeight(shape, opts.rows, scale);
+      height = expandedHeight(shape, opts.rows, scale, opts.screenHeight);
       break;
     case "peek":
       width = PEEK_WIDTH * scale;

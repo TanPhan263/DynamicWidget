@@ -8,7 +8,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use crate::core::geometry::{DisplayGeometry, Point};
-use crate::core::island::{WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::core::island::WINDOW_WIDTH;
 
 /// Runs `f` with the island's HWND on the main (UI) thread.
 fn with_hwnd(window: &WebviewWindow, f: impl FnOnce(HWND) + Send + 'static) {
@@ -39,7 +39,8 @@ pub fn prepare(window: &WebviewWindow) {
 pub fn place(window: &WebviewWindow, origin: Point, d: &DisplayGeometry) {
     let (x, y) = (origin.x.round() as i32, origin.y.round() as i32);
     let w = (WINDOW_WIDTH * d.units_per_css_px).round() as i32;
-    let h = (WINDOW_HEIGHT * d.units_per_css_px).round() as i32;
+    // As tall as the display, so the open panel can reach its bottom.
+    let h = d.bounds.height.round() as i32;
     with_hwnd(window, move |hwnd| unsafe {
         // Moving onto a monitor with a different DPI triggers WM_DPICHANGED,
         // which resizes the window to a scaled rectangle. Applying the

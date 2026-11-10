@@ -1,6 +1,7 @@
 mod audio;
 mod camera;
 mod displays;
+mod fullscreen;
 mod island;
 mod media;
 
@@ -30,8 +31,9 @@ impl PlatformAdapter for MacAdapter {
         island::prepare(window);
     }
 
-    fn place_island(&self, window: &WebviewWindow, origin: Point, _display: &DisplayGeometry) {
-        island::place(window, origin);
+    fn place_island(&self, window: &WebviewWindow, origin: Point, display: &DisplayGeometry) {
+        // As tall as the display (points are CSS px on macOS), so the open panel can reach the bottom.
+        island::place(window, origin, display.bounds.height);
     }
 
     fn show_island(&self, window: &WebviewWindow) {
@@ -52,6 +54,10 @@ impl PlatformAdapter for MacAdapter {
 
     fn audio_playing(&self) -> bool {
         audio::output_running()
+    }
+
+    fn full_screen(&self) -> Option<bool> {
+        fullscreen::active()
     }
 
     fn camera_in_use(&self) -> bool {

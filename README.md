@@ -75,11 +75,13 @@ npm run tauri build      # installers: .app/.dmg on macOS, .msi/NSIS .exe on Win
 npm run icons            # regenerate app and tray icons
 ```
 
-On first launch the Settings window opens with a short welcome. After that, Islet runs from the menu bar (macOS) or tray (Windows). Closing Settings only hides it; use **Quit Islet** in the menu to exit.
+On first launch the Settings window opens with a short welcome. After that, Islet runs from the menu bar (macOS) or tray (Windows). Closing Settings only hides it; use **Quit Islet** in the menu to exit. The island steps aside while a full-screen app, game, video or presentation is in front (press the shortcut to bring it up anyway), and while it's hidden Islet stops watching the pointer.
 
 ## Design
 
 The interface follows shadcn/ui: Tailwind CSS v4 with shadcn's neutral OKLCH theme in light and dark (`src/styles/globals.css`), Radix primitives wrapped as shadcn-style components (`src/components/ui`), Lucide icons and the Geist font. Motion (Framer Motion) drives the island: a spring morphs its shape, content cross-fades with a blur, widgets stagger in and digits roll. All motion respects the system's Reduce Motion setting.
+
+The look is "glass and depth". The open panel fades from black to graphite, with a faint wash of the playing album's color at the bottom (indigo when nothing plays), and the widget tiles are frosted glass that blur that glow. Numbers are large and light; labels are small uppercase captions. The weather tile glows in the sky's color, and the Now playing tile is tinted by its own blurred cover. On macOS the Settings sidebar uses the system's own translucent sidebar material, under an overlay title bar.
 
 ## How it works
 

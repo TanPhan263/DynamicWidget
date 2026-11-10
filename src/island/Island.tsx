@@ -19,6 +19,7 @@ import { listenAll } from "../shared/events";
 import { MAX_ISLAND_STOCKS, PANEL_SIZE_RANGE, widgetAppName, type Settings, type UiSnapshot, type WidgetId, type WidgetSpan } from "../shared/types";
 import {
   contentShape,
+  expandedHeight,
   ISLAND_CLOSE_SPRING,
   ISLAND_SPRING,
   islandScale,
@@ -31,6 +32,7 @@ import {
 } from "./geometry";
 import { initialState, reduce, viewOf } from "./islandState";
 import { useTimer } from "./useTimer";
+import { useAmbient } from "./ambient";
 import { MusicBars } from "./MusicBars";
 import { Compact, Expanded, Peek } from "./views";
 import type { WidgetAction } from "./widgets/Widgets";
@@ -87,6 +89,18 @@ function ViewLayer({
       {children}
     </motion.div>
   );
+}
+
+/** The island window's height, which the open panel may grow to. */
+function useViewportHeight(): number {
+  const read = () => window.innerHeight || WINDOW_HEIGHT;
+  const [height, setHeight] = useState(read);
+  useEffect(() => {
+    const onResize = () => setHeight(read());
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return height;
 }
 
 export function Island() {
@@ -201,6 +215,8 @@ export function Island() {
   useEffect(() => {
     if (nowPlaying) setRecentTrack(nowPlaying);
   }, [nowPlaying]);
+  // The open panel glows in the color of the cover.
+  const ambient = useAmbient((nowPlaying ?? recentTrack)?.image);
   const playing = !!bars?.enabled && ((snap?.stats.audioPlaying ?? false) || nowPlaying !== null);
   const barsInside = playing && bars?.position === "inside";
   const barsBelow = playing && bars?.position === "below";
@@ -264,8 +280,12 @@ export function Island() {
     view === "expanded"
       ? islandScale(settings?.panelSize ?? 100, PANEL_SIZE_RANGE)
       : islandScale(settings?.islandSize ?? 100);
+  // The window's real height: macOS may keep it a menu bar short of the display.
+  const screenHeight = useViewportHeight();
+  // Rows past the bottom of the screen scroll inside the panel.
+  const panelScrolls = !!shape && expandedHeight(shape, rows, scale) > expandedHeight(shape, rows, scale, screenHeight);
   const box = shape
-    ? islandBox(shape, view, { wings, rows, scale, title: titlePinned, controls: titlePinned })
+    ? islandBox(shape, view, { wings, rows, scale, title: titlePinned, controls: titlePinned, screenHeight })
     : null;
   const inner = shape ? contentShape(shape, scale) : null;
 
@@ -277,7 +297,7 @@ export function Island() {
   const shellWidth = useMotionValue(0);
 
   const rectKey = dragging
-    ? [0, 0, WINDOW_WIDTH, WINDOW_HEIGHT].join(",")
+    ? [0, 0, WINDOW_WIDTH, screenHeight].join(",")
     : box
       ? [box.x, box.y, box.width, box.height].join(",")
       : "";
@@ -367,9 +387,11 @@ export function Island() {
           // the window's top-left corner.
           "island absolute inset-x-0 mx-auto overflow-hidden bg-black text-white",
           view,
-          shape.attached ? "attached" : "floating ring-1 ring-white/[0.12]",
+          shape.attached ? "attached" : "floating ring-1 ring-white/[0.09]",
           view !== "expanded" && "cursor-pointer",
-          big ? "shadow-[0_16px_40px_rgba(0,0,0,0.45)]" : !shape.attached && "shadow-[0_6px_18px_rgba(0,0,0,0.3)]",
+          big
+            ? "shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_24px_60px_rgba(0,0,0,0.55)]"
+            : !shape.attached && "shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_6px_18px_rgba(0,0,0,0.3)]",
         )}
         style={{ transformOrigin: "50% 0%", width: shellWidth }}
         initial={false}
@@ -474,6 +496,8 @@ export function Island() {
                 });
               },
             }}
+            ambient={ambient}
+            scroll={panelScrolls}
             media={{
               track: nowPlaying ?? recentTrack,
               playing: nowPlaying !== null,

@@ -59,3 +59,13 @@ describe("prices", () => {
     expect(formatPercent(0)).toBe("0.00%");
   });
 });
+
+it("shortens symbols to how people read them", async () => {
+  const { shortSymbol } = await import("./format");
+  expect(shortSymbol("^VINDEX.VN")).toBe("VINDEX");
+  expect(shortSymbol("FPT.VN")).toBe("FPT");
+  expect(shortSymbol("0700.HK")).toBe("0700");
+  expect(shortSymbol("BRK.B")).toBe("BRK.B");
+  expect(shortSymbol("BTC-USD")).toBe("BTC-USD");
+  expect(shortSymbol("^GSPC")).toBe("GSPC");
+});

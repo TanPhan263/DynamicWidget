@@ -2,7 +2,7 @@ import { Bell, BellRing, Inbox, LayoutGrid, Mic, Moon, Music2, Pause, Settings, 
 import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { clockParts, formatDuration, formatPercent, formatPrice, relativeTime } from "../shared/format";
+import { clockParts, formatDuration, formatPercent, formatPrice, relativeTime, shortSymbol } from "../shared/format";
 import type {
   BatteryInfo,
   IslandNotification,
@@ -14,17 +14,17 @@ import type {
   WidgetId,
   WidgetSpan,
 } from "../shared/types";
-import { ISLAND_SPRING, MAX_VISIBLE_ROWS, PADDING, widgetRows, WING, type Shape } from "./geometry";
+import { ISLAND_SPRING, PADDING, WING, type Shape } from "./geometry";
 import type { Tab } from "./islandState";
 import { MusicBars } from "./MusicBars";
 import { NotificationIcon } from "./NotificationIcon";
 import { SlidingNumber } from "./SlidingNumber";
 import type { TimerApi } from "./useTimer";
 import { WidgetGrid } from "./WidgetGrid";
-import { changeTone, Widget, type MediaApi, type QuickActionsApi, type StocksApi } from "./widgets/Widgets";
+import { changeTone, TILE, Widget, type MediaApi, type QuickActionsApi, type StocksApi } from "./widgets/Widgets";
 
 const iconButton =
-  "grid size-7 shrink-0 place-items-center rounded-full text-white/80 transition-colors outline-none hover:bg-white/[0.14] hover:text-white focus-visible:ring-2 focus-visible:ring-white/40 active:scale-95";
+  "grid size-7 shrink-0 place-items-center rounded-full text-white/60 transition-colors outline-none hover:bg-white/[0.10] hover:text-white focus-visible:ring-2 focus-visible:ring-white/40 active:scale-95";
 
 function BatteryGlyph({ b }: { b: BatteryInfo }) {
   const charging = b.state === "charging";
@@ -192,7 +192,7 @@ export function Compact({ shape, wings, recordingSince, onStopRecording, pinned,
     // Beside a notch the wings are narrow, so the price is left out.
     left = (
       <span className="tabular-nums">
-        {pinned.symbol}
+        {shortSymbol(pinned.symbol)}
         {!shape.hugsNotch && <SlidingNumber value={formatPrice(pinned.price)} className="ml-1.5 font-medium text-white/85" />}
       </span>
     );
@@ -292,12 +292,12 @@ export function Peek({ n, topInset, now, onDismiss }: PeekProps) {
     <div className="flex h-full items-center gap-3 pr-3 pl-4" style={{ paddingTop: topInset }}>
       <NotificationIcon n={n} size={38} />
       <div className="min-w-0 flex-1">
-        <div className="flex gap-1.5 text-[11px] font-medium text-white/70">
-          <span className="text-white/90">{n.app}</span>
-          <span>{relativeTime(n.createdAt, now)}</span>
+        <div className="flex items-baseline gap-1.5 text-[11px]">
+          <span className="font-medium text-white/60">{n.app}</span>
+          <span className="text-white/35">{relativeTime(n.createdAt, now)}</span>
         </div>
-        <div className="truncate text-[13px] font-semibold">{n.title}</div>
-        {n.body && <div className="truncate text-xs text-white/75">{n.body}</div>}
+        <div className="truncate text-[13px] font-semibold tracking-tight">{n.title}</div>
+        {n.body && <div className="truncate text-xs text-white/60">{n.body}</div>}
       </div>
       <button
         type="button"
@@ -336,6 +336,10 @@ interface ExpandedProps {
   actions: QuickActionsApi;
   stocks: StocksApi;
   media: MediaApi;
+  /** "r g b" of the glow behind the tiles. */
+  ambient: string;
+  /** The widgets are taller than the screen allows, so they scroll. */
+  scroll: boolean;
 }
 
 const TABS: { id: Tab; label: string; icon: typeof Bell }[] = [
@@ -346,9 +350,20 @@ const TABS: { id: Tab; label: string; icon: typeof Bell }[] = [
 export function Expanded(p: ExpandedProps) {
   const count = p.notifications.length;
   return (
-    <div className="flex h-full flex-col gap-2.5 p-3.5" style={{ paddingTop: p.topInset + PADDING }}>
+    <div className="relative isolate flex h-full flex-col gap-2.5 p-3.5" style={{ paddingTop: p.topInset + PADDING }}>
+      {/* Panel backdrop the frosted tiles blur. */}
+      <motion.div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10"
+        initial={false}
+        animate={{
+          // Black at the top (it meets the notch), graphite below, and a faint wash of the cover's color rising from the bottom.
+          background: `radial-gradient(90% 55% at 50% 110%, rgb(${p.ambient} / 0.14), transparent 70%), linear-gradient(180deg, #000 0%, #0b0b0d 45%, #111114 100%)`,
+        }}
+        transition={{ duration: 0.8 }}
+      />
       <header className="flex h-[30px] shrink-0 items-center justify-between">
-        <div className="flex gap-0.5 rounded-full bg-white/[0.10] p-0.5" role="tablist">
+        <div className="flex gap-0.5 rounded-full bg-white/[0.06] p-0.5 ring-1 ring-white/[0.06] ring-inset" role="tablist">
           {TABS.map((t) => {
             const active = p.tab === t.id;
             return (
@@ -359,21 +374,20 @@ export function Expanded(p: ExpandedProps) {
                 aria-selected={active}
                 onClick={() => p.onTab(t.id)}
                 className={cn(
-                  "relative inline-flex h-[26px] items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-white/40",
-                  active ? "text-white" : "text-white/70 hover:text-white/90",
+                  "relative inline-flex h-[26px] items-center gap-1.5 rounded-full px-3.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-white/40",
+                  active ? "text-white" : "text-white/50 hover:text-white/80",
                 )}
               >
                 {active && (
                   <motion.span
                     layoutId="island-tab"
-                    className="absolute inset-0 rounded-full bg-white/[0.16]"
+                    className="absolute inset-0 rounded-full bg-white/[0.12] shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_1px_4px_rgba(0,0,0,0.3)]"
                     transition={{ type: "spring", stiffness: 500, damping: 38 }}
                   />
                 )}
-                <t.icon className="relative size-3.5" aria-hidden="true" />
                 <span className="relative">{t.label}</span>
                 {t.id === "notifications" && count > 0 && (
-                  <span className="relative grid h-4 min-w-4 place-items-center rounded-full bg-white px-1 text-[11px] font-semibold text-black">
+                  <span className="relative grid h-4 min-w-4 place-items-center rounded-full bg-white/90 px-1 text-[10px] font-semibold text-black tabular-nums">
                     {count}
                   </span>
                 )}
@@ -417,7 +431,7 @@ export function Expanded(p: ExpandedProps) {
                 onDragging={p.onDragging}
                 appFor={p.appFor}
                 onOpen={p.onOpenApp}
-                scroll={widgetRows(p.settings.widgets.map((id) => p.settings.widgetSizes[id])) > MAX_VISIBLE_ROWS}
+                scroll={p.scroll}
                 render={(id, span) => (
                   <Widget id={id} span={span} now={p.now} use24={p.settings.use24HourClock} timer={p.timer} stats={p.stats}
                     actions={p.actions}
@@ -428,7 +442,7 @@ export function Expanded(p: ExpandedProps) {
               />
             ) : (
               <Empty icon={LayoutGrid} title="No widgets">
-                <button type="button" className="h-7 rounded-full bg-white/[0.14] px-3 text-xs font-medium hover:bg-white/20" onClick={p.onSettings}>
+                <button type="button" className="h-7 rounded-full bg-white px-3.5 text-xs font-medium text-black hover:bg-white/90" onClick={p.onSettings}>
                   Choose widgets
                 </button>
               </Empty>
@@ -451,10 +465,10 @@ export function Expanded(p: ExpandedProps) {
 function Empty({ icon: Icon, title, children }: { icon: typeof Bell; title: string; children?: ReactNode }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
-      <span className="grid size-10 place-items-center rounded-full bg-white/[0.10]">
-        <Icon className="size-4 text-white/80" aria-hidden="true" />
+      <span className={cn("grid size-12 place-items-center rounded-2xl", TILE)}>
+        <Icon className="size-5 text-white/70" strokeWidth={1.5} aria-hidden="true" />
       </span>
-      <div className="text-sm font-medium">{title}</div>
+      <div className="mt-1 text-sm font-medium tracking-tight">{title}</div>
       {children}
     </div>
   );
@@ -477,7 +491,7 @@ function NotificationList({
     return (
       <Empty icon={Inbox} title="You're all caught up">
         {apiUrl && (
-          <p className="text-xs text-white/70">
+          <p className="max-w-xs text-xs text-white/45">
             Scripts can send notifications to <code className="font-mono text-[11px] text-white/85">{apiUrl}/v1/notify</code>
           </p>
         )}
@@ -496,16 +510,16 @@ function NotificationList({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, x: 24, transition: { duration: 0.15 } }}
               transition={{ type: "spring", stiffness: 420, damping: 34 }}
-              className="flex items-start gap-3 rounded-2xl bg-white/[0.08] p-2.5 ring-1 ring-white/10 ring-inset"
+              className={cn("flex items-start gap-3 p-3", TILE)}
             >
-              <NotificationIcon n={n} size={32} />
+              <NotificationIcon n={n} size={34} />
               <div className="min-w-0 flex-1">
-                <div className="flex gap-1.5 text-[11px] font-medium text-white/70">
-                  <span className="text-white/90">{n.app}</span>
-                  <span>{relativeTime(n.createdAt, now)}</span>
+                <div className="flex items-baseline gap-1.5 text-[11px]">
+                  <span className="font-medium text-white/60">{n.app}</span>
+                  <span className="text-white/35">{relativeTime(n.createdAt, now)}</span>
                 </div>
-                <div className="truncate text-[13px] font-semibold">{n.title}</div>
-                {n.body && <div className="line-clamp-2 text-xs text-white/75">{n.body}</div>}
+                <div className="truncate text-[13px] font-semibold tracking-tight">{n.title}</div>
+                {n.body && <div className="line-clamp-2 text-xs text-white/60">{n.body}</div>}
               </div>
               <button type="button" className={cn(iconButton, "size-6")} aria-label={`Dismiss ${n.title}`} onClick={() => onDismiss(n.id)}>
                 <X className="size-3" />
@@ -516,7 +530,7 @@ function NotificationList({
       </ul>
       <button
         type="button"
-        className="self-end rounded-full px-2.5 py-1 text-xs font-medium text-white/70 transition-colors hover:bg-white/[0.14] hover:text-white"
+        className="self-end rounded-full bg-white/[0.06] px-3 py-1 text-xs font-medium text-white/60 ring-1 ring-white/[0.06] transition-colors ring-inset hover:bg-white/[0.12] hover:text-white"
         onClick={onClearAll}
       >
         Clear all

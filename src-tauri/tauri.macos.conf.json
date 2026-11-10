@@ -1,0 +1,45 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "app": {
+    "windows": [
+      {
+        "label": "island",
+        "title": "Islet",
+        "url": "island.html",
+        "width": 1000,
+        "height": 800,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "resizable": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visibleOnAllWorkspaces": true,
+        "acceptFirstMouse": true,
+        "focus": false,
+        "visible": false
+      },
+      {
+        "label": "settings",
+        "title": "Islet Settings",
+        "url": "index.html",
+        "width": 880,
+        "height": 640,
+        "minWidth": 600,
+        "minHeight": 480,
+        "visible": false,
+        "center": true,
+        "resizable": true,
+        "transparent": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "windowEffects": {
+          "effects": [
+            "sidebar"
+          ],
+          "state": "followsWindowActiveState"
+        }
+      }
+    ]
+  }
+}

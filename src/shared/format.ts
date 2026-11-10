@@ -11,6 +11,11 @@ export function clockParts(d: Date, use24: boolean): { time: string; period: str
 }
 
 /** A price with sensible precision: "342.37", "74,328" or "0.0412". */
+/** A symbol as people read it: "^VINDEX.VN" → "VINDEX", "0700.HK" → "0700". Share classes like "BRK.B" stay. */
+export function shortSymbol(symbol: string): string {
+  return symbol.replace(/^\^/, "").replace(/\.[A-Z]{2,3}$/, "");
+}
+
 export function formatPrice(price: number): string {
   const digits = Math.abs(price) >= 10_000 ? 0 : Math.abs(price) >= 1 ? 2 : 4;
   return price.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });

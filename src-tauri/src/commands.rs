@@ -6,7 +6,7 @@ use tauri_plugin_autostart::ManagerExt;
 
 use crate::actions::{self, SHORTCUT_CONFLICT};
 use crate::core::geometry::Rect;
-use crate::core::island::{WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::core::island::{MAX_WINDOW_HEIGHT, WINDOW_WIDTH};
 use crate::core::market;
 use crate::core::media::MediaCommand;
 use crate::core::notifications::{Notification, NotificationInput, NotificationSource, Symbol};
@@ -133,9 +133,9 @@ pub async fn set_island_rect(app: AppHandle, rect: Rect) -> AppResult<()> {
     }
     let clamped = Rect::new(
         rect.x.clamp(0.0, WINDOW_WIDTH),
-        rect.y.clamp(0.0, WINDOW_HEIGHT),
+        rect.y.clamp(0.0, MAX_WINDOW_HEIGHT),
         rect.width.min(WINDOW_WIDTH),
-        rect.height.min(WINDOW_HEIGHT),
+        rect.height.min(MAX_WINDOW_HEIGHT),
     );
     actions::state(&app).mutate(|i| i.island_rect = Some(clamped));
     Ok(())

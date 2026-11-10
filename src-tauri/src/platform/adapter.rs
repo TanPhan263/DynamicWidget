@@ -29,6 +29,9 @@ pub trait PlatformAdapter: Send + Sync {
     fn restore_foreground(&self, app: &AppHandle, token: i64);
     /// Some app is playing sound (music, a video, a call).
     fn audio_playing(&self) -> bool;
+    /// A full-screen app, game, video or presentation is in front; `None`
+    /// when Islet itself is in front, so it can't tell.
+    fn full_screen(&self) -> Option<bool>;
     /// Some app has a camera open.
     fn camera_in_use(&self) -> bool;
     /// Some app is recording from a microphone.

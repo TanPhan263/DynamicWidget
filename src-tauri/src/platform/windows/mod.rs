@@ -1,6 +1,7 @@
 mod audio;
 mod capture;
 mod displays;
+mod fullscreen;
 mod island;
 mod media;
 
@@ -53,6 +54,10 @@ impl PlatformAdapter for WindowsAdapter {
 
     fn audio_playing(&self) -> bool {
         audio::output_peak().is_some_and(|peak| peak > audio::SILENCE)
+    }
+
+    fn full_screen(&self) -> Option<bool> {
+        Some(fullscreen::active())
     }
 
     fn camera_in_use(&self) -> bool {

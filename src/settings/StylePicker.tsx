@@ -61,7 +61,7 @@ export function StylePicker({ value, hasNotch, onChange }: Props) {
         <RadioGroup.Item
           key={o.value}
           value={o.value}
-          className="group flex flex-col items-start gap-1 rounded-xl border bg-card p-2.5 pb-3 text-left shadow-xs transition-[border-color,box-shadow] outline-none hover:border-foreground/20 focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[state=checked]:border-primary data-[state=checked]:ring-1 data-[state=checked]:ring-primary"
+          className="group flex flex-col items-start gap-1 rounded-xl border bg-card p-2.5 pb-3 text-left shadow-xs transition-[border-color,box-shadow] outline-none hover:border-foreground/20 focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[state=checked]:border-foreground/60 data-[state=checked]:bg-accent/60"
         >
           <Miniature preview={o.preview} />
           <span className="mt-1.5 px-0.5 text-sm font-medium">{o.label}</span>

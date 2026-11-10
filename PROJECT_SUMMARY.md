@@ -97,7 +97,7 @@ tsconfig: target ES2021, `moduleResolution: bundler`, `jsx: react-jsx`, strict, 
 
 `Inner` holds:
 - `settings`, `notifications` (`NotificationCenter`), `stats`, `layout` (`IslandLayout`).
-- `island_rect: Option<Rect>`, `island_hidden`, `previous_foreground: Option<i64>`.
+- `island_rect: Option<Rect>`, `island_hidden`, `island_summoned` (the shortcut or tray asked for the island; cleared whenever no full-screen app is in front), `previous_foreground: Option<i64>`.
 - `last_error`, `warnings: Vec<String>`, `quitting`, `browser_token`.
 - `web_media: Option<(Option<NowPlaying>, Instant)>` and `quotes: BTreeMap<String, QuoteState>`.
 
@@ -223,12 +223,13 @@ type QuickAction = "keep-awake"|"screenshot"|"mute"|"lock"|"calculator"|"downloa
 
 The frontend mirrors the constants: `NOTIFICATION_SECONDS_RANGE [2,30]`, `ISLAND_SIZE_RANGE [50,150]`, `PANEL_SIZE_RANGE [80,150]`, `API_PORT_RANGE [1024,65535]`, `MAX_SYMBOLS 8`, `MAX_ISLAND_STOCKS 3`, `WIDGET_MAX_COLS 3`, `WIDGET_MAX_ROWS 2`.
 
+- `shortSymbol` (format.ts): drops a leading `^` and a 2–3 letter exchange suffix (`^VINDEX.VN` → VINDEX, `0700.HK` → 0700; `BRK.B` stays). Used for the pinned stock on the island and the Stocks widget rows.
 - `normalizeSymbol`: trim, uppercase, and match `/^[A-Z0-9.\-^=]{1,15}$/`.
 - `validateSettings` (client side): the shortcut can't be empty, and the port must be an integer within range.
 - `widgetAppName(id, platform)` gives the name shown in tooltips. macOS: Clock, Calendar, Clock, Activity Monitor, Notes, Weather. Windows: Clock, Calendar, Clock, Task Manager, Sticky Notes, Weather (`/System/Applications/Weather.app`, `msnweather:`). Actions, Stocks and Media get null.
 - `WIDGET_LABELS`: Clock, Calendar, Timer, System, Notes, Quick actions, Stocks, Now playing, Weather.
 - **MediaWidget** (`media`): `MediaApi { track, playing, onCommand }`. `Island` keeps `recentTrack`, the last non-null `nowPlaying`. It passes `track = nowPlaying ?? recentTrack` and `playing = nowPlaying !== null`, so a paused track stays and can be resumed. The card shows a cover (40 px, or 56 px when wide or tall; Music2 placeholder), the title (13 px semibold) and the artist (or the app), plus Previous / Play-Pause / Next buttons (`size-8` round, filled icons). The buttons are disabled when `!controls`, with the tooltip "Control it in {app}". With no track it says "Nothing has played yet."
-- **WeatherWidget** (`weather`): calls `getWeather()` on mount and every 15 min. Until data arrives it shows "Loading…" or the error. The card shows the condition icon (`size-7`) and the rounded temperature at 30 px, the description, then `H {high}° L {low}° · {place}` for today (or "Feels {n}°" without a place). When wide or tall it adds `<ul aria-label="Next days">`: per later day, the short weekday (date parsed at local noon), its icon and `high° low°`. `weatherIcon(code)` maps wttr.in (WWO) codes: 113 Sun, 116 CloudSun, 119/122 Cloud, 143/248/260 CloudFog, 200 and 386–395 CloudLightning, the snow/sleet/ice codes CloudSnow, 176/263/266/293/296/353 CloudDrizzle, anything else CloudRain. °C only.
+- **WeatherWidget** (`weather`): calls `getWeather()` on mount and every 15 min. Until data arrives it shows "Loading…" or the error. Laid out like the Clock card: the rounded temperature at 38 px top left with the condition icon (`size-6`) top right; at the bottom, the description (12 px medium) and, in white/50, `H {high}° L {low}° · {place}` for today (or "Feels {n}°" without a place). When wide or tall it adds `<ul aria-label="Next days">`: per later day, the short weekday (date parsed at local noon), its icon and `high° low°`. `weatherIcon(code)` maps wttr.in (WWO) codes: 113 Sun, 116 CloudSun, 119/122 Cloud, 143/248/260 CloudFog, 200 and 386–395 CloudLightning, the snow/sleet/ice codes CloudSnow, 176/263/266/293/296/353 CloudDrizzle, anything else CloudRain. °C only.
 
 ## 7. IPC commands and events
 
@@ -241,7 +242,7 @@ All commands are `async` (so they run off the main thread) and return `AppResult
 | reset_settings | | UiSnapshot |
 | complete_onboarding | | UiSnapshot |
 | dismiss_error | | UiSnapshot (clears lastError and warnings) |
-| set_island_rect | rect {x,y,width,height} | (). Rejects values that aren't finite or are negative. Clamps x and width to 1000, y and height to 800 |
+| set_island_rect | rect {x,y,width,height} | (). Rejects values that aren't finite or are negative. Clamps x and width to 1000, y and height to 6000 (`MAX_WINDOW_HEIGHT`) |
 | release_focus | | () |
 | push_notification | input, symbol? | Notification (source = widget) |
 | send_test_notification | | Notification |
@@ -317,16 +318,19 @@ All responses are JSON. The token is read per request through a closure, so a ne
 
 ## 10. Island window engine (`core/island.rs`)
 
-The island is one transparent window, 1000×800 CSS px, larger than the island ever gets. It's pinned to the top center of the primary display. Clicks pass through everywhere except the island's own rectangle.
+The island is one transparent window, 1000 CSS px wide and as tall as the display (it starts at 800 and `place` stretches it), larger than the island ever gets. It's pinned to the top center of the primary display. Clicks pass through everywhere except the island's own rectangle.
 
-The engine thread `islet-island` ticks every 30 ms. Each tick is wrapped in `catch_unwind`, so a panic is logged and the loop continues.
+The engine thread `islet-island` ticks every 30 ms while the island is visible. While it's hidden it parks for up to 1 s (`IDLE_POLL`); `island::wake()` (called by `toggle_island` and `set_island_hidden`) unparks it at once. Each tick is wrapped in `catch_unwind`, so a panic is logged and the loop continues.
 
 1. **Every 2 s**, look up the primary display (or the first available one). Its `DisplayGeometry` is the bounds in native units plus `units_per_css_px` (1.0 on macOS, the scale factor on Windows). If the display changed:
    - Compute `top_center_origin(1000)`: `x = round(bounds.x + (bounds.width - 1000*u)/2)`, `y = bounds.y`.
    - Call `adapter.place_island`.
    - Read `adapter.island_layout`, store it, and emit `island-layout`.
-2. **Sync visibility:** the island should be visible when it isn't hidden and has been placed. Show it with `adapter.show_island` (which must not steal focus). Hide it with `window.hide()` and clear hover.
-3. **Hover:** take the rect the page reported, grow it by 4 CSS px on every side (`outset`), and convert it to native units: `origin + r*u`. Test the pointer position against it (half-open rect).
+2. **Full screen, every 1 s:** `adapter.full_screen()` returns `Option<bool>`. `None` (Islet itself in front) keeps the last answer; `Some(false)` also clears `island_summoned`.
+   - macOS: the frontmost app (not Islet) has an on-screen layer-0 window (CGWindowListCopyWindowInfo, on-screen only, no desktop elements) whose bounds match `CGDisplay::main().bounds()` within 1 pt. No permission needed.
+   - Windows: `SHQueryUserNotificationState()` is QUNS_BUSY, QUNS_RUNNING_D3D_FULL_SCREEN or QUNS_PRESENTATION_MODE.
+3. **Sync visibility:** the island should be visible when `!hidden && (!full_screen || summoned)` and it has been placed. Show it with `adapter.show_island` (which must not steal focus). Hide it with `window.hide()` and clear hover.
+4. **Hover:** take the rect the page reported, grow it by 4 CSS px on every side (`outset`), and convert it to native units: `origin + r*u`. Test the pointer position against it (half-open rect).
    - When the hover state changes, call `set_ignore_cursor_events(!inside)` and emit `island-hover` to the island window.
    - On entering, record the current foreground app (a token), so focus can be handed back later.
 
@@ -347,6 +351,7 @@ trait PlatformAdapter: Send + Sync {
   fn foreground_token(&self) -> Option<i64>;              // None if it's Islet itself
   fn restore_foreground(&self, &AppHandle, token: i64);
   fn audio_playing(&self) -> bool;
+  fn full_screen(&self) -> Option<bool>;           // None while Islet is in front
   fn camera_in_use(&self) -> bool;
   fn microphone_in_use(&self) -> bool;
   fn now_playing(&self) -> Option<NowPlaying>;
@@ -365,7 +370,7 @@ All AppKit calls run on the main thread via `app.run_on_main_thread`, casting `w
   - `setLevel(NSMainMenuWindowLevel + 1)`, one level above the menu bar.
   - `setCollectionBehavior(CanJoinAllSpaces | Stationary | FullScreenAuxiliary | IgnoresCycle)`.
   - `setHasShadow(false)`, `setHidesOnDeactivate(false)`, `setAnimationBehavior(None)`.
-- **place:** `set_size(Logical 1000×800)`, then `set_position(Logical origin)`.
+- **place:** `set_size(Logical 1000 × display.bounds.height)`, then `set_position(Logical origin)`.
 - **show:** `orderFrontRegardless()`. This shows the window without activating Islet or making it key.
 - **layout:** run on the main thread and wait up to 2 s for the answer. On the first `NSScreen`:
   - `menuBarHeight` = frame top minus visibleFrame top. If that's 0 (an auto-hidden menu bar), use 24.
@@ -381,7 +386,7 @@ Win32 calls run on the main thread via `window.hwnd()`.
 - **Geometry:** physical pixels in virtual-screen coordinates (which can be negative). Units per CSS px is the monitor's scale factor. Tauri makes the process per-monitor DPI aware v2.
 - **Pointer:** `GetCursorPos`.
 - **prepare / show:** set the extended style `WS_EX_TOOLWINDOW | WS_EX_TOPMOST`, minus `WS_EX_APPWINDOW`, so the window is hidden from Alt+Tab and the taskbar. It stays activatable so the Notes widget can type. Show with `ShowWindow(SW_SHOWNOACTIVATE)`, then `SetWindowPos(HWND_TOPMOST, …, SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE|SWP_SHOWWINDOW)`.
-- **place:** `SetWindowPos(HWND_TOPMOST, x, y, round(1000*scale), round(800*scale), SWP_NOACTIVATE)`, called twice. The first move can trigger `WM_DPICHANGED` on a monitor with a different DPI. The second call makes the size exact.
+- **place:** `SetWindowPos(HWND_TOPMOST, x, y, round(1000*scale), round(bounds.height), SWP_NOACTIVATE)`, called twice. The first move can trigger `WM_DPICHANGED` on a monitor with a different DPI. The second call makes the size exact.
 - **Layout:** no notch (`IslandLayout::initial()`).
 - **Foreground:** the `GetForegroundWindow` HWND, unless it belongs to Islet's own process. Restore with `SetForegroundWindow` after checking `IsWindow`.
 - **Audio playing:** COM `IMMDeviceEnumerator` → `GetDefaultAudioEndpoint(eRender, eMultimedia)` → `IAudioMeterInformation::GetPeakValue()`. A peak above 0.001 counts as playing.
@@ -554,7 +559,7 @@ Constants (CSS px):
 
 | Constant | Value |
 |---|---|
-| Window size | 1000 × 800 |
+| Window size | 1000 × display height (800 until placed) |
 | `WING` | 64 |
 | `TITLE_WIDTH` | 40 |
 | `CONTROLS_WIDTH` | 60 (added whenever the title is pinned) |
@@ -585,7 +590,7 @@ Springs:
 Other helpers:
 - **`islandScale(percent, range = ISLAND_SIZE_RANGE)`** clamps the percent and divides by 100. A non-finite value counts as 100.
 - **`widgetRows(spans)`** simulates CSS grid's sparse auto-placement on 3 columns. Each widget goes to the first spot at or after the previous one where it fits, and the function returns the number of rows used (at least 1).
-- **`expandedHeight(shape, rows, scale)`** is `topInset + (PADDING + HEADER + GAP + v*CARD_HEIGHT + (v-1)*GAP + PADDING) * scale`, where `v = min(rows, 3)`.
+- **`expandedHeight(shape, rows, scale, screenHeight = ∞)`** is `h(n) = topInset + (PADDING + HEADER + GAP + n*CARD_HEIGHT + (n-1)*GAP + PADDING) * scale` for the largest `n ≤ rows` (at least 1) with `h(n) ≤ screenHeight - shape.top - SCREEN_MARGIN` (`SCREEN_MARGIN = 16`). There is no fixed row cap: the panel grows to the bottom of the screen, stops at the last whole row that fits so no row is cut off, and the rest scroll. The page passes the island window's real height (`useViewportHeight`: `window.innerHeight`, updated on resize; macOS can keep the window a menu bar short of the display, so the display's height is not used) to `islandBox` as `screenHeight`, and the grid scrolls when the uncapped height exceeds the capped one.
 - **`contentShape(shape, scale)`** divides `topInset` by the scale. When the shape hugs the notch, it also divides `compactWidth` and `compactHeight`, because the notch has a fixed physical size while the content is zoomed.
 
 `islandBox(shape, view, {wings, rows, scale, title})` returns `{x, y, width, height, topRadius, bottomRadius}`:
@@ -642,7 +647,7 @@ Other behavior:
 - **Track peek:** when the track changes (key `app\ntitle`), showTitle is on and the shape hugs the notch, dispatch `media`. The synthetic notification has a negative id (`-Date.now()`), symbol `music` and source `browser`. There's no room beside a notch to show the title, so it peeks once instead.
 - **Resize preview:** while a widget's corner is dragged, `sizePreview` overrides that widget's span, so the rows and panel height follow live.
 - **Scale:** `panelSize` within 80–150 when expanded, `islandSize` within 50–150 otherwise.
-- **Hit area:** call `setIslandRect` whenever the box changes. While a widget is being dragged or resized, report the whole window (0, 0, 1000, 800), so the drag survives the pointer leaving the panel.
+- **Hit area:** call `setIslandRect` whenever the box changes. While a widget is being dragged or resized, report the whole window (0, 0, 1000, screenHeight), so the drag survives the pointer leaving the panel.
 - **Saving widget changes:** order, sizes and `islandStocks` changed from the island are saved immediately and optimistically. On error, reload the snapshot.
 - **Quick actions:** do-not-disturb calls `setDoNotDisturb`. Others call `runQuickAction`. screenshot, lock, calculator, downloads and record also close the panel.
 - **Dismissing:** dispatch `dismissed`. Only call the backend when the id is > 0.
@@ -652,7 +657,7 @@ Rendering:
   - Center it with layout, not a transform. WebKit can paint a layer for a frame before applying its transform, which flashes the island in the window's corner.
   - Animate `top`, `width`, `height`, the four corner radii, and `scale` (1.04 when hovered and not expanded), with `transformOrigin "50% 0%"`.
   - Use the close spring for compact and the open spring otherwise.
-  - Floating islands get `ring-1 ring-white/[0.12]`. The big views get `shadow-[0_16px_40px_rgba(0,0,0,0.45)]`. A floating compact island gets `shadow-[0_6px_18px_rgba(0,0,0,0.3)]`.
+  - Floating islands get `ring-1 ring-white/[0.09]`. The big views get `shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_24px_60px_rgba(0,0,0,0.55)]` (a top-edge highlight plus a deep drop shadow). A floating compact island gets `shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_6px_18px_rgba(0,0,0,0.3)]`.
   - Clicking a view that isn't expanded opens the panel, on the notifications tab when the view was peek.
   - Track the shell's live width in a `useMotionValue`.
 - **Ears** (attached shapes only): a separate pointer-events-none layer that mirrors the shell's spring and hover scale. It's `box.width + 2*ear*scale` wide and `ear*scale` tall, with `ear` = 8 compact and 14 big. Two square spans use `radial-gradient(circle farthest-side at 0 100%, transparent 96%, #000 100%)` (mirrored for the right side) to form concave corners that flare into the screen edge.
@@ -692,11 +697,13 @@ Left and right items slide in from their side (`x ∓6`, blur 4px, spring 400/30
 
 **Expanded.** Padding 14, with padding-top `topInset + 14`.
 - **Header** (30 px tall):
-  - A segmented tab list (`bg-white/[0.10] rounded-full p-0.5`) with Widgets (LayoutGrid icon) and Notifications (Bell icon, with a white count badge when there are any). The active tab has a sliding `layoutId` pill, `bg-white/[0.16]`, spring 500/38.
+  - **Ambient glow ("glass + depth"):** the expanded view is `relative isolate`; its first child is an absolute `-z-10` layer animating (0.8 s) its background: `radial-gradient(90% 55% at 50% 110%, rgb(ambient / 0.14), transparent 70%)` over `linear-gradient(180deg, #000 0%, #0b0b0d 45%, #111114 100%)`. The top stays pure black so it meets the notch; the cover's color is only a faint wash rising from the bottom. `ambient` comes from `useAmbient(image)` (`island/ambient.ts`): the cover of the playing (or last) track drawn onto an 8×8 canvas and averaged, then `lift`ed so its brightest channel is at least 140, keeping the hue. With no cover it's `DEFAULT_AMBIENT` = indigo `99 102 241`. The island window can't blur the desktop, so the tiles' `backdrop-blur-xl` blurs this glow instead.
+  - A segmented tab list (`bg-white/[0.06] ring-1 ring-white/[0.06] rounded-full p-0.5`) with text-only tabs Widgets and Notifications (count badge `bg-white/90`, 10 px). Inactive tabs are white/50. The active tab has a sliding `layoutId` pill, `bg-white/[0.12]` with an inset top highlight and a small shadow, spring 500/38. The header's icon buttons are white/60, hover `bg-white/[0.10]`.
   - On the right: a DND moon button (violet when on, filled icon) and a Settings button.
 - **Body:** tab content cross-fades (x ±12, spring 420/36).
   - **Widgets tab:** the WidgetGrid. It scrolls when there are more than 3 rows. With no widgets, show the "No widgets" empty state and a "Choose widgets" button that opens Settings.
-  - **Notifications tab:** a list of cards (`rounded-2xl bg-white/[0.08] p-2.5 ring-1 ring-white/10`). Each card has a 32 px icon, app and time, the title, the body clamped to 2 lines, and an X button. Items animate in from y -8 and exit to x 24. A "Clear all" button sits at the bottom right.
+  - **Notifications tab:** a list of `TILE` cards (padding 12). Each card has a 34 px icon, the app (white/60 medium) and time (white/35), the title (13 px semibold, tight), the body (white/60) clamped to 2 lines, and an X button. "Clear all" is a small glass pill. Items animate in from y -8 and exit to x 24. A "Clear all" button sits at the bottom right.
+  - **Empty states** show the icon (stroke 1.5) in a 48 px `TILE` square. "Choose widgets" is a white pill with black text.
   - **Empty notifications:** "You're all caught up", plus "Scripts can send notifications to `{apiUrl}/v1/notify`" when the API is on.
 - `relativeTime`: "now" under 60 s, then "Nm", "Nh", "Nd".
 
@@ -720,7 +727,13 @@ Left and right items slide in from their side (`x ∓6`, blur 4px, spring 400/30
 
 ## 22. Widgets (`widgets/Widgets.tsx`, `WidgetGrid.tsx`)
 
-The card style is `rounded-2xl bg-white/[0.08] p-3 ring-1 ring-white/10 ring-inset`, with an optional 11 px white/70 title and icon. Cards stagger in from `opacity 0, y 8, blur 4px` (stagger 0.04 s, delay 0.05 s, spring 380/30). A span is "wide" when cols ≥ 2 and "tall" when rows ≥ 2.
+The card style is `TILE`: `rounded-[18px] bg-white/[0.05] ring-1 ring-white/[0.07] ring-inset shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] backdrop-blur-xl`, plus `relative isolate p-3`, so tiles frost the panel's ambient glow. (WidgetGrid's drag wrapper uses the same 18 px radius.) An optional title uses `LABEL`: 10 px semibold uppercase, tracking 0.12em, white/40, no icon. Controls inside tiles are `GLASS_BUTTON`: `bg-white/[0.07] ring-1 ring-white/[0.06]`, hover `bg-white/[0.14]`. Big numerals are light: Clock time `font-light` (AM/PM 12 px white/45), Calendar's wide date `font-light`, Weather `font-extralight` at 42 px, the running timer `text-lg font-light text-amber-300`.
+- **Media tile:** when the track has a cover, the same image fills the tile behind the content (`-z-10 scale-150 object-cover opacity-45 blur-2xl saturate-150`), and the cover thumbnail gets a drop shadow. Play/Pause is a 40 px white circle with a black icon; skip buttons stay ghost; gap 12.
+- **Weather tile:** a corner glow `radial-gradient(90% 90% at 100% 0%, rgb(tint / 0.28), transparent 70%)`, where `weatherIcon(code).tint` is amber for sun, orange for partly cloudy, slate for cloud and fog, violet for storms, pale blue for snow, sky for drizzle and rain.
+- **Quick actions:** no heading and no hover tooltips (each button keeps its `aria-label`). Unlabeled buttons are 40 px circles (icons 18 px, stroke 1.75) centered in a 4-column grid with gap 8; labeled ones (wide or tall) fill their cells as `rounded-2xl`. An error floats for 2.5 s as a dark pill (`role="status"`, red-300 text) at the bottom of the tile.
+- **Stocks:** rows are 27 px with `divide-y divide-white/[0.05]` hairlines; the company name is white/40.
+- **System meters:** label white/55, value white, a 3 px track `bg-white/[0.08]` with a `from-white/60 to-white` gradient fill.
+- **Notes:** 13 px text at white/90, placeholder white/30. Cards stagger in from `opacity 0, y 8, blur 4px` (stagger 0.04 s, delay 0.05 s, spring 380/30). A span is "wide" when cols ≥ 2 and "tall" when rows ≥ 2.
 
 - **Clock:**
   - A SlidingNumber of the time, plus AM/PM. Font size: 38 px small, 56 px when wide or tall, 88 px when both.
@@ -728,10 +741,10 @@ The card style is `rounded-2xl bg-white/[0.08] p-3 ring-1 ring-white/10 ring-ins
   - Wide but not tall lays out as a row.
 - **Calendar:**
   - `monthGrid` returns 42 days (6 weeks starting Sunday, so the grid height never changes), flagged `inMonth` and `isToday`.
-  - Weekday headers S M T W T F S. Today is a white circle with black text. Days outside the month are white/50.
-  - Small: the month name and a mini grid (14 px rows). Wide: the weekday in red-400 uppercase, the date in 5xl, and "Month Year" on the left, with the grid on the right. Tall uses the big grid (26 px rows).
+  - Weekday headers S M T W T F S. Weekday headers are white/40. Today is a white circle with black text. Days outside the month are white/30.
+  - Small: the month name and a mini grid (14 px rows). Wide: the weekday in red-400 uppercase, the date in 5xl, and "Month Year" on the left, with the grid on the right. Tall uses the big grid (30 px rows). The month name uses the `LABEL` style.
 - **Timer:**
-  - Idle: preset buttons for 1, 5, 15 and 25 min (a 4-column grid when wide but not tall).
+  - Idle: preset buttons for 1, 5, 15 and 25 min (a 4-column grid when wide but not tall). Each shows the number at 13 px semibold and "min" at 10 px white/50 on one baseline; the accessible name is "{n} min".
   - Running or paused: an SVG ring (r=34, stroke 5, amber-400 over amber-400/15, rotated -90°, `strokeDashoffset = c*progress`), with the remaining time inside. Pause or resume, and cancel, as amber round buttons.
   - The pure state is idle, running `{duration, endsAt}` or paused `{duration, remaining}`, using wall-clock ms.
   - `useTimer` ticks every 250 ms while running. On finish it goes idle, plays a chime (Web Audio: 880 Hz then 1320 Hz, 0.18 s apart, exponential gain envelope peaking at 0.2), and pushes a notification: "Timer finished" / "{duration} is up", app Timer, accent #f59e0b, symbol timer.
@@ -770,9 +783,13 @@ The card style is `rounded-2xl bg-white/[0.08] p-3 ring-1 ring-white/10 ring-ins
 
 Settings follows the system appearance: `useSystemTheme` toggles the `.dark` class on `<html>` from `prefers-color-scheme`. Both pages wrap content in `<MotionConfig reducedMotion="user">`.
 
+**Glass on macOS:** `src-tauri/tauri.macos.conf.json` repeats both windows (platform configs replace arrays) and gives Settings `transparent: true`, `titleBarStyle: "Overlay"`, `hiddenTitle: true` and `windowEffects: { effects: ["sidebar"], state: "followsWindowActiveState" }`. When `snap.platform === "macos"`, App adds `vibrant` to `<html>`, which makes `body` transparent, the sidebar `bg-transparent` with `pt-10` for the traffic lights, and adds `data-tauri-drag-region` on the sidebar, the brand row, and an 32 px strip at the top of the main area (capability `core:window:allow-start-dragging`). Windows keeps the normal frame.
+
+**Depth:** the main area uses `bg-canvas` (light `oklch(0.975 0.002 286)`, dark `oklch(0.165 0.004 286)`) so cards (`border-black/[0.06]`, dark `border-white/[0.07]`, shadow `0 1px 2px /0.04, 0 4px 12px -6px /0.06`) sit above it. Section titles are 11 px semibold uppercase muted labels (tracking 0.08em); rows are `px-4 py-3.5` with 13 px label and description; RowCard hairlines are black/white 6%. The page title is 26 px semibold, tight.
+
 **Layout:**
-- **Sidebar:** 56 px wide, or 224 px (`sm:w-56`) when there's room.
-  - A brand mark: a miniature island, a dark rounded square holding a pill with a green dot.
+- **Sidebar:** 56 px wide, or 224 px (`sm:w-56`) when there's room. Hairline right border (6%). Nav items are 32 px tall, 13 px, `rounded-lg`; inactive text is foreground/65 with icons at foreground/50 (stroke 1.75); the active pill is `bg-black/[0.07]` (dark `bg-white/[0.09]`).
+  - A brand mark: a miniature island, a 32 px square with a vertical neutral-700→black gradient, inset highlight and soft shadow, holding a black pill (white/15 ring) with a glowing emerald dot.
   - "Islet v{version}".
   - Nav items with a sliding `layoutId` highlight.
   - A Do Not Disturb switch at the bottom.
@@ -788,7 +805,7 @@ Settings follows the system appearance: `useSystemTheme` toggles the `.dark` cla
 
 **Tabs:**
 1. **General** ("Style, shortcut and startup.")
-   - StylePicker: a Radix RadioGroup of two cards with miniature screen-top previews. "Notch" reads "Wraps around the notch" or "Hangs from the top edge of the screen". "Dynamic Island" reads "A floating capsule, like on iPhone".
+   - StylePicker: a Radix RadioGroup of two cards with miniature screen-top previews. "Notch" reads "Wraps around the notch" or "Hangs from the top edge of the screen". "Dynamic Island" reads "A floating capsule, like on iPhone". The chosen card gets a `foreground/60` border and an `accent/60` fill rather than a heavy ring.
    - Island size and Panel size SizeSliders. Each has −/+ buttons (step 5), a Radix slider (step 1), and a "N%" button that resets to 100%. While dragging, live updates are throttled to at most one every 80 ms, and echoes are ignored while dragging.
    - Open on Hover or Click (ToggleGroup).
    - The keyboard shortcut (ShortcutInput), a 24-hour clock switch, and Start at login.

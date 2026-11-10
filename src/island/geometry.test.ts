@@ -5,7 +5,7 @@ import {
   expandedHeight,
   islandBox,
   islandScale,
-  MAX_VISIBLE_ROWS,
+  SCREEN_MARGIN,
   shapeFor,
   widgetRows,
   TITLE_WIDTH,
@@ -85,8 +85,15 @@ describe("island geometry", () => {
     expect(contentShape(notch, 1.12).compactWidth * 1.12).toBeCloseTo(200);
   });
 
-  it("caps the panel height and scrolls the rest", () => {
-    expect(expandedHeight(bar, 9)).toBe(expandedHeight(bar, MAX_VISIBLE_ROWS));
+  it("grows with every row up to the bottom of the screen, then scrolls", () => {
+    expect(expandedHeight(bar, 4)).toBeGreaterThan(expandedHeight(bar, 3));
+    // Stops at the last whole row that fits; one more row would be cut.
+    const room = 1080 - bar.top - SCREEN_MARGIN;
+    const capped = expandedHeight(bar, 9, 1, 1080);
+    const shown = [...Array(9).keys()].map((i) => i + 1).find((n) => expandedHeight(bar, n) === capped)!;
+    expect(capped).toBeLessThanOrEqual(room);
+    expect(expandedHeight(bar, shown + 1)).toBeGreaterThan(room);
+    expect(expandedHeight(bar, 2, 1, 1080)).toBe(expandedHeight(bar, 2));
   });
 
   it("hangs from the top edge on Windows with the notch style", () => {
@@ -111,11 +118,11 @@ describe("island geometry", () => {
     expect(shapeFor(notchedMac, "island").top).toBeGreaterThan(37);
   });
 
-  it("always fits the window, even at the largest size with every row", () => {
+  it("always fits the screen, even at the largest size with every row", () => {
     const shapes = [notch, bar, edge, shapeFor(windows, "island"), shapeFor(notchedMac, "island")];
     for (const shape of shapes) {
       for (const scale of [islandScale(0), 1, islandScale(999)]) {
-        const b = islandBox(shape, "expanded", { wings: false, rows: MAX_VISIBLE_ROWS, scale });
+        const b = islandBox(shape, "expanded", { wings: false, rows: 12, scale, screenHeight: WINDOW_HEIGHT });
         expect(b.y + b.height).toBeLessThanOrEqual(WINDOW_HEIGHT);
         expect(b.x).toBeGreaterThanOrEqual(0);
       }

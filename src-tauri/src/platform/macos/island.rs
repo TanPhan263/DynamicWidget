@@ -9,7 +9,7 @@ use objc2_app_kit::{
 use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, WebviewWindow};
 
 use crate::core::geometry::Point;
-use crate::core::island::{IslandLayout, Notch, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::core::island::{IslandLayout, Notch, WINDOW_WIDTH};
 
 /// Menu bar height on displays where AppKit reports none (auto-hidden menu
 /// bar). Matches the standard macOS menu bar.
@@ -46,8 +46,8 @@ pub fn prepare(window: &WebviewWindow) {
     });
 }
 
-pub fn place(window: &WebviewWindow, origin: Point) {
-    let _ = window.set_size(LogicalSize::new(WINDOW_WIDTH, WINDOW_HEIGHT));
+pub fn place(window: &WebviewWindow, origin: Point, height: f64) {
+    let _ = window.set_size(LogicalSize::new(WINDOW_WIDTH, height));
     let _ = window.set_position(LogicalPosition::new(origin.x, origin.y));
 }
 

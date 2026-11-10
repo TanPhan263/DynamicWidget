@@ -43,6 +43,8 @@ pub fn toggle_island(app: &AppHandle) {
     if let Some(token) = st.adapter.foreground_token() {
         st.mutate(|i| i.previous_foreground = Some(token));
     }
+    st.mutate(|i| i.island_summoned = true);
+    crate::core::island::wake();
     if let Some(w) = app.get_webview_window(ISLAND_LABEL) {
         let _ = w.set_focus();
     }
@@ -115,6 +117,7 @@ pub fn set_do_not_disturb(app: &AppHandle, enabled: bool) {
 
 pub fn set_island_hidden(app: &AppHandle, hidden: bool) {
     state(app).mutate(|i| i.island_hidden = hidden);
+    crate::core::island::wake();
     notify_ui(app);
 }
 

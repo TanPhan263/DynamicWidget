@@ -53,6 +53,10 @@ impl PlatformAdapter for GenericAdapter {
         false
     }
 
+    fn full_screen(&self) -> Option<bool> {
+        Some(false)
+    }
+
     fn camera_in_use(&self) -> bool {
         false
     }

@@ -29,6 +29,9 @@ pub struct Inner {
     pub island_rect: Option<Rect>,
     /// Hidden from the tray menu; not persisted.
     pub island_hidden: bool,
+    /// The shortcut or tray asked for the island, so it shows over a
+    /// full-screen app until full screen ends.
+    pub island_summoned: bool,
     /// The app that had focus before the pointer reached the island, so
     /// focus can go back to it when the island closes.
     pub previous_foreground: Option<i64>,
@@ -121,6 +124,7 @@ impl AppState {
                 layout: IslandLayout::initial(),
                 island_rect: None,
                 island_hidden: false,
+                island_summoned: false,
                 previous_foreground: None,
                 last_error: None,
                 warnings,

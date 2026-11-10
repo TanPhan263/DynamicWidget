@@ -1,6 +1,6 @@
 import { Bell, Code, Globe, Info, LayoutGrid, Moon, Music2, Settings2, Sparkles, TriangleAlert, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -35,9 +35,12 @@ type TabId = (typeof TABS)[number]["id"];
 /** The island in miniature, used as the app mark. */
 function BrandMark() {
   return (
-    <span aria-hidden="true" className="grid size-8 place-items-center rounded-lg bg-primary">
-      <span className="flex h-2.5 w-5 items-center rounded-full bg-primary-foreground/90 pl-0.5 dark:bg-black">
-        <span className="size-1.5 rounded-full bg-success" />
+    <span
+      aria-hidden="true"
+      className="grid size-8 place-items-center rounded-[10px] bg-gradient-to-b from-neutral-700 to-black shadow-[inset_0_1px_0_rgb(255_255_255/0.18),0_2px_6px_rgb(0_0_0/0.25)] ring-1 ring-black/20"
+    >
+      <span className="flex h-2.5 w-5 items-center rounded-full bg-black pl-0.5 ring-1 ring-white/15">
+        <span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_4px_rgb(52_211_153/0.9)]" />
       </span>
     </span>
   );
@@ -47,6 +50,11 @@ export function App() {
   const api = useSnapshot();
   const { snap, error, setError, run } = api;
   const [tab, setTab] = useState<TabId>("general");
+  // macOS opens Settings with a transparent window and native sidebar glass.
+  const vibrant = snap?.platform === "macos";
+  useEffect(() => {
+    document.documentElement.classList.toggle("vibrant", vibrant);
+  }, [vibrant]);
 
   if (!snap) {
     return <div className="grid h-dvh place-items-center text-sm text-muted-foreground">Loading…</div>;
@@ -58,8 +66,14 @@ export function App() {
 
   return (
     <div className="flex h-dvh overflow-hidden">
-      <aside className="flex w-14 shrink-0 flex-col border-r bg-sidebar p-2 sm:w-56 sm:p-3">
-        <div className="mb-4 flex items-center gap-2.5 px-1 py-1 sm:px-2">
+      <aside
+        className={cn(
+          "flex w-14 shrink-0 flex-col border-r border-black/[0.06] p-2 sm:w-56 sm:p-3 dark:border-white/[0.06]",
+          vibrant ? "bg-transparent pt-10" : "bg-sidebar",
+        )}
+        data-tauri-drag-region={vibrant || undefined}
+      >
+        <div className="mb-5 flex items-center gap-2.5 px-1 py-1 sm:px-2" data-tauri-drag-region={vibrant || undefined}>
           <BrandMark />
           <div className="hidden leading-tight sm:block">
             <div className="text-sm font-semibold">Islet</div>
@@ -77,25 +91,25 @@ export function App() {
                 aria-label={t.label}
                 onClick={() => setTab(t.id)}
                 className={cn(
-                  "relative flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
-                  active ? "font-medium text-foreground" : "text-muted-foreground hover:text-foreground",
+                  "relative flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                  active ? "font-medium text-foreground" : "text-foreground/65 hover:text-foreground",
                 )}
               >
                 {active && (
                   <motion.span
                     layoutId="nav-active"
-                    className="absolute inset-0 rounded-md bg-accent"
+                    className="absolute inset-0 rounded-lg bg-black/[0.07] dark:bg-white/[0.09]"
                     transition={{ type: "spring", stiffness: 500, damping: 38 }}
                   />
                 )}
-                <t.icon className="relative size-4 shrink-0" aria-hidden="true" />
+                <t.icon className={cn("relative size-4 shrink-0", active ? "text-foreground" : "text-foreground/50")} strokeWidth={1.75} aria-hidden="true" />
                 <span className="relative hidden sm:inline">{t.label}</span>
               </button>
             );
           })}
         </nav>
         <div className="mt-auto flex items-center justify-center gap-2 rounded-md px-1 py-2 sm:justify-between sm:px-2.5">
-          <label htmlFor="sidebar-dnd" className="hidden items-center gap-2 text-sm text-muted-foreground sm:flex">
+          <label htmlFor="sidebar-dnd" className="hidden items-center gap-2 text-[13px] text-foreground/65 sm:flex">
             <Moon className="size-4" aria-hidden="true" />
             Do Not Disturb
           </label>
@@ -108,11 +122,13 @@ export function App() {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-2xl space-y-6 px-6 py-8 sm:px-10">
-          <header className="space-y-1">
-            <h1 className="text-xl font-semibold tracking-tight">{current.label}</h1>
-            <p className="text-sm text-muted-foreground">{current.description}</p>
+      <main className="relative flex-1 overflow-y-auto bg-canvas">
+        {/* The overlay title bar has no strip of its own; this one drags the window. */}
+        {vibrant && <div className="absolute inset-x-0 top-0 h-8" data-tauri-drag-region />}
+        <div className="mx-auto max-w-2xl space-y-7 px-6 py-9 sm:px-10">
+          <header className="space-y-1 px-1">
+            <h1 className="text-[26px] leading-tight font-semibold tracking-tight">{current.label}</h1>
+            <p className="text-[13px] text-muted-foreground">{current.description}</p>
           </header>
 
           <AnimatePresence initial={false}>

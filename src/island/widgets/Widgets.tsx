@@ -1,6 +1,5 @@
 import {
   Calculator,
-  CalendarDays,
   Camera,
   Cloud,
   CloudDrizzle,
@@ -10,7 +9,6 @@ import {
   CloudSnow,
   CloudSun,
   Coffee,
-  Cpu,
   FolderDown,
   Lock,
   Moon,
@@ -20,20 +18,16 @@ import {
   Play,
   SkipBack,
   SkipForward,
-  StickyNote,
   Sun,
-  Timer as TimerIcon,
-  TrendingUp,
   Video,
   VolumeX,
   X,
-  Zap,
   type LucideIcon,
 } from "lucide-react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { clockParts, formatBytes, formatDuration, formatMinutes, formatPercent, formatPrice, formatVolume } from "../../shared/format";
+import { clockParts, formatBytes, formatDuration, formatMinutes, formatPercent, formatPrice, formatVolume, shortSymbol } from "../../shared/format";
 import {
   errorMessage,
   MAX_ISLAND_STOCKS,
@@ -58,32 +52,29 @@ export const widgetItem = {
   shown: { opacity: 1, y: 0, filter: "blur(0px)" },
 };
 
-function Card({
-  title,
-  icon: Icon,
-  children,
-  className,
-}: {
-  title?: string;
-  icon?: LucideIcon;
-  children: ReactNode;
-  className?: string;
-}) {
+/** Card label: quiet text, no icon, so the content leads. */
+export const LABEL = "text-[10px] font-semibold tracking-[0.12em] text-white/40 uppercase";
+
+/** Frosted tile: it blurs the panel's ambient glow behind it. */
+export const TILE =
+  "rounded-[18px] bg-white/[0.05] ring-1 ring-white/[0.07] ring-inset shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] backdrop-blur-xl";
+
+/** Round glass button used for controls inside tiles. */
+const GLASS_BUTTON =
+  "bg-white/[0.07] ring-1 ring-white/[0.06] ring-inset transition-colors outline-none hover:bg-white/[0.14] focus-visible:ring-2 focus-visible:ring-white/40 active:scale-[0.96]";
+
+function Card({ title, children, className }: { title?: string; children: ReactNode; className?: string }) {
   return (
     <motion.section
       variants={widgetItem}
       transition={{ type: "spring", stiffness: 380, damping: 30 }}
       className={cn(
-        "flex min-w-0 flex-col overflow-hidden rounded-2xl bg-white/[0.08] p-3 ring-1 ring-white/10 ring-inset",
+        "relative isolate flex min-w-0 flex-col overflow-hidden p-3",
+        TILE,
         className,
       )}
     >
-      {title && (
-        <h3 className="mb-2 flex items-center gap-1.5 text-[11px] font-medium text-white/70">
-          {Icon && <Icon className="size-3.5" aria-hidden="true" />}
-          {title}
-        </h3>
-      )}
+      {title && <h3 className={cn("mb-2", LABEL)}>{title}</h3>}
       {children}
     </motion.section>
   );
@@ -103,13 +94,13 @@ export function ClockWidget({ now, use24, span }: { now: Date; use24: boolean } 
   const size = CLOCK_SIZE[tall ? (wide ? "large" : "tall") : wide ? "wide" : "small"];
   return (
     <Card className={cn("justify-between", wide && !tall && "flex-row items-end")}>
-      <div className={cn("flex items-baseline gap-1 leading-none font-semibold tracking-tight", size)}>
+      <div className={cn("flex items-baseline gap-1 leading-none font-light tracking-tight", size)}>
         <SlidingNumber value={time} />
-        {period && <span className="text-sm font-medium tracking-normal text-white/70">{period}</span>}
+        {period && <span className="text-xs font-medium tracking-normal text-white/45">{period}</span>}
       </div>
       <div className={cn("text-xs", wide && !tall && "pb-1 text-right", tall && "text-sm")}>
-        <div className="font-medium">{now.toLocaleDateString(undefined, { weekday: "long" })}</div>
-        <div className="text-white/70">{now.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}</div>
+        <div className="text-[13px] font-medium">{now.toLocaleDateString(undefined, { weekday: "long" })}</div>
+        <div className="text-white/45">{now.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}</div>
       </div>
     </Card>
   );
@@ -121,12 +112,12 @@ function MonthGrid({ now, big }: { now: Date; big?: boolean }) {
   const days = monthGrid(now.getFullYear(), now.getMonth(), now);
   return (
     <div
-      className={cn("grid grid-cols-7 text-center tabular-nums", big ? "auto-rows-[26px] text-xs" : "auto-rows-[14px] text-[9.5px]")}
+      className={cn("grid grid-cols-7 text-center tabular-nums", big ? "auto-rows-[30px] text-xs" : "auto-rows-[14px] text-[9.5px]")}
       role="grid"
       aria-label="This month"
     >
       {WEEKDAYS.map((d, i) => (
-        <span key={`h${i}`} className="font-medium text-white/65">
+        <span key={`h${i}`} className="text-[0.85em] font-medium text-white/35">
           {d}
         </span>
       ))}
@@ -136,7 +127,7 @@ function MonthGrid({ now, big }: { now: Date; big?: boolean }) {
           className={cn(
             "mx-auto grid place-items-center rounded-full",
             big ? "size-[22px]" : "size-[14px]",
-            !d.inMonth && "text-white/50",
+            !d.inMonth && "text-white/30",
             d.isToday && "bg-white font-semibold text-black",
           )}
         >
@@ -156,8 +147,8 @@ export function CalendarWidget({ now, span }: { now: Date } & SpanProps) {
       <Card className="flex-row gap-4 px-3 py-2">
         <div className="flex w-24 shrink-0 flex-col justify-center">
           <div className="text-[11px] font-medium text-red-400 uppercase">{now.toLocaleDateString(undefined, { weekday: "long" })}</div>
-          <div className="text-5xl leading-none font-semibold tracking-tight tabular-nums">{now.getDate()}</div>
-          <div className="mt-1 text-xs text-white/70">
+          <div className="text-5xl leading-none font-light tracking-tight tabular-nums">{now.getDate()}</div>
+          <div className="mt-1 text-xs text-white/45">
             {month} {now.getFullYear()}
           </div>
         </div>
@@ -169,10 +160,7 @@ export function CalendarWidget({ now, span }: { now: Date } & SpanProps) {
   }
   return (
     <Card className="px-2.5 py-2">
-      <div className="mb-0.5 flex items-center gap-1.5 px-0.5 text-[11px] font-medium text-white/70">
-        <CalendarDays className="size-3.5" aria-hidden="true" />
-        {month}
-      </div>
+      <div className={cn("mb-1 px-0.5", LABEL)}>{month}</div>
       <div className="flex flex-1 flex-col justify-center">
         <MonthGrid now={now} big={tall} />
       </div>
@@ -213,16 +201,18 @@ export function TimerWidget({ timer, span }: { timer: TimerApi } & SpanProps) {
   const tall = isTall(span);
   if (state.status === "idle") {
     return (
-      <Card title="Timer" icon={TimerIcon}>
+      <Card title="Timer">
         <div className={cn("grid flex-1 content-center gap-1.5", wide && !tall ? "grid-cols-4" : "grid-cols-2", tall && "[&>button]:h-12")}>
           {PRESETS.map((m) => (
             <button
               key={m}
               type="button"
-              className="h-8 rounded-lg bg-white/[0.10] text-xs font-medium transition-colors outline-none hover:bg-white/[0.16] focus-visible:ring-2 focus-visible:ring-white/40 active:scale-[0.97]"
+              className={cn("flex h-8 items-baseline justify-center gap-0.5 rounded-full pt-1.5", GLASS_BUTTON)}
+              aria-label={`${m} min`}
               onClick={() => timer.start(m * 60_000)}
             >
-              {m} min
+              <span className="text-[13px] font-medium tabular-nums">{m}</span>
+              <span className="text-[10px] text-white/45">min</span>
             </button>
           ))}
         </div>
@@ -234,7 +224,7 @@ export function TimerWidget({ timer, span }: { timer: TimerApi } & SpanProps) {
     <Card className={cn("items-center gap-2", tall ? "flex-col justify-center gap-4" : "flex-row", wide && "justify-center gap-6")}>
       <div className={cn("relative shrink-0", tall ? "size-[150px]" : "size-[92px]")}>
         <Ring progress={timer.progress} />
-        <span className="absolute inset-0 grid place-items-center text-base font-semibold text-amber-400">
+        <span className="absolute inset-0 grid place-items-center text-lg font-light text-amber-300 tabular-nums">
           <SlidingNumber value={formatDuration(timer.remaining)} />
         </span>
       </div>
@@ -255,11 +245,11 @@ function Meter({ label, value, detail, tone }: { label: string; value: number; d
   return (
     <div>
       <div className="flex justify-between gap-2 text-[11px] font-medium whitespace-nowrap">
-        <span>{label}</span>
-        <span className="truncate text-white/70">{detail}</span>
+        <span className="text-white/55">{label}</span>
+        <span className="truncate font-normal tabular-nums">{detail}</span>
       </div>
       <div
-        className="mt-1 h-1 overflow-hidden rounded-full bg-white/[0.14]"
+        className="mt-1.5 h-[3px] overflow-hidden rounded-full bg-white/[0.08]"
         role="meter"
         aria-label={label}
         aria-valuenow={Math.round(pct)}
@@ -267,7 +257,7 @@ function Meter({ label, value, detail, tone }: { label: string; value: number; d
         aria-valuemax={100}
       >
         <motion.div
-          className={cn("h-full rounded-full bg-white/85", tone === "good" && "bg-emerald-400", tone === "bad" && "bg-red-400")}
+          className={cn("h-full rounded-full bg-gradient-to-r from-white/60 to-white", tone === "good" && "bg-emerald-400", tone === "bad" && "bg-red-400")}
           initial={false}
           animate={{ width: `${pct}%` }}
           transition={{ type: "spring", stiffness: 120, damping: 20 }}
@@ -287,7 +277,7 @@ export function SystemWidget({ stats }: { stats: SystemStats }) {
     else if (b.minutesRemaining && b.state === "discharging") batteryDetail += ` · ${formatMinutes(b.minutesRemaining)}`;
   }
   return (
-    <Card title="System" icon={Cpu}>
+    <Card title="System">
       <div className="flex flex-1 flex-col justify-center gap-2.5">
         <Meter label="CPU" value={stats.cpuPercent} detail={`${Math.round(stats.cpuPercent)}%`} />
         <Meter label="Memory" value={mem} detail={`${formatBytes(stats.memoryUsed)} / ${formatBytes(stats.memoryTotal)}`} />
@@ -327,14 +317,14 @@ export function NotesWidget() {
     return () => clearTimeout(id);
   }, [text]);
   return (
-    <Card title="Notes" icon={StickyNote}>
+    <Card title="Notes">
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="Jot something down…"
         aria-label="Quick note"
         spellCheck={false}
-        className="flex-1 resize-none bg-transparent text-xs leading-relaxed text-white outline-none placeholder:text-white/55"
+        className="flex-1 resize-none bg-transparent text-[13px] leading-relaxed text-white/90 outline-none placeholder:text-white/30"
       />
     </Card>
   );
@@ -389,8 +379,8 @@ export function QuickActionsWidget({ api, span }: { api: QuickActionsApi } & Spa
   };
 
   return (
-    <Card title={error ?? "Quick actions"} icon={Zap}>
-      <div className="grid flex-1 auto-rows-fr grid-cols-4 gap-1.5">
+    <Card className="justify-center">
+      <div className={cn("grid flex-1 grid-cols-4 place-items-center gap-2", labeled && "auto-rows-fr")}>
         {QUICK_ACTIONS.map((a) => {
           const on: Partial<Record<WidgetAction, boolean>> = {
             "keep-awake": api.keepAwake,
@@ -406,19 +396,34 @@ export function QuickActionsWidget({ api, span }: { api: QuickActionsApi } & Spa
               type="button"
               aria-label={label}
               aria-pressed={a.id === "record" ? undefined : pressed}
-              title={label}
               onClick={() => run(a.id)}
               className={cn(
-                "flex min-h-0 flex-col items-center justify-center gap-1 rounded-lg bg-white/[0.10] text-white/90 transition-colors outline-none hover:bg-white/[0.16] hover:text-white focus-visible:ring-2 focus-visible:ring-white/40 active:scale-[0.97]",
+                "flex min-h-0 flex-col items-center justify-center gap-1 text-white/80 hover:text-white",
+                GLASS_BUTTON,
+                labeled ? "size-full rounded-2xl" : "size-10 rounded-full",
                 pressed && (ON_STYLE[a.id] ?? "bg-amber-400/20 text-amber-300 hover:bg-amber-400/30 hover:text-amber-200"),
               )}
             >
-              <a.icon className={tall ? "size-5" : "size-4"} aria-hidden="true" />
+              <a.icon className={tall ? "size-5" : "size-[18px]"} strokeWidth={1.75} aria-hidden="true" />
               {labeled && <span className="truncate px-0.5 text-[11px] leading-none font-medium">{label}</span>}
             </button>
           );
         })}
       </div>
+      {/* Failures float over the buttons for a moment instead of a heading. */}
+      <AnimatePresence>
+        {error && (
+          <motion.p
+            role="status"
+            className="absolute inset-x-3 bottom-2.5 truncate rounded-full bg-black/80 px-3 py-1 text-center text-[11px] text-red-300 ring-1 ring-white/10 backdrop-blur"
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+          >
+            {error}
+          </motion.p>
+        )}
+      </AnimatePresence>
     </Card>
   );
 }
@@ -466,11 +471,11 @@ export function StocksWidget({ api, span }: { api: StocksApi } & SpanProps) {
   // One row per symbol that fits the card.
   const rows = quotes.slice(0, tall ? 7 : 3);
   return (
-    <Card title="Stocks" icon={TrendingUp} className="px-2 pb-2">
+    <Card title="Stocks" className="px-2 pb-2">
       {rows.length === 0 ? (
         <p className="px-1 text-xs text-white/65">Add symbols in Settings → Widgets.</p>
       ) : (
-        <ul className="flex flex-1 flex-col justify-start gap-0.5">
+        <ul className="flex flex-1 flex-col justify-start divide-y divide-white/[0.05]">
           {rows.map(({ symbol, quote, error }) => {
             const on = pinned.includes(symbol);
             return (
@@ -484,11 +489,11 @@ export function StocksWidget({ api, span }: { api: StocksApi } & SpanProps) {
                     : `${symbol}, ${error ?? "loading"}`
                 }
                 onClick={() => onOpen(symbol)}
-                className="flex h-[26px] min-w-0 flex-1 items-center gap-2 rounded-md px-1 text-left text-[11px] transition-colors outline-none hover:bg-white/[0.10] focus-visible:ring-2 focus-visible:ring-white/40"
+                className="flex h-[27px] min-w-0 flex-1 items-center gap-2 rounded-md px-1 text-left text-[11px] transition-colors outline-none hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-white/40"
               >
                 <span className="min-w-0 flex-1 truncate">
-                  <span className="font-semibold">{symbol}</span>
-                  {wide && quote && <span className="ml-1.5 text-white/65">{quote.name}</span>}
+                  <span className="font-semibold">{shortSymbol(symbol)}</span>
+                  {wide && quote && <span className="ml-1.5 text-white/40">{quote.name}</span>}
                 </span>
                 {wide && quote && <Sparkline q={quote} className="w-20 shrink-0" />}
                 {large && quote && (
@@ -546,12 +551,14 @@ export interface MediaApi {
 
 const MEDIA_BUTTON =
   "grid size-8 place-items-center rounded-full text-white/85 transition-colors outline-none hover:bg-white/[0.14] hover:text-white active:scale-95 focus-visible:ring-2 focus-visible:ring-white/40 disabled:pointer-events-none disabled:opacity-35";
+/** The bigger middle button, filled like a play key. */
+const MEDIA_MAIN = "size-10 bg-white text-black hover:bg-white/90 hover:text-black";
 
 export function MediaWidget({ api, span }: { api: MediaApi } & SpanProps) {
   const { track, playing, onCommand } = api;
   if (!track) {
     return (
-      <Card title="Now playing" icon={Music2}>
+      <Card title="Now playing">
         <p className="text-xs text-white/65">Nothing has played yet.</p>
       </Card>
     );
@@ -560,9 +567,13 @@ export function MediaWidget({ api, span }: { api: MediaApi } & SpanProps) {
   const off = !track.controls;
   return (
     <Card className="justify-between gap-2">
+      {/* The cover, blown up and blurred, tints the whole tile. */}
+      {track.image && (
+        <img src={track.image} alt="" aria-hidden="true" className="absolute inset-0 -z-10 size-full scale-150 object-cover opacity-45 blur-2xl saturate-150" />
+      )}
       <div className="flex min-w-0 items-center gap-2.5">
         {track.image ? (
-          <img src={track.image} alt="" width={art} height={art} className="shrink-0 rounded-lg bg-white/10 object-cover" style={{ width: art, height: art }} />
+          <img src={track.image} alt="" width={art} height={art} className="shrink-0 rounded-lg bg-white/10 object-cover shadow-[0_6px_16px_rgba(0,0,0,0.45)]" style={{ width: art, height: art }} />
         ) : (
           <span className="grid shrink-0 place-items-center rounded-lg bg-white/10" style={{ width: art, height: art }}>
             <Music2 className="size-5 text-white/70" aria-hidden="true" />
@@ -572,15 +583,15 @@ export function MediaWidget({ api, span }: { api: MediaApi } & SpanProps) {
           <p className="truncate text-[13px] font-semibold" title={track.title}>
             {track.title}
           </p>
-          <p className="truncate text-[11px] text-white/65">{track.artist || track.app}</p>
+          <p className="truncate text-[11px] text-white/55">{track.artist || track.app}</p>
         </div>
       </div>
       {/* A website's player is out of reach on macOS; its tab has the controls. */}
-      <div className="flex items-center justify-center gap-1" title={off ? `Control it in ${track.app}` : undefined}>
+      <div className="flex items-center justify-center gap-3" title={off ? `Control it in ${track.app}` : undefined}>
         <button type="button" aria-label="Previous track" disabled={off} className={MEDIA_BUTTON} onClick={() => onCommand("previous")}>
           <SkipBack className="size-4" fill="currentColor" aria-hidden="true" />
         </button>
-        <button type="button" aria-label={playing ? "Pause" : "Play"} disabled={off} className={MEDIA_BUTTON} onClick={() => onCommand("play-pause")}>
+        <button type="button" aria-label={playing ? "Pause" : "Play"} disabled={off} className={cn(MEDIA_BUTTON, MEDIA_MAIN)} onClick={() => onCommand("play-pause")}>
           {playing ? (
             <Pause className="size-5" fill="currentColor" aria-hidden="true" />
           ) : (
@@ -596,16 +607,16 @@ export function MediaWidget({ api, span }: { api: MediaApi } & SpanProps) {
 }
 
 /** wttr.in (WWO) condition codes, grouped into the icons there are. */
-export function weatherIcon(code: number): { icon: LucideIcon; color: string } {
-  if (code === 113) return { icon: Sun, color: "text-amber-300" };
-  if (code === 116) return { icon: CloudSun, color: "text-amber-200" };
-  if (code === 119 || code === 122) return { icon: Cloud, color: "text-white/80" };
-  if ([143, 248, 260].includes(code)) return { icon: CloudFog, color: "text-white/70" };
-  if (code === 200 || (code >= 386 && code <= 395)) return { icon: CloudLightning, color: "text-yellow-300" };
+export function weatherIcon(code: number): { icon: LucideIcon; color: string; tint: string } {
+  if (code === 113) return { icon: Sun, color: "text-amber-300", tint: "251 191 36" };
+  if (code === 116) return { icon: CloudSun, color: "text-amber-200", tint: "253 186 116" };
+  if (code === 119 || code === 122) return { icon: Cloud, color: "text-white/80", tint: "148 163 184" };
+  if ([143, 248, 260].includes(code)) return { icon: CloudFog, color: "text-white/70", tint: "148 163 184" };
+  if (code === 200 || (code >= 386 && code <= 395)) return { icon: CloudLightning, color: "text-yellow-300", tint: "167 139 250" };
   if ([179, 182, 185, 227, 230, 281, 284, 311, 314, 317, 320, 323, 326, 329, 332, 335, 338, 350, 362, 365, 368, 371, 374, 377].includes(code))
-    return { icon: CloudSnow, color: "text-sky-100" };
-  if ([176, 263, 266, 293, 296, 353].includes(code)) return { icon: CloudDrizzle, color: "text-sky-300" };
-  return { icon: CloudRain, color: "text-sky-400" };
+    return { icon: CloudSnow, color: "text-sky-100", tint: "224 242 254" };
+  if ([176, 263, 266, 293, 296, 353].includes(code)) return { icon: CloudDrizzle, color: "text-sky-300", tint: "56 189 248" };
+  return { icon: CloudRain, color: "text-sky-400", tint: "14 165 233" };
 }
 
 const WEATHER_REFRESH_MS = 15 * 60 * 1000;
@@ -634,7 +645,7 @@ function WeatherWidget({ span }: SpanProps) {
 
   if (!weather) {
     return (
-      <Card title="Weather" icon={CloudSun}>
+      <Card title="Weather">
         <p className="text-xs text-white/65">{error ?? "Loading…"}</p>
       </Card>
     );
@@ -646,33 +657,41 @@ function WeatherWidget({ span }: SpanProps) {
   // Today is already up top.
   const nextDays = weather.days.slice(1);
   return (
-    <Card className={cn("justify-between gap-2", wide && !tall && "flex-row items-center")}>
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <now.icon className={cn("size-7 shrink-0", now.color)} aria-hidden="true" />
-          <span className="text-[30px] leading-none font-semibold tracking-tight tabular-nums">{degrees(weather.tempC)}</span>
+    <Card className={cn("gap-3", wide && !tall ? "flex-row" : "flex-col")}>
+      {/* The sky's color glows in from the corner. */}
+      <span
+        aria-hidden="true"
+        className="absolute inset-0 -z-10"
+        style={{ background: `radial-gradient(90% 90% at 100% 0%, rgb(${now.tint} / 0.28), transparent 70%)` }}
+      />
+      <div className="flex min-w-0 flex-1 flex-col justify-between">
+        <div className="flex items-start justify-between gap-2">
+          <span className="text-[42px] leading-none font-extralight tracking-tight tabular-nums">{degrees(weather.tempC)}</span>
+          <now.icon className={cn("size-6 shrink-0", now.color)} aria-hidden="true" />
         </div>
-        <p className="mt-1.5 truncate text-xs font-medium" title={weather.description}>
-          {weather.description}
-        </p>
-        <p className="truncate text-[11px] text-white/65">
-          {today && `H ${degrees(today.highC)} L ${degrees(today.lowC)} · `}
-          {weather.place || `Feels ${degrees(weather.feelsLikeC)}`}
-        </p>
+        <div className="min-w-0">
+          <p className="truncate text-xs font-medium" title={weather.description}>
+            {weather.description}
+          </p>
+          <p className="truncate text-[11px] text-white/50">
+            {today && `H ${degrees(today.highC)} L ${degrees(today.lowC)} · `}
+            {weather.place || `Feels ${degrees(weather.feelsLikeC)}`}
+          </p>
+        </div>
       </div>
       {(wide || tall) && nextDays.length > 0 && (
-        <ul className={cn("flex gap-3 text-[11px] tabular-nums", tall && "justify-between")} aria-label="Next days">
+        <ul className={cn("flex text-[11px] tabular-nums", wide && !tall ? "items-end gap-4" : "justify-between")} aria-label="Next days">
           {nextDays.map((d) => {
             const day = weatherIcon(d.code);
             return (
               <li key={d.date} className="flex flex-col items-center gap-1">
-                <span className="text-white/65">
+                <span className="text-white/50">
                   {/* Noon keeps the date on its own day in every time zone. */}
                   {new Date(`${d.date}T12:00:00`).toLocaleDateString(undefined, { weekday: "short" })}
                 </span>
                 <day.icon className={cn("size-4", day.color)} aria-hidden="true" />
                 <span>
-                  {degrees(d.highC)} <span className="text-white/60">{degrees(d.lowC)}</span>
+                  {degrees(d.highC)} <span className="text-white/45">{degrees(d.lowC)}</span>
                 </span>
               </li>
             );

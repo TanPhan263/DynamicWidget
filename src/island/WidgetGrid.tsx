@@ -174,7 +174,7 @@ function SortableWidget({ id, span, resizing, app, onOpen, justDragged, onResize
     >
       <div
         className={cn(
-          "grid rounded-2xl transition-[scale,box-shadow] duration-200",
+          "grid rounded-[18px] transition-[scale,box-shadow] duration-200",
           isDragging && "scale-[1.04] shadow-[0_20px_40px_rgba(0,0,0,0.6)] ring-1 ring-white/20",
           resizing && "ring-1 ring-white/30",
         )}

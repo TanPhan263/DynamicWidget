@@ -22,6 +22,24 @@ describe("Island", () => {
     expect(invoked).toContainEqual({ cmd: "set_island_rect", args: { rect: { x: 400, y: 0, width: 200, height: 37 } } });
   });
 
+  it("keeps the open panel inside a short window", async () => {
+    const tall = window.innerHeight;
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 400 });
+    try {
+      const snap = baseSnapshot();
+      snap.settings.widgets = ["clock", "calendar", "timer", "system", "notes", "actions", "stocks", "media", "weather"];
+      resetMock(snap);
+      render(<Island />);
+      await flush();
+      act(() => emit("island-toggle"));
+      await flush();
+      const rect = invoked.filter((c) => c.cmd === "set_island_rect").at(-1)!.args as { rect: { y: number; height: number } };
+      expect(rect.rect.y + rect.rect.height).toBeLessThanOrEqual(400 - 16);
+    } finally {
+      Object.defineProperty(window, "innerHeight", { configurable: true, value: tall });
+    }
+  });
+
   it("expands on hover and shows widgets", async () => {
     const { container } = render(<Island />);
     await flush();
