@@ -18,7 +18,7 @@ export function clampSpan(cols: number, rows: number): WidgetSpan {
     rows: Math.min(WIDGET_MAX_ROWS, Math.max(1, Math.round(rows))),
   };
 }
-export type WidgetId = "clock" | "calendar" | "timer" | "system" | "notes" | "actions" | "stocks" | "media";
+export type WidgetId = "clock" | "calendar" | "timer" | "system" | "notes" | "actions" | "stocks" | "media" | "weather";
 
 /** One-tap system actions in the Quick actions widget. */
 export type QuickAction = "keep-awake" | "screenshot" | "mute" | "lock" | "calculator" | "downloads" | "record";
@@ -35,6 +35,7 @@ export function widgetAppName(id: WidgetId, platform: Platform): string | null {
       actions: null,
       stocks: null,
       media: null,
+      weather: "Weather",
     };
     return apps[id];
   }
@@ -48,13 +49,14 @@ export function widgetAppName(id: WidgetId, platform: Platform): string | null {
       actions: null,
       stocks: null,
       media: null,
+      weather: "Weather",
     };
     return apps[id];
   }
   return null;
 }
 
-export const ALL_WIDGETS: readonly WidgetId[] = ["clock", "calendar", "timer", "system", "notes", "actions", "stocks", "media"];
+export const ALL_WIDGETS: readonly WidgetId[] = ["clock", "calendar", "timer", "system", "notes", "actions", "stocks", "media", "weather"];
 
 export const WIDGET_LABELS: Record<WidgetId, string> = {
   clock: "Clock",
@@ -65,7 +67,19 @@ export const WIDGET_LABELS: Record<WidgetId, string> = {
   actions: "Quick actions",
   stocks: "Stocks",
   media: "Now playing",
+  weather: "Weather",
 };
+
+/** The Weather widget's data, from wttr.in by way of the core. */
+export interface Weather {
+  place: string;
+  tempC: number;
+  feelsLikeC: number;
+  /** wttr.in (WWO) condition code. */
+  code: number;
+  description: string;
+  days: { date: string; highC: number; lowC: number; code: number }[];
+}
 
 /** Most symbols the Stocks widget follows. */
 export const MAX_SYMBOLS = 8;
@@ -187,6 +201,10 @@ export interface SystemStats {
   battery: BatteryInfo | null;
   /** Some app is playing sound, such as music or a video. */
   audioPlaying: boolean;
+  /** Some app has a camera open. */
+  cameraInUse: boolean;
+  /** Some app is recording from a microphone. */
+  microphoneInUse: boolean;
   /** What is playing, when a website or player says. */
   nowPlaying: NowPlaying | null;
 }

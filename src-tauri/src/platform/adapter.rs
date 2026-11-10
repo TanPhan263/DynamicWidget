@@ -29,6 +29,10 @@ pub trait PlatformAdapter: Send + Sync {
     fn restore_foreground(&self, app: &AppHandle, token: i64);
     /// Some app is playing sound (music, a video, a call).
     fn audio_playing(&self) -> bool;
+    /// Some app has a camera open.
+    fn camera_in_use(&self) -> bool;
+    /// Some app is recording from a microphone.
+    fn microphone_in_use(&self) -> bool;
     /// The track a desktop player is playing, if it can be asked.
     fn now_playing(&self) -> Option<NowPlaying>;
     /// Plays, pauses or skips on `player` (a [`NowPlaying::app`]).

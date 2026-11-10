@@ -109,6 +109,22 @@ describe("Island", () => {
     expect(opened()).toEqual([{ widget: "calendar" }, { widget: "system" }]);
   });
 
+  it("shows the weather and, when wide, the next days", async () => {
+    const snap = baseSnapshot();
+    snap.settings.widgets = ["weather"];
+    snap.settings.widgetSizes = { weather: { cols: 2, rows: 1 } };
+    resetMock(snap);
+    render(<Island />);
+    await flush();
+    act(() => emit("island-toggle"));
+    await flush();
+    expect(screen.getByText("30°")).toBeInTheDocument();
+    expect(screen.getByText("Patchy rain nearby")).toBeInTheDocument();
+    expect(screen.getByText(/H 32° L 24° · Hanoi/)).toBeInTheDocument();
+    // Today is up top, so only the two days after it are listed.
+    expect(within(screen.getByRole("list", { name: "Next days" })).getAllByRole("listitem")).toHaveLength(2);
+  });
+
   it("plays, pauses and skips from the Now playing widget, and resumes after a pause", async () => {
     const snap = baseSnapshot();
     snap.settings.widgets = ["media"];
@@ -274,6 +290,19 @@ describe("Island", () => {
     act(() => emit("system-stats", { ...baseSnapshot().stats, audioPlaying: false }));
     await flush();
     expect(screen.queryByRole("img", { name: "Playing sound" })).toBeNull();
+  });
+
+  it("shows a dot while the camera or microphone is in use", async () => {
+    render(<Island />);
+    await flush();
+    expect(screen.queryByRole("status", { name: /in use/ })).toBeNull();
+    act(() => emit("system-stats", { ...baseSnapshot().stats, cameraInUse: true, microphoneInUse: true }));
+    expect(screen.getByRole("status", { name: "Camera in use, Microphone in use" })).toBeInTheDocument();
+    act(() => emit("system-stats", { ...baseSnapshot().stats, microphoneInUse: true }));
+    expect(screen.getByRole("status", { name: "Microphone in use" })).toBeInTheDocument();
+    act(() => emit("system-stats", baseSnapshot().stats));
+    await flush();
+    expect(screen.queryByRole("status", { name: /in use/ })).toBeNull();
   });
 
   it("pops out the title of a new track once", async () => {

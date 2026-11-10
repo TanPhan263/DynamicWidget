@@ -2,6 +2,13 @@ import {
   Calculator,
   CalendarDays,
   Camera,
+  Cloud,
+  CloudDrizzle,
+  CloudFog,
+  CloudLightning,
+  CloudRain,
+  CloudSnow,
+  CloudSun,
   Coffee,
   Cpu,
   FolderDown,
@@ -14,6 +21,7 @@ import {
   SkipBack,
   SkipForward,
   StickyNote,
+  Sun,
   Timer as TimerIcon,
   TrendingUp,
   Video,
@@ -35,9 +43,11 @@ import {
   type QuickAction,
   type QuoteState,
   type SystemStats,
+  type Weather,
   type WidgetId,
   type WidgetSpan,
 } from "../../shared/types";
+import { getWeather } from "../../shared/commands";
 import { SlidingNumber } from "../SlidingNumber";
 import type { TimerApi } from "../useTimer";
 import { monthGrid } from "./calendar";
@@ -585,6 +595,94 @@ export function MediaWidget({ api, span }: { api: MediaApi } & SpanProps) {
   );
 }
 
+/** wttr.in (WWO) condition codes, grouped into the icons there are. */
+export function weatherIcon(code: number): { icon: LucideIcon; color: string } {
+  if (code === 113) return { icon: Sun, color: "text-amber-300" };
+  if (code === 116) return { icon: CloudSun, color: "text-amber-200" };
+  if (code === 119 || code === 122) return { icon: Cloud, color: "text-white/80" };
+  if ([143, 248, 260].includes(code)) return { icon: CloudFog, color: "text-white/70" };
+  if (code === 200 || (code >= 386 && code <= 395)) return { icon: CloudLightning, color: "text-yellow-300" };
+  if ([179, 182, 185, 227, 230, 281, 284, 311, 314, 317, 320, 323, 326, 329, 332, 335, 338, 350, 362, 365, 368, 371, 374, 377].includes(code))
+    return { icon: CloudSnow, color: "text-sky-100" };
+  if ([176, 263, 266, 293, 296, 353].includes(code)) return { icon: CloudDrizzle, color: "text-sky-300" };
+  return { icon: CloudRain, color: "text-sky-400" };
+}
+
+const WEATHER_REFRESH_MS = 15 * 60 * 1000;
+const degrees = (c: number) => `${Math.round(c)}°`;
+
+function WeatherWidget({ span }: SpanProps) {
+  const [weather, setWeather] = useState<Weather | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    const load = () =>
+      getWeather()
+        .then((w) => {
+          if (!live || !w) return;
+          setWeather(w);
+          setError(null);
+        })
+        .catch((e) => live && setError(errorMessage(e)));
+    load();
+    const id = setInterval(load, WEATHER_REFRESH_MS);
+    return () => {
+      live = false;
+      clearInterval(id);
+    };
+  }, []);
+
+  if (!weather) {
+    return (
+      <Card title="Weather" icon={CloudSun}>
+        <p className="text-xs text-white/65">{error ?? "Loading…"}</p>
+      </Card>
+    );
+  }
+  const now = weatherIcon(weather.code);
+  const today = weather.days[0];
+  const wide = isWide(span);
+  const tall = isTall(span);
+  // Today is already up top.
+  const nextDays = weather.days.slice(1);
+  return (
+    <Card className={cn("justify-between gap-2", wide && !tall && "flex-row items-center")}>
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          <now.icon className={cn("size-7 shrink-0", now.color)} aria-hidden="true" />
+          <span className="text-[30px] leading-none font-semibold tracking-tight tabular-nums">{degrees(weather.tempC)}</span>
+        </div>
+        <p className="mt-1.5 truncate text-xs font-medium" title={weather.description}>
+          {weather.description}
+        </p>
+        <p className="truncate text-[11px] text-white/65">
+          {today && `H ${degrees(today.highC)} L ${degrees(today.lowC)} · `}
+          {weather.place || `Feels ${degrees(weather.feelsLikeC)}`}
+        </p>
+      </div>
+      {(wide || tall) && nextDays.length > 0 && (
+        <ul className={cn("flex gap-3 text-[11px] tabular-nums", tall && "justify-between")} aria-label="Next days">
+          {nextDays.map((d) => {
+            const day = weatherIcon(d.code);
+            return (
+              <li key={d.date} className="flex flex-col items-center gap-1">
+                <span className="text-white/65">
+                  {/* Noon keeps the date on its own day in every time zone. */}
+                  {new Date(`${d.date}T12:00:00`).toLocaleDateString(undefined, { weekday: "short" })}
+                </span>
+                <day.icon className={cn("size-4", day.color)} aria-hidden="true" />
+                <span>
+                  {degrees(d.highC)} <span className="text-white/60">{degrees(d.lowC)}</span>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
 export function Widget({
   id,
   span,
@@ -623,5 +721,7 @@ export function Widget({
       return <StocksWidget api={stocks} span={span} />;
     case "media":
       return <MediaWidget api={media} span={span} />;
+    case "weather":
+      return <WeatherWidget span={span} />;
   }
 }

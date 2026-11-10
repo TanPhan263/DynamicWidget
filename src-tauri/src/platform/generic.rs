@@ -53,11 +53,21 @@ impl PlatformAdapter for GenericAdapter {
         false
     }
 
+    fn camera_in_use(&self) -> bool {
+        false
+    }
+
+    fn microphone_in_use(&self) -> bool {
+        false
+    }
+
     fn now_playing(&self) -> Option<NowPlaying> {
         None
     }
 
     fn media_control(&self, _player: &str, _command: MediaCommand) -> AppResult<()> {
-        Err(AppError::Platform("media controls are not available here".into()))
+        Err(AppError::Platform(
+            "media controls are not available here".into(),
+        ))
     }
 }

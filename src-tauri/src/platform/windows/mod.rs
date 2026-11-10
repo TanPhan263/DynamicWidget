@@ -1,4 +1,5 @@
 mod audio;
+mod capture;
 mod displays;
 mod island;
 mod media;
@@ -52,6 +53,14 @@ impl PlatformAdapter for WindowsAdapter {
 
     fn audio_playing(&self) -> bool {
         audio::output_peak().is_some_and(|peak| peak > audio::SILENCE)
+    }
+
+    fn camera_in_use(&self) -> bool {
+        capture::in_use("webcam")
+    }
+
+    fn microphone_in_use(&self) -> bool {
+        capture::in_use("microphone")
     }
 
     fn now_playing(&self) -> Option<NowPlaying> {

@@ -8,6 +8,7 @@ import type {
   QuickAction,
   Settings,
   UiSnapshot,
+  Weather,
   WidgetId,
 } from "./types";
 
@@ -51,6 +52,9 @@ export const runQuickAction = (action: QuickAction) => invoke<boolean | null>("r
 /** Plays, pauses or skips on the player the Now playing widget shows. */
 export const mediaControl = (track: NowPlaying, command: MediaCommand) =>
   invoke<void>("media_control", { player: track.app, command, browser: track.browser });
+
+/** Today's weather; the core asks wttr.in at most every 15 minutes. */
+export const getWeather = () => invoke<Weather>("get_weather");
 
 /** Opens a symbol's quote page in the browser. */
 export const openStockPage = (symbol: string) => invoke<void>("open_stock_page", { symbol });

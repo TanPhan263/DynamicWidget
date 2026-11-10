@@ -57,6 +57,12 @@ pub async fn media_control(
 }
 
 /// Opens a symbol's quote page on Yahoo Finance.
+/// Blocks on the network at most every 15 minutes; async commands run off the main thread.
+#[tauri::command]
+pub async fn get_weather() -> AppResult<crate::core::weather::Weather> {
+    crate::core::weather::current()
+}
+
 #[tauri::command]
 pub async fn open_stock_page(symbol: String) -> AppResult<()> {
     let symbol = market::normalize_symbol(&symbol)

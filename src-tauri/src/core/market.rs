@@ -504,10 +504,17 @@ fn fetch_vps(agent: &ureq::Agent, symbols: &[String]) -> Result<Vec<Tick>, Strin
             .iter()
             .map(|s| url_symbol(s.trim_end_matches(".VN")))
             .collect();
-        ticks.extend(parse_vps(&get_text(agent, &format!("{VPS_URL}{}", codes.join(",")))?)?);
+        ticks.extend(parse_vps(&get_text(
+            agent,
+            &format!("{VPS_URL}{}", codes.join(",")),
+        )?)?);
     }
     if !indexes.is_empty() {
-        let mut codes: Vec<&str> = indexes.iter().filter_map(|s| vn_index(s)).map(|(c, _)| c).collect();
+        let mut codes: Vec<&str> = indexes
+            .iter()
+            .filter_map(|s| vn_index(s))
+            .map(|(c, _)| c)
+            .collect();
         codes.dedup();
         let body = get_text(agent, &format!("{VPS_INDEX_URL}{}", codes.join(",")))?;
         ticks.extend(parse_vps_indexes(&body, &indexes)?);
@@ -614,7 +621,8 @@ fn spawn_vn_poller(app: AppHandle) {
                 if st.read(|i| i.quitting) {
                     break;
                 }
-                let symbols: Vec<String> = st.read(|i| wanted(&i.settings))
+                let symbols: Vec<String> = st
+                    .read(|i| wanted(&i.settings))
                     .into_iter()
                     .filter(|s| is_vn(s))
                     .collect();
@@ -921,7 +929,10 @@ mod tests {
     fn vnd_bars_keep_only_the_latest_session() {
         // 1793932080 is 2026-11-06 09:28 in Vietnam; +3 days is 2026-11-09.
         let (fri, mon) = (1_793_932_080u64, 1_793_932_080u64 + 3 * 86_400);
-        let body = format!(r#"{{"t":[{fri},{mon},{}],"c":[50.0,51.0,51.7],"s":"ok"}}"#, mon + 60);
+        let body = format!(
+            r#"{{"t":[{fri},{mon},{}],"c":[50.0,51.0,51.7],"s":"ok"}}"#,
+            mon + 60
+        );
         assert_eq!(parse_vnd_bars(&body, 1000.0), vec![51_000.0, 51_700.0]);
         assert!(parse_vnd_bars("{}", 1000.0).is_empty());
     }
@@ -929,7 +940,11 @@ mod tests {
     #[test]
     fn vps_index_rows_match_index_symbols() {
         let body = r#"[{"mc":"10","cIndex":1724.87,"oIndex":1714.32,"vol":67609420},{"mc":"12","cIndex":224.2,"oIndex":224.2}]"#;
-        let wanted = ["^VINDEX.VN".to_string(), "^VNINDEX.VN".into(), "^VN30.VN".into()];
+        let wanted = [
+            "^VINDEX.VN".to_string(),
+            "^VNINDEX.VN".into(),
+            "^VN30.VN".into(),
+        ];
         let ticks = parse_vps_indexes(body, &wanted).unwrap();
         assert_eq!(ticks.len(), 2, "VN30 has no row");
         assert_eq!(ticks[0].symbol, "^VINDEX.VN");

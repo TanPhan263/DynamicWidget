@@ -155,7 +155,7 @@ The settings are stored in `settings.json` (pretty JSON, camelCase), currently `
 | toggleShortcut | string | `CommandOrControl+Shift+Space` | trimmed, non-empty, must parse as a Tauri accelerator |
 | notificationSeconds | u32 | 5 | clamp 2–30 |
 | doNotDisturb | bool | false | |
-| widgets | WidgetId[] | all 7 in order | deduplicated, keeping first occurrences |
+| widgets | WidgetId[] | all 9 in order (clock, calendar, timer, system, notes, actions, stocks, media, weather) | deduplicated, keeping first occurrences |
 | widgetSizes | map WidgetId→{cols,rows} | {} | cols 1–3, rows 1–2. Old names: `"wide"`=2×1, others 1×1 |
 | stocks | string[] | `["AAPL","NVDA","BTC-USD"]` | normalized, distinct, max 8 |
 | islandStocks | string[] | [] | must be in `stocks`, distinct, max 3. Old field `islandStock` (a string) migrates to a list |
@@ -210,7 +210,7 @@ interface NotificationInput { title: string; body?: string; app?: string; icon?:
 type PowerState = "charging"|"discharging"|"full"|"not-charging"|"unknown";
 interface BatteryInfo { percent: number; state: PowerState; minutesRemaining: number|null }
 interface NowPlaying { title: string; artist: string; app: string; image: string|null }
-interface SystemStats { cpuPercent: number; memoryUsed: number; memoryTotal: number; battery: BatteryInfo|null; audioPlaying: boolean; nowPlaying: NowPlaying|null }
+interface SystemStats { cpuPercent: number; memoryUsed: number; memoryTotal: number; battery: BatteryInfo|null; audioPlaying: boolean; cameraInUse: boolean; microphoneInUse: boolean; nowPlaying: NowPlaying|null }
 interface IslandLayout { platform: "macos"|"windows"|"other"; notch: {width:number;height:number}|null; menuBarHeight: number }
 interface ApiStatus { running: boolean; url: string|null; error: string|null }
 interface Quote { symbol; name; price; previousClose; change; changePercent; currency: string; points: number[]; updatedAt: number }
@@ -225,9 +225,10 @@ The frontend mirrors the constants: `NOTIFICATION_SECONDS_RANGE [2,30]`, `ISLAND
 
 - `normalizeSymbol`: trim, uppercase, and match `/^[A-Z0-9.\-^=]{1,15}$/`.
 - `validateSettings` (client side): the shortcut can't be empty, and the port must be an integer within range.
-- `widgetAppName(id, platform)` gives the name shown in tooltips. macOS: Clock, Calendar, Clock, Activity Monitor, Notes. Windows: Clock, Calendar, Clock, Task Manager, Sticky Notes. Actions and Stocks get null.
-- `WIDGET_LABELS`: Clock, Calendar, Timer, System, Notes, Quick actions, Stocks, Now playing.
+- `widgetAppName(id, platform)` gives the name shown in tooltips. macOS: Clock, Calendar, Clock, Activity Monitor, Notes, Weather. Windows: Clock, Calendar, Clock, Task Manager, Sticky Notes, Weather (`/System/Applications/Weather.app`, `msnweather:`). Actions, Stocks and Media get null.
+- `WIDGET_LABELS`: Clock, Calendar, Timer, System, Notes, Quick actions, Stocks, Now playing, Weather.
 - **MediaWidget** (`media`): `MediaApi { track, playing, onCommand }`. `Island` keeps `recentTrack`, the last non-null `nowPlaying`. It passes `track = nowPlaying ?? recentTrack` and `playing = nowPlaying !== null`, so a paused track stays and can be resumed. The card shows a cover (40 px, or 56 px when wide or tall; Music2 placeholder), the title (13 px semibold) and the artist (or the app), plus Previous / Play-Pause / Next buttons (`size-8` round, filled icons). The buttons are disabled when `!controls`, with the tooltip "Control it in {app}". With no track it says "Nothing has played yet."
+- **WeatherWidget** (`weather`): calls `getWeather()` on mount and every 15 min. Until data arrives it shows "Loading…" or the error. The card shows the condition icon (`size-7`) and the rounded temperature at 30 px, the description, then `H {high}° L {low}° · {place}` for today (or "Feels {n}°" without a place). When wide or tall it adds `<ul aria-label="Next days">`: per later day, the short weekday (date parsed at local noon), its icon and `high° low°`. `weatherIcon(code)` maps wttr.in (WWO) codes: 113 Sun, 116 CloudSun, 119/122 Cloud, 143/248/260 CloudFog, 200 and 386–395 CloudLightning, the snow/sleet/ice codes CloudSnow, 176/263/266/293/296/353 CloudDrizzle, anything else CloudRain. °C only.
 
 ## 7. IPC commands and events
 
@@ -250,6 +251,7 @@ All commands are `async` (so they run off the main thread) and return `AppResult
 | open_settings | | () (unminimize, show, focus) |
 | open_widget_app | widget | () |
 | run_quick_action | action | `bool \| null` (the toggle's new state when known) |
+| get_weather | – | `Weather { place, tempC, feelsLikeC, code, description, days: [{date, highC, lowC, code}] }` from `core/weather.rs`: `GET https://wttr.in/?format=j1` through `market::agent()`, place found by IP. Reads `current_condition[0]` (`temp_C`, `FeelsLikeC`, `weatherCode`, `weatherDesc[0]`), `nearest_area[0].areaName[0]`, and each `weather[]` day (`date`, `maxtempC`, `mintempC`, the code of the `1200` hour or else the first). Cached 15 min in a static; on failure it returns the last reading, else an error |
 | open_stock_page | symbol | () opens `https://finance.yahoo.com/quote/{url_symbol}` |
 | replace_browser_token | | UiSnapshot |
 | open_extension_folder | | string (the path, after opening it) |
@@ -345,6 +347,8 @@ trait PlatformAdapter: Send + Sync {
   fn foreground_token(&self) -> Option<i64>;              // None if it's Islet itself
   fn restore_foreground(&self, &AppHandle, token: i64);
   fn audio_playing(&self) -> bool;
+  fn camera_in_use(&self) -> bool;
+  fn microphone_in_use(&self) -> bool;
   fn now_playing(&self) -> Option<NowPlaying>;
 }
 ```
@@ -396,6 +400,10 @@ Thread `islet-system`, every 2 s:
   - `minutesRemaining` is time to full while charging and time to empty while discharging, rounded. Zero is dropped.
   - Percent is clamped to 0–100.
 - **Audio:** `audioPlaying = adapter.audio_playing()`.
+- **Camera and microphone:** `cameraInUse = adapter.camera_in_use()`, `microphoneInUse = adapter.microphone_in_use()`. No permission needed on either OS.
+  - macOS camera: CoreMediaIO, any device in `kCMIOHardwarePropertyDevices` ('dev#') with `kCMIODevicePropertyDeviceIsRunningSomewhere` ('gone') set.
+  - macOS microphone: on macOS 14+, any process in `kAudioHardwarePropertyProcessObjectList` ('prs#') with `kAudioProcessPropertyIsRunningInput` ('piri'). Older systems fall back to 'gone' on the default input device ('dIn '), which also counts a headset that is only playing.
+  - Windows: `HKCU\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\{webcam|microphone}`. Each app subkey (and each subkey of `NonPackaged`, for desktop programs) is in use when `LastUsedTimeStart > 0` and `LastUsedTimeStop == 0` (REG_QWORD).
 - **Now playing:** a website's report wins if it's under 8 s old (`WEB_FRESH`) and something is playing. Otherwise, while audio plays, ask `adapter.now_playing()`. Asking starts a process, so it only happens when sound is playing.
 - **Battery events** (if `batteryAlerts` is on), comparing the previous and current sample:
   - Neither state is unknown, and on-power changes: plugged in or unplugged. "On power" means charging, full or not-charging.
@@ -585,7 +593,7 @@ Other helpers:
 - **peek:** width `420*s`, height `topInset + 72*s`.
 - **compact:**
   - Base width is `compactWidth` when hugging the notch (the notch never scales), else `compactWidth*s`.
-  - Add `2*64*s` if the wings are showing, and `150*s` if the title is pinned.
+  - Add `2*64*s` if the wings are showing, and `40*s` (title) plus `60*s` (buttons) if the title is pinned.
   - Height is `compactHeight` when hugging, else `compactHeight*s`.
 - Round the width and height. `x = round((1000 - width)/2)`, `y = shape.top`.
 - **Radii:**
@@ -630,7 +638,7 @@ Other behavior:
   - "Bars inside" means playing with position inside. "Bars below" means playing with position below.
   - The title is pinned when the bars are inside or below, showTitle is on, nowPlaying is set, the shape doesn't hug the notch, nothing is recording, the timer is idle and unread is 0.
 - **Island media buttons:** beside the pinned title (same row), always shown: Previous / Pause / Next. When `!nowPlaying.controls` they're disabled (`opacity-35`), with the tooltip "Control it in {app}". These are `size-5` round buttons with 12–14 px filled icons, and each click calls `stopPropagation` so the island doesn't open. While the pointer is over them, `overControls` blocks the hover-open timer. Leaving them while the island is still hovered schedules the open again.
-- **Wings** show when recording, the timer is running or paused, unread > 0, the bars are inside, or a pinned stock is showing.
+- **Wings** show when recording, the timer is running or paused, unread > 0, the bars are inside, a pinned stock is showing, or the camera or microphone is in use.
 - **Track peek:** when the track changes (key `app\ntitle`), showTitle is on and the shape hugs the notch, dispatch `media`. The synthetic notification has a negative id (`-Date.now()`), symbol `music` and source `browser`. There's no room beside a notch to show the title, so it peeks once instead.
 - **Resize preview:** while a widget's corner is dragged, `sizePreview` overrides that widget's span, so the rows and panel height follow live.
 - **Scale:** `panelSize` within 80–150 when expanded, `islandSize` within 50–150 otherwise.
@@ -673,6 +681,8 @@ The icon button style is `size-7 rounded-full text-white/80 hover:bg-white/[0.14
 6. **Idle info** (bar without a notch): on the left, the clock with AM/PM at 10 px in white/70. On the right, a battery glyph: the percent and a small outlined battery, emerald while charging and red at 20% or below while not charging.
 
 The Dynamic Island capsule shows nothing when idle.
+
+**Camera and microphone dots**, added on top of whichever of the above shows: at the end of the right side, a `size-1.5` green-500 dot for the camera and an orange-400 dot for the microphone (`role="status"`, aria "Camera in use, Microphone in use"). If nothing else shows on the left, the kind becomes `privacy` with a green Video or orange Mic icon there. Either flag also turns the wings on.
 
 Left and right items slide in from their side (`x ∓6`, blur 4px, spring 400/30), keyed by kind.
 - **Hugging the notch:** the left wing animates its width between 0 and 64 (padding-left 14), then a spacer the notch's width, then the right wing (padding-right 14).

@@ -58,6 +58,10 @@ pub struct SystemStats {
     pub battery: Option<BatteryInfo>,
     /// Some app is playing sound, such as music or a video.
     pub audio_playing: bool,
+    /// Some app has a camera open.
+    pub camera_in_use: bool,
+    /// Some app is recording from a microphone.
+    pub microphone_in_use: bool,
     /// What is playing, when a website or player says.
     pub now_playing: Option<NowPlaying>,
 }
@@ -200,6 +204,8 @@ pub fn spawn(app: AppHandle) {
                 }
                 stats.battery = read_battery(manager.as_ref());
                 stats.audio_playing = st.adapter.audio_playing();
+                stats.camera_in_use = st.adapter.camera_in_use();
+                stats.microphone_in_use = st.adapter.microphone_in_use();
                 // A website's own report wins; desktop players are only asked
                 // while sound plays, since asking starts a process.
                 let web = st.read(|i| {
@@ -218,13 +224,20 @@ pub fn spawn(app: AppHandle) {
                     match &stats.now_playing {
                         Some(np) => log::info!(
                             "now playing ({}): app={:?} title={:?} artist={:?} image={}",
-                            if from_web { "browser" } else { "desktop player" },
+                            if from_web {
+                                "browser"
+                            } else {
+                                "desktop player"
+                            },
                             np.app,
                             np.title,
                             np.artist,
                             np.image.is_some()
                         ),
-                        None => log::info!("now playing: nothing (sound playing: {})", stats.audio_playing),
+                        None => log::info!(
+                            "now playing: nothing (sound playing: {})",
+                            stats.audio_playing
+                        ),
                     }
                     prev_playing = stats.now_playing.clone();
                 }

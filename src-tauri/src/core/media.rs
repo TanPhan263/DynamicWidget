@@ -83,7 +83,10 @@ impl MediaInput {
 pub fn parse_player(app: &str, output: &str) -> Option<(NowPlaying, Option<String>)> {
     let mut parts = output.trim_end_matches(['\n', '\r']).splitn(3, '\t');
     let (title, artist) = (parts.next()?, parts.next()?);
-    let art = parts.next().map(str::trim).filter(|u| u.starts_with("https://"));
+    let art = parts
+        .next()
+        .map(str::trim)
+        .filter(|u| u.starts_with("https://"));
     Some((track(app, title, artist)?, art.map(String::from)))
 }
 
@@ -107,7 +110,10 @@ pub fn track(app: &str, title: &str, artist: &str) -> Option<NowPlaying> {
 pub fn app_from_aumid(id: &str) -> String {
     // Store apps are `Package_publisher!App`; desktop apps an exe or a name.
     let name = id.rsplit(['!', '\\']).next().unwrap_or(id);
-    let name = name.strip_suffix(".exe").or(name.strip_suffix(".EXE")).unwrap_or(name);
+    let name = name
+        .strip_suffix(".exe")
+        .or(name.strip_suffix(".EXE"))
+        .unwrap_or(name);
     let known = [
         ("spotify", "Spotify"),
         ("chrome", "Chrome"),
@@ -126,7 +132,13 @@ pub fn app_from_aumid(id: &str) -> String {
         .iter()
         .find(|(k, _)| lower == *k || lower.ends_with(&format!(".{k}")))
         .map(|(_, v)| (*v).to_string())
-        .unwrap_or_else(|| if name.is_empty() { "Media".into() } else { name.to_string() })
+        .unwrap_or_else(|| {
+            if name.is_empty() {
+                "Media".into()
+            } else {
+                name.to_string()
+            }
+        })
 }
 
 #[cfg(test)]
@@ -163,7 +175,12 @@ mod tests {
     fn player_output_is_parsed() {
         let (np, art) = parse_player("Music", "Blinding Lights\tThe Weeknd\n").unwrap();
         assert_eq!(
-            (np.title.as_str(), np.artist.as_str(), np.app.as_str(), np.controls),
+            (
+                np.title.as_str(),
+                np.artist.as_str(),
+                np.app.as_str(),
+                np.controls
+            ),
             ("Blinding Lights", "The Weeknd", "Music", true)
         );
         assert_eq!(art, None);
@@ -180,7 +197,10 @@ mod tests {
         assert_eq!(app_from_aumid("Spotify.exe"), "Spotify");
         assert_eq!(app_from_aumid("MSEdge"), "Edge");
         assert_eq!(app_from_aumid("Chrome"), "Chrome");
-        assert_eq!(app_from_aumid("Microsoft.ZuneMusic_8wekyb3d8bbwe!Microsoft.ZuneMusic"), "Media Player");
+        assert_eq!(
+            app_from_aumid("Microsoft.ZuneMusic_8wekyb3d8bbwe!Microsoft.ZuneMusic"),
+            "Media Player"
+        );
         assert_eq!(app_from_aumid("C:\\Apps\\foobar2000.exe"), "foobar2000");
         assert_eq!(app_from_aumid(""), "Media");
     }

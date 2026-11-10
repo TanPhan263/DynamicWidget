@@ -38,6 +38,8 @@ export function baseSnapshot(): UiSnapshot {
       memoryTotal: 16 * 1024 ** 3,
       battery: { percent: 80, state: "discharging", minutesRemaining: 200 },
       audioPlaying: false,
+      cameraInUse: false,
+      microphoneInUse: false,
       nowPlaying: null,
     },
     layout: { platform: "macos", notch: { width: 200, height: 37 }, menuBarHeight: 37 },
@@ -108,6 +110,19 @@ export const coreModule = {
           return snapshot.recordingSince !== null;
         }
         return args!.action === "mute" ? true : null;
+      case "get_weather":
+        return {
+          place: "Hanoi",
+          tempC: 29.6,
+          feelsLikeC: 33,
+          code: 176,
+          description: "Patchy rain nearby",
+          days: [
+            { date: "2026-11-10", highC: 32, lowC: 24, code: 176 },
+            { date: "2026-11-11", highC: 31, lowC: 25, code: 113 },
+            { date: "2026-11-12", highC: 28, lowC: 23, code: 116 },
+          ],
+        };
       case "open_extension_folder":
         return "/Applications/Islet.app/Contents/Resources/extension";
       default:

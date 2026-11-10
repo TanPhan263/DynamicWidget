@@ -103,6 +103,7 @@ pub fn run() {
             commands::run_quick_action,
             commands::open_stock_page,
             commands::media_control,
+            commands::get_weather,
         ])
         .build(tauri::generate_context!())
         .expect("error while building Islet");

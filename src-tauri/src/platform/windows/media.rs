@@ -37,7 +37,12 @@ fn playing(session: &Session) -> bool {
 }
 
 fn app_of(session: &Session) -> String {
-    app_from_aumid(&session.SourceAppUserModelId().map(|a| a.to_string_lossy()).unwrap_or_default())
+    app_from_aumid(
+        &session
+            .SourceAppUserModelId()
+            .map(|a| a.to_string_lossy())
+            .unwrap_or_default(),
+    )
 }
 
 /// The first session that is playing, else none.
@@ -47,7 +52,10 @@ pub fn now_playing() -> Option<NowPlaying> {
     let mut np = track(
         &app_of(&session),
         &props.Title().ok()?.to_string_lossy(),
-        &props.Artist().map(|a| a.to_string_lossy()).unwrap_or_default(),
+        &props
+            .Artist()
+            .map(|a| a.to_string_lossy())
+            .unwrap_or_default(),
     )?;
     np.image = artwork(&format!("{}\n{}\n{}", np.app, np.title, np.artist), &props);
     Some(np)
@@ -68,9 +76,18 @@ fn artwork(key: &str, props: &Properties) -> Option<String> {
 /// The cover as a data URL; the page may only show `data:` images.
 fn thumbnail(props: &Properties) -> Option<String> {
     let stream = props.Thumbnail().ok()?.OpenReadAsync().ok()?.join().ok()?;
-    let size = u32::try_from(stream.Size().ok()?).ok().filter(|s| (1..=ART_MAX).contains(s))?;
-    let kind = stream.ContentType().map(|k| k.to_string_lossy()).unwrap_or_default();
-    let kind = if kind.starts_with("image/") { kind } else { "image/png".into() };
+    let size = u32::try_from(stream.Size().ok()?)
+        .ok()
+        .filter(|s| (1..=ART_MAX).contains(s))?;
+    let kind = stream
+        .ContentType()
+        .map(|k| k.to_string_lossy())
+        .unwrap_or_default();
+    let kind = if kind.starts_with("image/") {
+        kind
+    } else {
+        "image/png".into()
+    };
     let reader = DataReader::CreateDataReader(&stream.GetInputStreamAt(0).ok()?).ok()?;
     reader.LoadAsync(size).ok()?.join().ok()?;
     let mut bytes = vec![0u8; size as usize];
@@ -95,7 +112,9 @@ pub fn control(player: &str, command: MediaCommand) -> AppResult<()> {
         MediaCommand::Next => session.TrySkipNextAsync(),
         MediaCommand::Previous => session.TrySkipPreviousAsync(),
     };
-    let done = op.and_then(|o| o.join()).map_err(|e| AppError::Platform(e.to_string()))?;
+    let done = op
+        .and_then(|o| o.join())
+        .map_err(|e| AppError::Platform(e.to_string()))?;
     if done {
         Ok(())
     } else {

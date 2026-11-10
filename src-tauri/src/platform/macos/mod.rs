@@ -1,4 +1,5 @@
 mod audio;
+mod camera;
 mod displays;
 mod island;
 mod media;
@@ -51,6 +52,14 @@ impl PlatformAdapter for MacAdapter {
 
     fn audio_playing(&self) -> bool {
         audio::output_running()
+    }
+
+    fn camera_in_use(&self) -> bool {
+        camera::in_use()
+    }
+
+    fn microphone_in_use(&self) -> bool {
+        audio::input_running()
     }
 
     fn now_playing(&self) -> Option<NowPlaying> {

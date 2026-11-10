@@ -123,8 +123,13 @@ pub fn route(req: &ApiRequest, port: u16, token: &str) -> Result<Route, Rejectio
         ("GET", "/v1/health") => Ok(Route::Health {
             paired: source == NotificationSource::Browser,
         }),
-        ("GET", "/v1/media/command") if source == NotificationSource::Browser => Ok(Route::MediaCommand),
-        ("GET", "/v1/media/command") => Err(reject(401, "Only the paired browser extension takes media commands")),
+        ("GET", "/v1/media/command") if source == NotificationSource::Browser => {
+            Ok(Route::MediaCommand)
+        }
+        ("GET", "/v1/media/command") => Err(reject(
+            401,
+            "Only the paired browser extension takes media commands",
+        )),
         ("POST", "/v1/notify" | "/v1/media") => {
             let json = req.content_type.is_some_and(|c| {
                 c.trim()

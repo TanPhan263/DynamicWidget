@@ -1,4 +1,4 @@
-import { Bell, BellRing, Inbox, LayoutGrid, Moon, Music2, Pause, Settings, SkipBack, SkipForward, Timer, X } from "lucide-react";
+import { Bell, BellRing, Inbox, LayoutGrid, Mic, Moon, Music2, Pause, Settings, SkipBack, SkipForward, Timer, Video, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
@@ -211,6 +211,25 @@ export function Compact({ shape, wings, recordingSince, onStopRecording, pinned,
       </span>
     );
     right = stats.battery ? <BatteryGlyph b={stats.battery} /> : null;
+  }
+
+  // Green for the camera, orange for the microphone, as phones show them.
+  const camera = stats.cameraInUse;
+  const microphone = stats.microphoneInUse;
+  if (camera || microphone) {
+    if (kind === "idle" && !left) {
+      kind = "privacy";
+      left = camera ? <Video className="size-4 text-green-500" aria-hidden="true" /> : <Mic className="size-4 text-orange-400" aria-hidden="true" />;
+    }
+    right = (
+      <>
+        {right}
+        <span className="flex items-center gap-1" role="status" aria-label={[camera && "Camera in use", microphone && "Microphone in use"].filter(Boolean).join(", ")}>
+          {camera && <span className="size-1.5 rounded-full bg-green-500" title="Camera in use" />}
+          {microphone && <span className="size-1.5 rounded-full bg-orange-400" title="Microphone in use" />}
+        </span>
+      </>
+    );
   }
 
   const leftNode = left && (

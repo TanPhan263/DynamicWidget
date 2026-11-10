@@ -8,3 +8,4 @@ pub mod pairing;
 pub mod settings_service;
 pub mod shortcut_service;
 pub mod system_monitor;
+pub mod weather;

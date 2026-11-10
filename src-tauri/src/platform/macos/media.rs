@@ -14,7 +14,12 @@ use crate::errors::{AppError, AppResult};
 /// Player name, process name, AppleScript application id, and the extra
 /// fields its script returns after `title<TAB>artist`.
 const PLAYERS: [(&str, &str, &str, &str); 2] = [
-    ("Spotify", "Spotify", "com.spotify.client", " & tab & (artwork url of current track)"),
+    (
+        "Spotify",
+        "Spotify",
+        "com.spotify.client",
+        " & tab & (artwork url of current track)",
+    ),
     // Music has no artwork URL; its cover is written to a file instead.
     ("Music", "Music", "com.apple.Music", ""),
 ];
@@ -106,7 +111,10 @@ fn download(url: &str) -> Option<String> {
         return None;
     }
     let mut bytes = Vec::new();
-    res.into_reader().take(ART_MAX + 1).read_to_end(&mut bytes).ok()?;
+    res.into_reader()
+        .take(ART_MAX + 1)
+        .read_to_end(&mut bytes)
+        .ok()?;
     if bytes.len() as u64 > ART_MAX {
         return None;
     }
@@ -130,7 +138,9 @@ pub fn control(player: &str, command: MediaCommand) -> AppResult<()> {
     if out.status.success() {
         Ok(())
     } else {
-        Err(AppError::Platform(String::from_utf8_lossy(&out.stderr).trim().to_string()))
+        Err(AppError::Platform(
+            String::from_utf8_lossy(&out.stderr).trim().to_string(),
+        ))
     }
 }
 

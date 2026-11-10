@@ -180,10 +180,12 @@ pub enum WidgetId {
     Stocks,
     /// The track playing, with play, pause and skip.
     Media,
+    /// Today's weather and the next days, from `weather`.
+    Weather,
 }
 
 impl WidgetId {
-    pub const ALL: [WidgetId; 8] = [
+    pub const ALL: [WidgetId; 9] = [
         WidgetId::Clock,
         WidgetId::Calendar,
         WidgetId::Timer,
@@ -192,6 +194,7 @@ impl WidgetId {
         WidgetId::Actions,
         WidgetId::Stocks,
         WidgetId::Media,
+        WidgetId::Weather,
     ];
 }
 
@@ -548,7 +551,8 @@ mod tests {
         assert_eq!(
             json["widgets"],
             serde_json::json!([
-                "clock", "calendar", "timer", "system", "notes", "actions", "stocks", "media"
+                "clock", "calendar", "timer", "system", "notes", "actions", "stocks", "media",
+                "weather"
             ])
         );
         assert_eq!(json["apiPort"], 47821);

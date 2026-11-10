@@ -1,4 +1,5 @@
-//! Whether sound is playing, from CoreAudio. Public API, no permission.
+//! Whether sound is playing or a microphone is recording, from CoreAudio.
+//! Public API, no permission.
 
 use std::ffi::c_void;
 use std::mem::size_of;
@@ -20,19 +21,60 @@ extern "C" {
         size: *mut u32,
         data: *mut c_void,
     ) -> i32;
+    fn AudioObjectGetPropertyDataSize(
+        object: u32,
+        address: *const PropertyAddress,
+        qualifier_size: u32,
+        qualifier: *const c_void,
+        size: *mut u32,
+    ) -> i32;
 }
 
 const SYSTEM_OBJECT: u32 = 1;
 const SCOPE_GLOBAL: u32 = u32::from_be_bytes(*b"glob");
 const DEFAULT_OUTPUT_DEVICE: u32 = u32::from_be_bytes(*b"dOut");
+const DEFAULT_INPUT_DEVICE: u32 = u32::from_be_bytes(*b"dIn ");
 const DEVICE_IS_RUNNING_SOMEWHERE: u32 = u32::from_be_bytes(*b"gone");
+/// macOS 14 and later list the processes using audio.
+const PROCESS_OBJECT_LIST: u32 = u32::from_be_bytes(*b"prs#");
+const PROCESS_IS_RUNNING_INPUT: u32 = u32::from_be_bytes(*b"piri");
 
-fn read_u32(object: u32, selector: u32) -> Option<u32> {
-    let address = PropertyAddress {
+fn global(selector: u32) -> PropertyAddress {
+    PropertyAddress {
         selector,
         scope: SCOPE_GLOBAL,
         element: 0,
+    }
+}
+
+/// An array of object ids, such as every process using audio.
+fn read_ids(object: u32, selector: u32) -> Option<Vec<u32>> {
+    let address = global(selector);
+    let mut size = 0u32;
+    // SAFETY: only the size is written.
+    let status =
+        unsafe { AudioObjectGetPropertyDataSize(object, &address, 0, std::ptr::null(), &mut size) };
+    if status != 0 {
+        return None;
+    }
+    let mut ids = vec![0u32; size as usize / size_of::<u32>()];
+    // SAFETY: `ids` holds `size` bytes, and CoreAudio writes at most `size`.
+    let status = unsafe {
+        AudioObjectGetPropertyData(
+            object,
+            &address,
+            0,
+            std::ptr::null(),
+            &mut size,
+            ids.as_mut_ptr().cast(),
+        )
     };
+    ids.truncate(size as usize / size_of::<u32>());
+    (status == 0).then_some(ids)
+}
+
+fn read_u32(object: u32, selector: u32) -> Option<u32> {
+    let address = global(selector);
     let mut value = 0u32;
     let mut size = size_of::<u32>() as u32;
     // SAFETY: `value` is a u32 and `size` says so; CoreAudio writes at most that.
@@ -58,8 +100,31 @@ pub fn output_running() -> bool {
         .is_some_and(|running| running != 0)
 }
 
+/// True while some app records from a microphone.
+pub fn input_running() -> bool {
+    match read_ids(SYSTEM_OBJECT, PROCESS_OBJECT_LIST) {
+        Some(processes) => processes
+            .into_iter()
+            .any(|p| read_u32(p, PROCESS_IS_RUNNING_INPUT).is_some_and(|r| r != 0)),
+        // shortcut: before macOS 14 only the whole device can be asked, so a
+        // headset playing music counts as recording; fine for old systems.
+        None => read_u32(SYSTEM_OBJECT, DEFAULT_INPUT_DEVICE)
+            .and_then(|device| read_u32(device, DEVICE_IS_RUNNING_SOMEWHERE))
+            .is_some_and(|running| running != 0),
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    /// The per-process list exists on macOS 14 and later; run with `--ignored`.
+    #[test]
+    #[ignore]
+    fn lists_audio_processes() {
+        let processes = super::read_ids(super::SYSTEM_OBJECT, super::PROCESS_OBJECT_LIST);
+        assert!(processes.is_some_and(|p| !p.is_empty()));
+        println!("microphone in use: {}", super::input_running());
+    }
+
     /// Plays a sound with `afplay`; run with `cargo test -- --ignored`.
     #[test]
     #[ignore]

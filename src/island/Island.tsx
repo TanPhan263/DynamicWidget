@@ -216,7 +216,13 @@ export function Island() {
     timer.state.status === "idle" &&
     state.unread === 0;
   const wings =
-    recordingSince !== null || timer.state.status !== "idle" || state.unread > 0 || barsInside || pinned !== null;
+    recordingSince !== null ||
+    timer.state.status !== "idle" ||
+    state.unread > 0 ||
+    barsInside ||
+    pinned !== null ||
+    !!snap?.stats.cameraInUse ||
+    !!snap?.stats.microphoneInUse;
 
   // Over a notch there is no room for the title, so a new track peeks once.
   const track = nowPlaying ? `${nowPlaying.app}\n${nowPlaying.title}` : null;
