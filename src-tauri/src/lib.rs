@@ -104,6 +104,8 @@ pub fn run() {
             commands::open_stock_page,
             commands::media_control,
             commands::get_weather,
+            commands::get_background_image,
+            commands::set_background_image,
         ])
         .build(tauri::generate_context!())
         .expect("error while building Islet");

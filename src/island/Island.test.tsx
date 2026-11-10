@@ -432,6 +432,26 @@ describe("Island", () => {
     expect(container.querySelector(".island")).toHaveClass("compact");
   });
 
+  it("colors the floating island with the theme, but keeps the notch black", async () => {
+    const snap = baseSnapshot();
+    snap.layout = { platform: "windows", notch: null, menuBarHeight: 0 };
+    snap.settings.islandStyle = "island";
+    snap.settings.theme = "midnight";
+    resetMock(snap);
+    const { container, unmount } = render(<Island />);
+    await flush();
+    const island = container.querySelector<HTMLElement>(".island")!;
+    expect(island.style.backgroundColor).toBe("rgb(10, 16, 36)");
+    unmount();
+
+    const notch = baseSnapshot();
+    notch.settings.theme = "midnight";
+    resetMock(notch);
+    const second = render(<Island />);
+    await flush();
+    expect(second.container.querySelector<HTMLElement>(".island")!.style.backgroundColor).toBe("");
+  });
+
   it("draws an empty floating capsule with the Dynamic Island style", async () => {
     const snap = baseSnapshot();
     snap.layout = { platform: "windows", notch: null, menuBarHeight: 0 };

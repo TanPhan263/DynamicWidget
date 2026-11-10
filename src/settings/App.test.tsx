@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { baseSnapshot, invoked, resetMock } from "../test/tauriMock";
+import { baseSnapshot, invoked, resetMock, setMockBackground } from "../test/tauriMock";
 import { App } from "./App";
 
 vi.mock("@tauri-apps/api/core", async () => (await import("../test/tauriMock")).coreModule);
@@ -29,6 +29,59 @@ describe("Settings", () => {
     await flush();
     const save = invoked.find((c) => c.cmd === "save_settings");
     expect(save?.args).toMatchObject({ settings: { expandTrigger: "click" } });
+  });
+
+  it("picks a theme", async () => {
+    render(<App />);
+    await flush();
+    expect(screen.getByRole("radio", { name: "Graphite" })).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(screen.getByRole("radio", { name: "Midnight" }));
+    await flush();
+    const save = invoked.find((c) => c.cmd === "save_settings");
+    expect((save?.args as { settings: { theme: string } }).settings.theme).toBe("midnight");
+  });
+
+  it("shows a place for each picture when Picture is picked, without opening anything", async () => {
+    render(<App />);
+    await flush();
+    fireEvent.click(screen.getByRole("radio", { name: "Picture" }));
+    await flush();
+    const save = invoked.find((c) => c.cmd === "save_settings");
+    expect((save?.args as { settings: { theme: string } }).settings.theme).toBe("picture");
+    expect(screen.getByRole("button", { name: "Choose panel picture" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Choose island picture" })).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("keeps separate panel and island pictures, and removing one keeps Picture picked", async () => {
+    const snap = baseSnapshot();
+    snap.settings.theme = "picture";
+    snap.settings.islandStyle = "island";
+    resetMock(snap);
+    setMockBackground("panel", "data:image/png;base64,AA");
+    render(<App />);
+    await flush();
+    // No island picture yet: it borrows the panel's, so there is nothing to remove.
+    expect(screen.getByText("Uses the panel picture until you choose one.", { exact: false })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Remove island picture" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Remove panel picture" }));
+    await flush();
+    expect(invoked).toContainEqual({ cmd: "set_background_image", args: { slot: "panel", image: null } });
+    expect(invoked.some((c) => c.cmd === "save_settings")).toBe(false);
+    expect(await screen.findByRole("button", { name: "Choose panel picture" })).toBeTruthy();
+  });
+
+  it("asks to frame a chosen picture before saving it", async () => {
+    render(<App />);
+    await flush();
+    const file = new File([new Uint8Array([0xff, 0xd8, 0xff])], "beach.jpg", { type: "image/jpeg" });
+    fireEvent.change(screen.getByLabelText("Choose a background picture"), { target: { files: [file] } });
+    const dialog = await screen.findByRole("dialog", { name: "Frame the panel picture" });
+    expect(dialog).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await flush();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(invoked.some((c) => c.cmd === "set_background_image")).toBe(false);
   });
 
   it("switches to the Dynamic Island style", async () => {

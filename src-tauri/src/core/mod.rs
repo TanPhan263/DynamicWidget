@@ -1,3 +1,4 @@
+pub mod background;
 pub mod geometry;
 pub mod http_api;
 pub mod island;

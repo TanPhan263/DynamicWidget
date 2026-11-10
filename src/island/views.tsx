@@ -287,13 +287,16 @@ interface PeekProps {
   onDismiss: () => void;
 }
 
+/** Pages on this computer are named by their host ("localhost"), which says nothing; leave it out. */
+const LOCAL_HOST = /^(localhost|127\.0\.0\.1|\[::1\])$/;
+
 export function Peek({ n, topInset, now, onDismiss }: PeekProps) {
   return (
     <div className="flex h-full items-center gap-3 pr-3 pl-4" style={{ paddingTop: topInset }}>
       <NotificationIcon n={n} size={38} />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-1.5 text-[11px]">
-          <span className="font-medium text-white/60">{n.app}</span>
+          {!LOCAL_HOST.test(n.app) && <span className="font-medium text-white/60">{n.app}</span>}
           <span className="text-white/35">{relativeTime(n.createdAt, now)}</span>
         </div>
         <div className="truncate text-[13px] font-semibold tracking-tight">{n.title}</div>
@@ -323,7 +326,6 @@ interface ExpandedProps {
   stats: SystemStats;
   timer: TimerApi;
   now: Date;
-  apiUrl: string | null;
   onToggleDnd: () => void;
   onSettings: () => void;
   onDismiss: (id: number) => void;
@@ -336,8 +338,8 @@ interface ExpandedProps {
   actions: QuickActionsApi;
   stocks: StocksApi;
   media: MediaApi;
-  /** "r g b" of the glow behind the tiles. */
-  ambient: string;
+  /** The panel's background (CSS), from the theme; seen through the tiles. */
+  backdrop: string;
   /** The widgets are taller than the screen allows, so they scroll. */
   scroll: boolean;
 }
@@ -351,17 +353,8 @@ export function Expanded(p: ExpandedProps) {
   const count = p.notifications.length;
   return (
     <div className="relative isolate flex h-full flex-col gap-2.5 p-3.5" style={{ paddingTop: p.topInset + PADDING }}>
-      {/* Panel backdrop the frosted tiles blur. */}
-      <motion.div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10"
-        initial={false}
-        animate={{
-          // Black at the top (it meets the notch), graphite below, and a faint wash of the cover's color rising from the bottom.
-          background: `radial-gradient(90% 55% at 50% 110%, rgb(${p.ambient} / 0.14), transparent 70%), linear-gradient(180deg, #000 0%, #0b0b0d 45%, #111114 100%)`,
-        }}
-        transition={{ duration: 0.8 }}
-      />
+      {/* Panel backdrop, seen through the tiles. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10" style={{ background: p.backdrop }} />
       <header className="flex h-[30px] shrink-0 items-center justify-between">
         <div className="flex gap-0.5 rounded-full bg-white/[0.06] p-0.5 ring-1 ring-white/[0.06] ring-inset" role="tablist">
           {TABS.map((t) => {
@@ -451,7 +444,6 @@ export function Expanded(p: ExpandedProps) {
             <NotificationList
               notifications={p.notifications}
               now={p.now.getTime()}
-              apiUrl={p.apiUrl}
               onDismiss={p.onDismiss}
               onClearAll={p.onClearAll}
             />
@@ -477,25 +469,17 @@ function Empty({ icon: Icon, title, children }: { icon: typeof Bell; title: stri
 function NotificationList({
   notifications,
   now,
-  apiUrl,
   onDismiss,
   onClearAll,
 }: {
   notifications: IslandNotification[];
   now: number;
-  apiUrl: string | null;
   onDismiss: (id: number) => void;
   onClearAll: () => void;
 }) {
   if (notifications.length === 0) {
     return (
-      <Empty icon={Inbox} title="You're all caught up">
-        {apiUrl && (
-          <p className="max-w-xs text-xs text-white/45">
-            Scripts can send notifications to <code className="font-mono text-[11px] text-white/85">{apiUrl}/v1/notify</code>
-          </p>
-        )}
-      </Empty>
+      <Empty icon={Inbox} title="You're all caught up" />
     );
   }
   return (
@@ -515,7 +499,7 @@ function NotificationList({
               <NotificationIcon n={n} size={34} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-1.5 text-[11px]">
-                  <span className="font-medium text-white/60">{n.app}</span>
+                  {!LOCAL_HOST.test(n.app) && <span className="font-medium text-white/60">{n.app}</span>}
                   <span className="text-white/35">{relativeTime(n.createdAt, now)}</span>
                 </div>
                 <div className="truncate text-[13px] font-semibold tracking-tight">{n.title}</div>

@@ -55,9 +55,9 @@ export const widgetItem = {
 /** Card label: quiet text, no icon, so the content leads. */
 export const LABEL = "text-[10px] font-semibold tracking-[0.12em] text-white/40 uppercase";
 
-/** Frosted tile: it blurs the panel's ambient glow behind it. */
+/** Glass tile: a dark layer under a faint white tint, over a soft blur of the background, keeps widgets readable over any theme or picture. */
 export const TILE =
-  "rounded-[18px] bg-white/[0.05] ring-1 ring-white/[0.07] ring-inset shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] backdrop-blur-xl";
+  "rounded-[18px] bg-black/30 bg-[linear-gradient(rgb(255_255_255/0.05),rgb(255_255_255/0.05))] ring-1 ring-white/[0.07] ring-inset shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] backdrop-blur-md";
 
 /** Round glass button used for controls inside tiles. */
 const GLASS_BUTTON =
@@ -145,7 +145,7 @@ export function CalendarWidget({ now, span }: { now: Date } & SpanProps) {
     // Today's date large on the left, the month beside it.
     return (
       <Card className="flex-row gap-4 px-3 py-2">
-        <div className="flex w-24 shrink-0 flex-col justify-center">
+        <div className="flex w-24 shrink-0 flex-col justify-start">
           <div className="text-[11px] font-medium text-red-400 uppercase">{now.toLocaleDateString(undefined, { weekday: "long" })}</div>
           <div className="text-5xl leading-none font-light tracking-tight tabular-nums">{now.getDate()}</div>
           <div className="mt-1 text-xs text-white/45">

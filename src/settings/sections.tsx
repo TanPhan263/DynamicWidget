@@ -9,15 +9,17 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { openExtensionFolder, replaceBrowserToken, resetSettings, sendTestNotification } from "../shared/commands";
+import { openExtensionFolder, replaceBrowserToken, resetSettings, sendTestNotification, setBackgroundImage } from "../shared/commands";
 import {
   API_PORT_RANGE,
+  errorMessage,
   ISLAND_SIZE_RANGE,
   MAX_ISLAND_STOCKS,
   MAX_SYMBOLS,
   normalizeSymbol,
   PANEL_SIZE_RANGE,
   NOTIFICATION_SECONDS_RANGE,
+  type BackgroundSlot,
   type BarsPosition,
   type ExpandTrigger,
   type MusicBarsSettings,
@@ -26,6 +28,9 @@ import {
 import { BAR_PRESETS, MusicBars } from "../island/MusicBars";
 import { Row, RowCard, Section } from "./layout";
 import { StylePicker } from "./StylePicker";
+import { ThemePicker } from "./ThemePicker";
+import { readPicture, useBackgroundImages } from "../shared/background";
+import { CropDialog } from "./CropDialog";
 import type { SnapshotApi } from "./useSnapshot";
 import { WidgetList } from "./WidgetList";
 
@@ -115,6 +120,9 @@ function SizeSlider({ label, range, value, onChange }: SizeSliderProps) {
 
 export function GeneralSection({ snap, api }: Props) {
   const s = snap.settings;
+  const pictures = useBackgroundImages();
+  // A chosen picture waiting to be framed.
+  const [crop, setCrop] = useState<{ slot: BackgroundSlot; src: string } | null>(null);
   const isMac = snap.platform === "macos";
   return (
     <div className="space-y-8">
@@ -132,6 +140,46 @@ export function GeneralSection({ snap, api }: Props) {
             <SizeSlider label="Panel" range={PANEL_SIZE_RANGE} value={s.panelSize} onChange={(panelSize) => api.update({ panelSize })} />
           </Row>
         </RowCard>
+      </Section>
+
+      <Section
+        title="Theme"
+        description={
+          s.islandStyle === "notch"
+            ? "The open panel's background. The closed island stays black to match the notch, unless you choose Picture."
+            : "The background of the island and the open panel."
+        }
+      >
+        <ThemePicker
+          value={s.theme}
+          onChange={(theme) => api.update({ theme })}
+          pictures={pictures}
+          onPicture={(slot, file) => {
+            readPicture(file)
+              .then((src) => setCrop({ slot, src }))
+              .catch((e: unknown) => api.setError(errorMessage(e)));
+          }}
+          onRemovePicture={(slot) => {
+            setBackgroundImage(slot, null).catch((e: unknown) => api.setError(errorMessage(e)));
+          }}
+        />
+        {crop && (
+          <CropDialog
+            slot={crop.slot}
+            src={crop.src}
+            onCancel={() => setCrop(null)}
+            onError={(message) => {
+              setCrop(null);
+              api.setError(message);
+            }}
+            onSave={(image) => {
+              setCrop(null);
+              setBackgroundImage(crop.slot, image)
+                .then(() => api.update({ theme: "picture" }))
+                .catch((e: unknown) => api.setError(errorMessage(e)));
+            }}
+          />
+        )}
       </Section>
 
       <Section title="Behavior">

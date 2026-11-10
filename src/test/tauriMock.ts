@@ -7,6 +7,12 @@ type Listener = (e: { payload: unknown }) => void;
 const listeners = new Map<string, Set<Listener>>();
 export const invoked: { cmd: string; args?: unknown }[] = [];
 let snapshot: UiSnapshot;
+let background: Record<string, string | null> = {};
+
+/** A background picture the fake core has saved. */
+export function setMockBackground(slot: "panel" | "island", image: string | null) {
+  background[slot] = image;
+}
 
 export function baseSnapshot(): UiSnapshot {
   return {
@@ -14,6 +20,7 @@ export function baseSnapshot(): UiSnapshot {
       schemaVersion: 1,
       expandTrigger: "hover",
       islandStyle: "notch",
+      theme: "graphite",
       islandSize: 100,
       panelSize: 100,
       toggleShortcut: "CommandOrControl+Shift+Space",
@@ -77,6 +84,7 @@ export function baseSnapshot(): UiSnapshot {
 
 export function resetMock(snap: UiSnapshot = baseSnapshot()) {
   snapshot = snap;
+  background = {};
   listeners.clear();
   invoked.length = 0;
 }
@@ -123,6 +131,12 @@ export const coreModule = {
             { date: "2026-11-12", highC: 28, lowC: 23, code: 116 },
           ],
         };
+      case "get_background_image":
+        return background[args!.slot as string] ?? null;
+      case "set_background_image":
+        background[args!.slot as string] = (args!.image as string | null) ?? null;
+        emit("background-changed", { slot: args!.slot, image: background[args!.slot as string] });
+        return undefined;
       case "open_extension_folder":
         return "/Applications/Islet.app/Contents/Resources/extension";
       default:

@@ -41,6 +41,27 @@ pub enum IslandStyle {
     Island,
 }
 
+/// The background of the open panel and the floating island. The page
+/// holds the colors; the core only stores the choice.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum IslandTheme {
+    Black,
+    Midnight,
+    Aurora,
+    Ember,
+    Slate,
+    /// Nearly clear: the desktop shows through.
+    Glass,
+    /// The user's own picture, saved by `background`.
+    Picture,
+    /// Black into graphite, tinted by the playing cover. Last so unknown
+    /// names (from newer versions) can load as this.
+    #[default]
+    #[serde(other)]
+    Graphite,
+}
+
 /// Smallest and largest island size, in percent of the default size.
 pub const ISLAND_SIZE_RANGE: (u8, u8) = (50, 150);
 /// The open panel gets cramped below this.
@@ -204,6 +225,8 @@ pub struct SettingsV1 {
     pub schema_version: u32,
     pub expand_trigger: ExpandTrigger,
     pub island_style: IslandStyle,
+    /// Background of the open panel and the floating island.
+    pub theme: IslandTheme,
     /// The closed island and notifications.
     pub island_size: IslandSize,
     /// The open panel with notifications and widgets.
@@ -241,6 +264,7 @@ impl Default for SettingsV1 {
             schema_version: CURRENT_SCHEMA_VERSION,
             expand_trigger: ExpandTrigger::Hover,
             island_style: IslandStyle::Notch,
+            theme: IslandTheme::Graphite,
             island_size: IslandSize::default(),
             panel_size: IslandSize::default(),
             toggle_shortcut: "CommandOrControl+Shift+Space".into(),
@@ -543,6 +567,7 @@ mod tests {
         assert_eq!(json["schemaVersion"], 1);
         assert_eq!(json["expandTrigger"], "hover");
         assert_eq!(json["islandStyle"], "notch");
+        assert_eq!(json["theme"], "graphite");
         assert_eq!(json["islandSize"], 100);
         assert_eq!(json["panelSize"], 100);
         assert_eq!(json["widgetSizes"], serde_json::json!({}));
@@ -837,5 +862,13 @@ mod tests {
         assert_eq!(out.settings.notification_seconds, 30);
         assert_eq!(out.settings.expand_trigger, ExpandTrigger::Click);
         assert_eq!(out.settings.api_port, 47821);
+    }
+
+    #[test]
+    fn unknown_themes_load_as_graphite() {
+        let s: Settings = serde_json::from_str(r#"{"theme":"neon"}"#).unwrap();
+        assert_eq!(s.theme, IslandTheme::Graphite);
+        let s: Settings = serde_json::from_str(r#"{"theme":"aurora"}"#).unwrap();
+        assert_eq!(s.theme, IslandTheme::Aurora);
     }
 }

@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  BackgroundSlot,
   IslandNotification,
   MediaCommand,
   NotificationInput,
@@ -52,6 +53,13 @@ export const runQuickAction = (action: QuickAction) => invoke<boolean | null>("r
 /** Plays, pauses or skips on the player the Now playing widget shows. */
 export const mediaControl = (track: NowPlaying, command: MediaCommand) =>
   invoke<void>("media_control", { player: track.app, command, browser: track.browser });
+
+/** A background picture as a data URL, or null. */
+export const getBackgroundImage = (slot: BackgroundSlot) => invoke<string | null>("get_background_image", { slot });
+
+/** Saves a JPEG or PNG data URL as a background picture, or removes it with null. */
+export const setBackgroundImage = (slot: BackgroundSlot, image: string | null) =>
+  invoke<void>("set_background_image", { slot, image });
 
 /** Today's weather; the core asks wttr.in at most every 15 minutes. */
 export const getWeather = () => invoke<Weather>("get_weather");

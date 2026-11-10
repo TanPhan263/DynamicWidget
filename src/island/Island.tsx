@@ -32,6 +32,8 @@ import {
 } from "./geometry";
 import { initialState, reduce, viewOf } from "./islandState";
 import { useTimer } from "./useTimer";
+import { useBackgroundImages } from "../shared/background";
+import { themeLook } from "../shared/themes";
 import { useAmbient } from "./ambient";
 import { MusicBars } from "./MusicBars";
 import { Compact, Expanded, Peek } from "./views";
@@ -217,6 +219,10 @@ export function Island() {
   }, [nowPlaying]);
   // The open panel glows in the color of the cover.
   const ambient = useAmbient((nowPlaying ?? recentTrack)?.image);
+  const look = themeLook(settings?.theme);
+  const pictures = useBackgroundImages();
+  const islandPicture = pictures.island ?? pictures.panel;
+  const pictureSize = useImageSize(islandPicture);
   const playing = !!bars?.enabled && ((snap?.stats.audioPlaying ?? false) || nowPlaying !== null);
   const barsInside = playing && bars?.position === "inside";
   const barsBelow = playing && bars?.position === "below";
@@ -288,6 +294,26 @@ export function Island() {
     ? islandBox(shape, view, { wings, rows, scale, title: titlePinned, controls: titlePinned, screenHeight })
     : null;
   const inner = shape ? contentShape(shape, scale) : null;
+  // A closed notch island with a picture: the picture runs on into the ears, so both place it
+  // in pixels, covering the shell and its ears together, instead of each covering its own box.
+  // `dx` is the element's left edge relative to the left ear's.
+  const ear = (view !== "compact" ? EAR_BIG : EAR) * scale;
+  const pictureAt =
+    shape?.attached && box && view !== "expanded" && settings?.theme === "picture" && islandPicture && pictureSize
+      ? (dx: number) => {
+          const wide = box.width + 2 * ear;
+          const s = Math.max(wide / pictureSize.width, box.height / pictureSize.height);
+          const w = pictureSize.width * s;
+          const h = pictureSize.height * s;
+          return look.island(islandPicture, `${(wide - w) / 2 - dx}px ${(box.height - h) / 2}px / ${w}px ${h}px no-repeat`);
+        }
+      : null;
+  const earStyle = (side: "left" | "right") => {
+    const corner = `circle farthest-side at ${side === "left" ? 0 : 100}% 100%`;
+    if (!pictureAt) return { background: `radial-gradient(${corner}, transparent 96%, #000 100%)` };
+    const mask = `radial-gradient(${corner}, transparent 96%, #000 100%)`;
+    return { background: pictureAt(side === "left" ? 0 : box!.width + ear), maskImage: mask, WebkitMaskImage: mask };
+  };
 
   // Tell the core where the island is, so only that area takes clicks.
   // While a widget is being dragged the whole window keeps the pointer, so
@@ -370,14 +396,8 @@ export function Island() {
           }}
           transition={spring}
         >
-          <span
-            className="absolute inset-y-0 left-0 aspect-square"
-            style={{ background: "radial-gradient(circle farthest-side at 0 100%, transparent 96%, #000 100%)" }}
-          />
-          <span
-            className="absolute inset-y-0 right-0 aspect-square"
-            style={{ background: "radial-gradient(circle farthest-side at 100% 100%, transparent 96%, #000 100%)" }}
-          />
+          <span className="absolute inset-y-0 left-0 aspect-square" style={earStyle("left")} />
+          <span className="absolute inset-y-0 right-0 aspect-square" style={earStyle("right")} />
         </motion.div>
       )}
       <motion.div
@@ -393,7 +413,18 @@ export function Island() {
             ? "shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_24px_60px_rgba(0,0,0,0.55)]"
             : !shape.attached && "shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_6px_18px_rgba(0,0,0,0.3)]",
         )}
-        style={{ transformOrigin: "50% 0%", width: shellWidth }}
+        style={{
+          transformOrigin: "50% 0%",
+          width: shellWidth,
+          // Glass clears the shell under the open panel so the desktop shows. The notch style stays
+          // black to merge with the notch, unless the user chose a picture for it.
+          background:
+            view === "expanded" && settings?.theme === "glass"
+              ? "transparent"
+              : shape.attached && settings?.theme !== "picture"
+                ? undefined
+                : (pictureAt?.(ear) ?? look.island(islandPicture)),
+        }}
         initial={false}
         animate={{
           top: box.y,
@@ -467,7 +498,6 @@ export function Island() {
             stats={snap.stats}
             timer={timer}
             now={now}
-            apiUrl={snap.api.url}
             onToggleDnd={() => {
               setDoNotDisturb(!settings.doNotDisturb).then(setSnap).catch(() => {});
             }}
@@ -496,7 +526,7 @@ export function Island() {
                 });
               },
             }}
-            ambient={ambient}
+            backdrop={look.panel(ambient, pictures.panel)}
             scroll={panelScrolls}
             media={{
               track: nowPlaying ?? recentTrack,
@@ -553,4 +583,16 @@ export function Island() {
       </AnimatePresence>
     </>
   );
+}
+
+/** A picture's natural size once it loads, for placing it in pixels. */
+function useImageSize(src: string | null) {
+  const [size, setSize] = useState<{ src: string; width: number; height: number } | null>(null);
+  useEffect(() => {
+    if (!src) return;
+    const img = new Image();
+    img.onload = () => setSize({ src, width: img.naturalWidth, height: img.naturalHeight });
+    img.src = src;
+  }, [src]);
+  return size && size.src === src ? size : null;
 }

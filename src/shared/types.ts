@@ -2,6 +2,10 @@
 
 export type ExpandTrigger = "hover" | "click";
 export type IslandStyle = "notch" | "island";
+/** Which background a picture is for: the wide open panel or the thin floating island. */
+export type BackgroundSlot = "panel" | "island";
+
+export type IslandTheme = "graphite" | "black" | "midnight" | "aurora" | "ember" | "slate" | "glass" | "picture";
 /** Grid cells a widget covers: 1–3 columns, 1–2 rows. */
 export interface WidgetSpan {
   cols: number;
@@ -118,6 +122,8 @@ export interface Settings {
   schemaVersion: number;
   expandTrigger: ExpandTrigger;
   islandStyle: IslandStyle;
+  /** Background of the open panel and the floating island; see shared/themes. */
+  theme: IslandTheme;
   /** Closed island and notification scale in percent, within ISLAND_SIZE_RANGE. */
   islandSize: number;
   /** Open panel scale in percent, within PANEL_SIZE_RANGE. */

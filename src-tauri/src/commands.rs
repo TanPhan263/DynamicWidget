@@ -5,6 +5,7 @@ use tauri::{AppHandle, Emitter};
 use tauri_plugin_autostart::ManagerExt;
 
 use crate::actions::{self, SHORTCUT_CONFLICT};
+use crate::core::background;
 use crate::core::geometry::Rect;
 use crate::core::island::{MAX_WINDOW_HEIGHT, WINDOW_WIDTH};
 use crate::core::market;
@@ -120,6 +121,44 @@ pub async fn dismiss_error(app: AppHandle) -> AppResult<UiSnapshot> {
         i.warnings.clear();
     });
     Ok(st.snapshot())
+}
+
+/// Sent as `{ slot, image }` (image is a data URL or null) when a background picture changes.
+pub const BACKGROUND_CHANGED: &str = "background-changed";
+
+#[derive(Clone, serde::Serialize)]
+struct BackgroundChanged {
+    slot: background::Slot,
+    image: Option<String>,
+}
+
+fn background_file(app: &AppHandle, slot: background::Slot) -> std::path::PathBuf {
+    let settings = actions::state(app).store.path();
+    background::path(settings.parent().unwrap_or(std::path::Path::new(".")), slot)
+}
+
+/// A background picture as a data URL, if one is saved for `slot`.
+#[tauri::command]
+pub async fn get_background_image(
+    app: AppHandle,
+    slot: background::Slot,
+) -> AppResult<Option<String>> {
+    Ok(background::load(&background_file(&app, slot)))
+}
+
+/// Saves a picture (a JPEG or PNG data URL) as the background for `slot`, or removes it.
+#[tauri::command]
+pub async fn set_background_image(
+    app: AppHandle,
+    slot: background::Slot,
+    image: Option<String>,
+) -> AppResult<()> {
+    let bytes = image.as_deref().map(background::decode).transpose()?;
+    let file = background_file(&app, slot);
+    background::save(&file, bytes.as_deref())?;
+    let image = background::load(&file);
+    let _ = app.emit(BACKGROUND_CHANGED, BackgroundChanged { slot, image });
+    Ok(())
 }
 
 /// The island page reports the area it covers whenever its shape changes.
