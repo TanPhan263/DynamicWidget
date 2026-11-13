@@ -1,4 +1,4 @@
-import { getSettings, sendMedia, sendNotification, setStatus, takeMediaCommand } from "./lintel.js";
+import { autoPair, pairedSettings, sendMedia, sendNotification, setStatus, takeMediaCommand } from "./lintel.js";
 import { shortHost, siteFor } from "./sites.js";
 
 /** At most this many notifications per site per minute reach Lintel. */
@@ -25,10 +25,22 @@ chrome.runtime.onMessage.addListener((message, sender) => {
   // Those are named after the frame's own site, never the tab's.
   if (message?.type === "notification") forward(message, sender.url ?? sender.tab.url).catch(() => {});
   if (message?.type === "media" && sender.frameId === 0) {
-    mediaTab = { id: sender.tab.id, at: Date.now() };
+    // Only a playing tab takes the buttons; a stop counts only from that tab.
+    if (message.playing === true) mediaTab = { id: sender.tab.id, at: Date.now() };
+    else if (sender.tab.id !== mediaTab?.id) return;
     forwardMedia(message, sender.tab.url).catch(() => {});
   }
 });
+
+// Fetch the current token and port whenever the extension loads or the browser starts.
+chrome.runtime.onInstalled.addListener(() => autoPair().catch(() => {}));
+chrome.runtime.onStartup.addListener(() => autoPair().catch(() => {}));
+
+/** Lintel turned the token down, or isn't on the saved port: fetch both again for next time. */
+async function report(status) {
+  await setStatus(status);
+  if ((status === "unpaired" || status === "offline") && (await autoPair())) await setStatus("ok");
+}
 
 // Each poll calls an extension API, which also keeps this worker alive
 // while a tab can still be controlled.
@@ -36,7 +48,7 @@ setInterval(() => pollMediaCommand().catch(() => {}), COMMAND_POLL_MS);
 
 async function pollMediaCommand() {
   if (!mediaTab || Date.now() - mediaTab.at > COMMAND_WINDOW_MS) return;
-  const settings = await getSettings();
+  const settings = await pairedSettings();
   if (!settings.enabled || !settings.token) return;
   const command = await takeMediaCommand(settings);
   if (command) await chrome.tabs.sendMessage(mediaTab.id, { type: "media-command", command }, { frameId: 0 });
@@ -58,7 +70,7 @@ function duplicate(key, now) {
 }
 
 async function forward(message, tabUrl) {
-  const settings = await getSettings();
+  const settings = await pairedSettings();
   if (!settings.enabled || !settings.token) return;
   let url;
   try {
@@ -84,17 +96,17 @@ async function forward(message, tabUrl) {
     accent: site?.accent,
     image: (await iconFor(url)) ?? undefined,
   });
-  await setStatus(status);
+  await report(status);
 }
 
 /** What a tab plays, with the site's name and icon. */
 async function forwardMedia(message, tabUrl) {
-  const settings = await getSettings();
+  const settings = await pairedSettings();
   if (!settings.enabled || !settings.token) return;
   const url = new URL(tabUrl);
   if (settings.muted.includes(url.hostname)) return;
   const playing = message.playing === true;
-  await setStatus(
+  await report(
     await sendMedia(settings, {
       title: String(message.title ?? "").slice(0, 200),
       artist: String(message.artist ?? "").slice(0, 200),

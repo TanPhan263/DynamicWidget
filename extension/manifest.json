@@ -3,6 +3,7 @@
   "name": "Lintel",
   "description": "Shows notifications from websites like Gmail, Slack and Facebook in the Lintel island.",
   "version": "0.1.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5sa98vqyDAWrcfLCt9UtGjOCbaG7SLuBGT18AMNv32uCUM5MjczF3I+rtYg8Llp1/w2TGmb1ihb1OFdC/UX2a38K45auQ7bjw18DmDxdx49W/1AtmbTWIqBTc3U/wb/9iasSVzxH9IhALcF2J59NyOVGGunIWMfRWsOPe098YU8ylrqyDP0cypnI2LTJHGg7SqGsaWGqfmGkoZTqV4GdLszEcif4/OIqH8kNkstgPQE5zNaUH2nf05K8/jjhA2XpBbmWwhpONoz1g4GcmENRYZHWK/i8Ub5Ej+FFYLzyiYybMX0L2zrHK4rdZukS1QKmoHewKKJW5GVwQi0KPrH52QIDAQAB",
   "minimum_chrome_version": "111",
   "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },
   "action": {
@@ -11,7 +12,7 @@
     "default_icon": { "16": "icons/16.png", "32": "icons/32.png" }
   },
   "background": { "service_worker": "background.js", "type": "module" },
-  "permissions": ["storage", "favicon", "activeTab"],
+  "permissions": ["storage", "favicon", "activeTab", "nativeMessaging"],
   "host_permissions": ["http://127.0.0.1/*"],
   "content_scripts": [
     {

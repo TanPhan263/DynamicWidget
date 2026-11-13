@@ -130,3 +130,93 @@ describe("sites.js", () => {
     expect(shortHost("www.example.com")).toBe("example.com");
   });
 });
+
+describe("auto-pairing", () => {
+  function fakeChrome({ reply, token = "" }) {
+    const store = { token };
+    globalThis.chrome = {
+      storage: {
+        local: {
+          get: async (keys) => Object.fromEntries(keys.filter((k) => k in store).map((k) => [k, store[k]])),
+          set: async (v) => Object.assign(store, v),
+        },
+      },
+      runtime: {
+        sendNativeMessage: vi.fn(async () => {
+          if (reply instanceof Error) throw reply;
+          return reply;
+        }),
+      },
+    };
+    return store;
+  }
+
+  it("saves the token and port Lintel hands over", async () => {
+    const store = fakeChrome({ reply: { token: "abc123", port: 50000 } });
+    const { pairedSettings } = await import("./lintel.js");
+    const settings = await pairedSettings();
+    expect(settings).toMatchObject({ token: "abc123", port: 50000 });
+    expect(store.token).toBe("abc123");
+    expect(chrome.runtime.sendNativeMessage).toHaveBeenCalledWith("app.lintel.bridge", { type: "pair" });
+  });
+
+  it("keeps a token it already has and falls back when Lintel can't be reached", async () => {
+    fakeChrome({ reply: { token: "new" }, token: "kept" });
+    const { autoPair, pairedSettings } = await import("./lintel.js");
+    expect((await pairedSettings()).token).toBe("kept");
+    expect(chrome.runtime.sendNativeMessage).not.toHaveBeenCalled();
+    fakeChrome({ reply: new Error("Specified native messaging host not found.") });
+    expect(await autoPair()).toBe(false);
+  });
+});
+
+describe("background.js", () => {
+  async function loadWorker() {
+    const store = { token: "old", port: 47821 };
+    const on = {};
+    const listener = (name) => ({ addListener: (fn) => (on[name] = fn) });
+    globalThis.chrome = {
+      storage: {
+        local: {
+          get: async (keys) => Object.fromEntries(keys.filter((k) => k in store).map((k) => [k, store[k]])),
+          set: async (v) => Object.assign(store, v),
+        },
+        session: { set: async () => {} },
+      },
+      action: { setBadgeText: async () => {}, setBadgeBackgroundColor: async () => {} },
+      runtime: {
+        onMessage: listener("message"),
+        onInstalled: listener("installed"),
+        onStartup: listener("startup"),
+        sendNativeMessage: vi.fn(async () => ({ token: "new", port: 50000 })),
+      },
+    };
+    globalThis.fetch = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({}) }));
+    vi.resetModules();
+    await import("./background.js");
+    return { store, on };
+  }
+  const settle = () => new Promise((r) => setTimeout(r, 0));
+
+  it("asks Lintel for the current token and port on load, even with one saved", async () => {
+    const { store, on } = await loadWorker();
+    on.installed();
+    await settle();
+    expect(store).toMatchObject({ token: "new", port: 50000 });
+  });
+
+  it("ignores a stop from a tab other than the playing one", async () => {
+    const { on } = await loadWorker();
+    const media = (id, playing) =>
+      on.message({ type: "media", title: "x", playing }, { tab: { id, url: "https://a.example/" }, frameId: 0 });
+    media(1, true);
+    await settle();
+    const sends = fetch.mock.calls.length;
+    media(2, false);
+    await settle();
+    expect(fetch.mock.calls.length).toBe(sends);
+    media(1, false);
+    await settle();
+    expect(fetch.mock.calls.length).toBe(sends + 1);
+  });
+});

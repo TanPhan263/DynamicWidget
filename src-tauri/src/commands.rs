@@ -28,12 +28,6 @@ pub async fn save_settings(app: AppHandle, settings: Settings) -> AppResult<UiSn
     Ok(actions::state(&app).snapshot())
 }
 
-#[tauri::command]
-pub async fn replace_browser_token(app: AppHandle) -> AppResult<UiSnapshot> {
-    actions::replace_browser_token(&app)?;
-    Ok(actions::state(&app).snapshot())
-}
-
 /// Returns the new state of a toggle, when it is known.
 #[tauri::command]
 pub async fn run_quick_action(app: AppHandle, action: QuickAction) -> AppResult<Option<bool>> {

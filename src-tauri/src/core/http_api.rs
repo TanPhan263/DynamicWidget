@@ -114,7 +114,7 @@ pub fn route(req: &ApiRequest, port: u16, token: &str) -> Result<Route, Rejectio
         _ => {
             return Err(reject(
                 401,
-                "Not paired. Copy the token from Lintel Settings → Browser into the extension",
+                "Not paired. Reload the extension, or reinstall Lintel",
             ))
         }
     };

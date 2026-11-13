@@ -4,6 +4,7 @@ pub mod http_api;
 pub mod island;
 pub mod market;
 pub mod media;
+pub mod native_host;
 pub mod notifications;
 pub mod pairing;
 pub mod settings_service;

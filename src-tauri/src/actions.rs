@@ -173,16 +173,6 @@ fn browser_token(app: &AppHandle) -> TokenSource {
     Arc::new(move || state(&app).read(|i| i.browser_token.clone()))
 }
 
-/// Makes a new pairing token, unpairing browsers that use the old one.
-pub fn replace_browser_token(app: &AppHandle) -> AppResult<()> {
-    let st = state(app);
-    let token = st.tokens.replace()?;
-    st.mutate(|i| i.browser_token = token);
-    log::info!("browser pairing token replaced");
-    notify_ui(app);
-    Ok(())
-}
-
 /// The browser extension's folder: the source folder in development builds,
 /// so edits load right away, and the bundled copy otherwise.
 pub fn extension_dir(app: &AppHandle) -> Option<PathBuf> {

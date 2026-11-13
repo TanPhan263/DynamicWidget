@@ -22,6 +22,16 @@ use crate::state::AppState;
 
 const LOG_MAX_BYTES: u128 = 1024 * 1024;
 
+/// A browser started Lintel to pair its extension: answer it and exit, with no window.
+pub fn serve_native_host_if_asked() -> bool {
+    let args: Vec<String> = std::env::args().collect();
+    if !core::native_host::requested(&args) {
+        return false;
+    }
+    core::native_host::serve();
+    true
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
@@ -49,6 +59,9 @@ pub fn run() {
 
             let handle = app.handle().clone();
             let config_dir = app.path().app_config_dir()?;
+            // Lets the browser extension pair itself; off the main thread, since Windows runs `reg`.
+            let host_dir = config_dir.clone();
+            std::thread::spawn(move || core::native_host::register(&host_dir));
             let store = SettingsStore::new(config_dir.clone());
             let loaded = store.load();
             for warning in &loaded.warnings {
@@ -89,7 +102,6 @@ pub fn run() {
             commands::clear_notifications,
             commands::set_do_not_disturb,
             commands::open_settings,
-            commands::replace_browser_token,
             commands::open_extension_folder,
             commands::open_widget_app,
             commands::run_quick_action,

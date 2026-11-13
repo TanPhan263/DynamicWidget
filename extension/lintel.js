@@ -6,6 +6,33 @@ export async function getSettings() {
   return { ...DEFAULTS, ...(await chrome.storage.local.get(Object.keys(DEFAULTS))) };
 }
 
+/** The Lintel app registers itself under this name for native messaging. */
+const NATIVE_HOST = "app.lintel.bridge";
+
+/**
+ * Asks the Lintel app on this computer for the pairing token and API port,
+ * and saves them. True when it answered; false when Lintel is not installed
+ * or this browser can't reach it.
+ */
+export async function autoPair() {
+  try {
+    const reply = await chrome.runtime.sendNativeMessage(NATIVE_HOST, { type: "pair" });
+    if (typeof reply?.token !== "string" || !reply.token) return false;
+    const port = Number.isInteger(reply.port) ? reply.port : DEFAULTS.port;
+    await chrome.storage.local.set({ token: reply.token, port });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** The settings, paired first if there is no token yet. */
+export async function pairedSettings() {
+  const settings = await getSettings();
+  if (settings.token || !(await autoPair())) return settings;
+  return getSettings();
+}
+
 /** "ok", "unpaired", "offline" or "error". */
 export async function setStatus(status) {
   await chrome.storage.session.set({ status });

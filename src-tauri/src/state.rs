@@ -70,7 +70,6 @@ pub struct AppState {
     inner: Mutex<Inner>,
     pub adapter: Box<dyn PlatformAdapter>,
     pub store: SettingsStore,
-    pub tokens: TokenStore,
     /// Serializes shortcut (re)registration. Shortcut handlers never lock it.
     pub shortcuts: Mutex<ShortcutService>,
     /// Starting and stopping binds sockets and joins a thread, so it has its
@@ -95,8 +94,6 @@ pub struct UiSnapshot {
     pub platform: &'static str,
     pub version: &'static str,
     pub settings_path: String,
-    /// Pasted into the browser extension to pair it.
-    pub browser_token: String,
     /// The Quick actions widget's Keep awake toggle.
     pub keep_awake: bool,
     /// When the running screen recording started, in Unix milliseconds.
@@ -142,7 +139,6 @@ impl AppState {
             }),
             adapter,
             store,
-            tokens,
             shortcuts: Mutex::new(ShortcutService::default()),
             api: Mutex::new(ApiServer::default()),
             keep_awake: Mutex::new(KeepAwake::default()),
@@ -191,7 +187,6 @@ impl AppState {
             platform: platform_name(),
             version: env!("CARGO_PKG_VERSION"),
             settings_path: self.store.path().to_string_lossy().into_owned(),
-            browser_token: g.browser_token.clone(),
             keep_awake,
             recording_since,
             quotes: g.quote_list(),

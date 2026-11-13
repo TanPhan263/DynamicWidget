@@ -1,4 +1,4 @@
-import { checkConnection, getSettings, sendNotification, setStatus } from "./lintel.js";
+import { autoPair, checkConnection, getSettings, sendNotification, setStatus } from "./lintel.js";
 import { shortHost } from "./sites.js";
 
 const $ = (id) => document.getElementById(id);
@@ -14,13 +14,14 @@ function showStatus(status) {
   const el = $("status");
   el.textContent = LABELS[status] ?? "Checking…";
   el.className = `badge ${status}`;
-  // Pairing is the only thing to do until it works.
   $("pair").hidden = status === "ok";
   $("test").disabled = status !== "ok";
 }
 
 async function refresh() {
-  const status = await checkConnection(await getSettings());
+  let status = await checkConnection(await getSettings());
+  // Not paired, or Lintel moved to another port: Lintel hands over the current token and port.
+  if ((status === "unpaired" || status === "offline") && (await autoPair())) status = await checkConnection(await getSettings());
   await setStatus(status);
   showStatus(status);
 }
@@ -37,19 +38,7 @@ async function currentHost() {
 
 async function init() {
   const settings = await getSettings();
-  $("token").value = settings.token;
-  $("port").value = String(settings.port);
   $("enabled").checked = settings.enabled;
-
-  $("save").addEventListener("click", async () => {
-    const port = Number($("port").value);
-    await chrome.storage.local.set({
-      token: $("token").value.trim(),
-      port: Number.isInteger(port) && port >= 1024 && port <= 65535 ? port : 47821,
-    });
-    await refresh();
-  });
-  $("token").addEventListener("keydown", (e) => e.key === "Enter" && $("save").click());
 
   $("enabled").addEventListener("change", (e) => chrome.storage.local.set({ enabled: e.target.checked }));
 
