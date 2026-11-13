@@ -35,7 +35,7 @@ export function ThemePicker({ value, onChange, pictures, onPicture, onRemovePict
         aria-label={t("general.theme")}
         value={value}
         onValueChange={(v) => onChange(v as IslandTheme)}
-        className="grid grid-cols-4 gap-3 sm:grid-cols-8"
+        className="flex flex-wrap gap-2.5 p-0.5"
       >
         {THEME_IDS.map((id) => {
           const look = THEMES[id];
@@ -44,33 +44,20 @@ export function ThemePicker({ value, onChange, pictures, onPicture, onRemovePict
             <RadioGroup.Item
               key={id}
               value={id}
-              className="group flex flex-col items-center gap-1.5 rounded-xl p-1 text-xs text-muted-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[state=checked]:font-medium data-[state=checked]:text-foreground"
+              aria-label={t(`theme.${id}`)}
+              title={t(`theme.${id}`)}
+              className="group relative size-8 shrink-0 overflow-hidden rounded-full ring-1 ring-black/10 ring-offset-2 ring-offset-background outline-none transition-shadow hover:ring-black/25 focus-visible:ring-2 focus-visible:ring-ring data-[state=checked]:ring-2 data-[state=checked]:ring-foreground dark:ring-white/15"
             >
               {empty ? (
-                <span
-                  aria-hidden="true"
-                  className="grid h-14 w-full place-items-center rounded-lg border border-dashed border-foreground/25 text-foreground/50 transition-colors group-hover:border-foreground/45 group-hover:text-foreground/70 group-data-[state=checked]:border-foreground group-data-[state=checked]:text-foreground"
-                >
-                  <ImagePlus className="size-5" strokeWidth={1.5} />
+                <span aria-hidden="true" className="grid size-full place-items-center rounded-full border border-dashed border-foreground/30 text-foreground/55">
+                  <ImagePlus className="size-3.5" strokeWidth={1.5} />
                 </span>
               ) : (
-                <span
-                  aria-hidden="true"
-                  className="relative block h-14 w-full overflow-hidden rounded-lg ring-1 ring-black/10 transition-shadow group-hover:ring-black/25 group-data-[state=checked]:ring-2 group-data-[state=checked]:ring-foreground group-data-[state=checked]:ring-offset-2 group-data-[state=checked]:ring-offset-canvas dark:ring-white/10"
-                  style={{ background: look.panel(DEFAULT_AMBIENT, pictures.panel) }}
-                >
-                  <span
-                    className="absolute top-1.5 left-1/2 h-2 w-8 -translate-x-1/2 rounded-full ring-1 ring-white/15"
-                    style={{ background: look.island(islandPicture) }}
-                  />
-                  <span className="absolute inset-x-2 bottom-2 grid grid-cols-3 gap-1">
-                    <span className="h-3 rounded-[3px] bg-white/[0.08]" />
-                    <span className="h-3 rounded-[3px] bg-white/[0.08]" />
-                    <span className="h-3 rounded-[3px] bg-white/[0.08]" />
-                  </span>
+                <span aria-hidden="true" className="block size-full" style={{ background: look.panel(DEFAULT_AMBIENT, pictures.panel) }}>
+                  {/* The island on top of the panel, as a small pill. */}
+                  <span className="absolute top-1.5 left-1/2 h-1.5 w-3.5 -translate-x-1/2 rounded-full ring-1 ring-white/20" style={{ background: look.island(islandPicture) }} />
                 </span>
               )}
-              {t(`theme.${id}`)}
             </RadioGroup.Item>
           );
         })}

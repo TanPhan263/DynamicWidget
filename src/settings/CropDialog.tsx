@@ -11,6 +11,7 @@ import {
   clampOffset,
   CROP_ASPECT,
   CROP_WIDTH,
+  WIDGET_CROP_WIDTH,
   displayScale,
   MAX_ZOOM,
   sourceRect,
@@ -19,14 +20,21 @@ import {
   type Size,
 } from "./crop";
 
-/** Frame width on screen; its height follows the slot's shape. */
+/** Frame width on screen; its height follows the shape. */
 const FRAME_WIDTH = 440;
+/** The tallest the frame gets, so a tall widget's frame still fits the dialog. */
+const FRAME_MAX_HEIGHT = 360;
 /** Room around the frame (x, y) where the rest of the picture shows dimmed; the thin pill gets more above and below. */
-const MARGIN: Record<BackgroundSlot, Point> = { panel: { x: 20, y: 20 }, island: { x: 20, y: 56 } };
+const MARGIN: Record<Slot, Point> = { panel: { x: 20, y: 20 }, island: { x: 20, y: 56 }, widget: { x: 20, y: 20 } };
+
+/** A background slot, or one widget's card. */
+type Slot = BackgroundSlot | "widget";
 const PAN_STEP = 12;
 
 interface Props {
-  slot: BackgroundSlot;
+  slot: Slot;
+  /** Width / height of the widget card; only for the "widget" slot. */
+  aspect?: number;
   /** The picture as a data URL. */
   src: string;
   onCancel: () => void;
@@ -35,9 +43,12 @@ interface Props {
   onError: (message: string) => void;
 }
 
-/** Frames a picture to the panel's or the island's shape before it is saved. */
-export function CropDialog({ slot, src, onCancel, onSave, onError }: Props) {
-  const frame: Size = { width: FRAME_WIDTH, height: Math.round(FRAME_WIDTH / CROP_ASPECT[slot]) };
+/** Frames a picture to the panel's, the island's or a widget card's shape before it is saved. */
+export function CropDialog({ slot, aspect: cardAspect = 1, src, onCancel, onSave, onError }: Props) {
+  const aspect = slot === "widget" ? cardAspect : CROP_ASPECT[slot];
+  const outWidth = slot === "widget" ? WIDGET_CROP_WIDTH : CROP_WIDTH[slot];
+  const frameWidth = Math.min(FRAME_WIDTH, Math.round(FRAME_MAX_HEIGHT * aspect));
+  const frame: Size = { width: frameWidth, height: Math.round(frameWidth / aspect) };
   const margin = MARGIN[slot];
   const img = useRef<HTMLImageElement | null>(null);
   const [natural, setNatural] = useState<Size | null>(null);
@@ -57,7 +68,7 @@ export function CropDialog({ slot, src, onCancel, onSave, onError }: Props) {
     image.onerror = () => onError(t("crop.badImage"));
     image.src = src;
     // A new picture or shape starts over.
-  }, [src, slot]);
+  }, [src, slot, aspect]);
 
   const scale = natural ? displayScale(natural, frame, zoom) : 1;
   const move = (next: Point, s = scale) => natural && setOffset(clampOffset(next, natural, frame, s));
@@ -92,8 +103,8 @@ export function CropDialog({ slot, src, onCancel, onSave, onError }: Props) {
     if (!img.current || !natural) return;
     const r = sourceRect(offset, frame, scale);
     const canvas = document.createElement("canvas");
-    canvas.width = CROP_WIDTH[slot];
-    canvas.height = Math.round(CROP_WIDTH[slot] / CROP_ASPECT[slot]);
+    canvas.width = outWidth;
+    canvas.height = Math.round(outWidth / aspect);
     const ctx = canvas.getContext("2d");
     if (!ctx) return onError(t("crop.noCanvas"));
     ctx.imageSmoothingQuality = "high";
@@ -124,10 +135,10 @@ export function CropDialog({ slot, src, onCancel, onSave, onError }: Props) {
         <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-[min(92vw,520px)] -translate-x-1/2 -translate-y-1/2 space-y-4 rounded-2xl border bg-card p-5 shadow-2xl outline-none">
           <div className="space-y-1">
             <Dialog.Title className="text-base font-semibold tracking-tight">
-              {t(slot === "panel" ? "crop.titlePanel" : "crop.titleIsland")}
+              {t(slot === "panel" ? "crop.titlePanel" : slot === "island" ? "crop.titleIsland" : "crop.titleWidget")}
             </Dialog.Title>
             <Dialog.Description className="text-[13px] text-muted-foreground">
-              {t(slot === "panel" ? "crop.descPanel" : "crop.descIsland")}
+              {t(slot === "island" ? "crop.descIsland" : "crop.descPanel")}
             </Dialog.Description>
           </div>
 
@@ -149,7 +160,7 @@ export function CropDialog({ slot, src, onCancel, onSave, onError }: Props) {
             <div
               className={cn(
                 "absolute overflow-hidden ring-2 ring-white/90 shadow-[0_0_0_1px_rgba(0,0,0,0.4)]",
-                slot === "panel" ? "rounded-[18px]" : "rounded-full",
+                slot === "island" ? "rounded-full" : "rounded-[18px]",
               )}
               style={{ left: margin.x, top: margin.y, width: frame.width, height: frame.height }}
             >

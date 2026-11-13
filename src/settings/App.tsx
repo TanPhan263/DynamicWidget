@@ -1,4 +1,4 @@
-import { Bell, Code, Globe, Info, LayoutGrid, Moon, Music2, Settings2, Sparkles, TriangleAlert, X } from "lucide-react";
+import { Bell, Info, LayoutGrid, Moon, Music2, RotateCcw, Settings2, Sparkles, TriangleAlert, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -8,11 +8,9 @@ import { Kbd } from "@/components/ui/kbd";
 import { Switch } from "@/components/ui/switch";
 import { formatAccelerator } from "@/features/shortcuts/accelerator";
 import { cn } from "@/lib/utils";
-import { completeOnboarding, dismissError, setDoNotDisturb } from "../shared/commands";
+import { completeOnboarding, dismissError, resetSettings, setDoNotDisturb } from "../shared/commands";
 import {
   AboutSection,
-  ApiSection,
-  BrowserSection,
   GeneralSection,
   NotificationsSection,
   NowPlayingSection,
@@ -23,11 +21,9 @@ import { useSnapshot } from "./useSnapshot";
 
 const TABS = [
   { id: "general", label: "nav.general", icon: Settings2, description: "nav.generalDesc" },
+  { id: "widgets", label: "nav.widgets", icon: LayoutGrid, description: "nav.widgetsDesc" },
   { id: "notifications", label: "nav.notifications", icon: Bell, description: "nav.notificationsDesc" },
   { id: "music", label: "nav.music", icon: Music2, description: "nav.musicDesc" },
-  { id: "widgets", label: "nav.widgets", icon: LayoutGrid, description: "nav.widgetsDesc" },
-  { id: "browser", label: "nav.browser", icon: Globe, description: "nav.browserDesc" },
-  { id: "api", label: "nav.api", icon: Code, description: "nav.apiDesc" },
   { id: "about", label: "nav.about", icon: Info, description: "nav.aboutDesc" },
 ] as const;
 
@@ -44,6 +40,37 @@ function BrandMark() {
         <span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_4px_rgb(52_211_153/0.9)]" />
       </span>
     </span>
+  );
+}
+
+/** Resets every setting; the first click only asks, a second one within a few seconds resets. */
+function ResetButton({ onReset }: { onReset: () => void }) {
+  const [confirming, setConfirming] = useState(false);
+  useEffect(() => {
+    if (!confirming) return;
+    const id = setTimeout(() => setConfirming(false), 4000);
+    return () => clearTimeout(id);
+  }, [confirming]);
+  const label = confirming ? t("about.resetAll") : t("about.reset");
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={t("about.resetDesc")}
+      onBlur={() => setConfirming(false)}
+      onClick={() => {
+        if (!confirming) return setConfirming(true);
+        setConfirming(false);
+        onReset();
+      }}
+      className={cn(
+        "flex h-8 items-center justify-center gap-2.5 rounded-lg px-2.5 text-[13px] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:justify-start",
+        confirming ? "bg-destructive/10 font-medium text-destructive" : "text-foreground/65 hover:text-foreground",
+      )}
+    >
+      <RotateCcw className="size-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+      <span className="hidden sm:inline">{label}</span>
+    </button>
   );
 }
 
@@ -126,6 +153,7 @@ export function App() {
             onCheckedChange={(v) => run(() => setDoNotDisturb(v))}
           />
         </div>
+        <ResetButton onReset={() => run(resetSettings)} />
       </aside>
 
       <main className="relative flex-1 overflow-y-auto bg-canvas">
@@ -204,9 +232,7 @@ export function App() {
               {tab === "notifications" && <NotificationsSection snap={snap} api={api} />}
               {tab === "music" && <NowPlayingSection snap={snap} api={api} />}
               {tab === "widgets" && <WidgetsSection snap={snap} api={api} />}
-              {tab === "browser" && <BrowserSection snap={snap} api={api} />}
-              {tab === "api" && <ApiSection snap={snap} api={api} />}
-              {tab === "about" && <AboutSection snap={snap} api={api} />}
+              {tab === "about" && <AboutSection snap={snap} />}
             </motion.div>
           </AnimatePresence>
         </div>

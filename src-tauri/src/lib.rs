@@ -75,6 +75,16 @@ pub fn run() {
             ));
             app.manage(state.clone());
             log::info!("Lintel {} starting", env!("CARGO_PKG_VERSION"));
+            // Launch at login is on by default, so register it on first run too; dev builds stay out of the login items.
+            if !cfg!(debug_assertions) && state.snapshot().settings.start_at_login {
+                use tauri_plugin_autostart::ManagerExt;
+                let autolaunch = app.autolaunch();
+                if !autolaunch.is_enabled().unwrap_or(false) {
+                    if let Err(e) = autolaunch.enable() {
+                        log::warn!("launch at login not registered: {e}");
+                    }
+                }
+            }
 
             register_shortcut(&handle, &state);
             tray::create(&handle, &state.snapshot())?;
@@ -104,27 +114,27 @@ pub fn run() {
             commands::open_settings,
             commands::open_extension_folder,
             commands::open_widget_app,
+            commands::get_news,
+            commands::open_news_link,
+            commands::get_events,
             commands::run_quick_action,
             commands::open_stock_page,
             commands::media_control,
             commands::get_weather,
             commands::get_background_image,
             commands::set_background_image,
+            commands::get_widget_image,
+            commands::set_widget_image,
             commands::get_controls,
             commands::set_control,
             commands::set_ui_language,
         ])
-            commands::get_news,
-            commands::open_news_link,
-            commands::get_events,
         .build(tauri::generate_context!())
         .expect("error while building Lintel");
 
     app.run(|app, event| match event {
         // Keep running in the tray when windows close; only explicit Quit
         // (which passes an exit code) ends the process.
-            commands::get_widget_image,
-            commands::set_widget_image,
         RunEvent::ExitRequested {
             api, code: None, ..
         } => api.prevent_exit(),

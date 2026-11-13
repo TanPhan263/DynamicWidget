@@ -56,11 +56,11 @@ export const THEMES: Record<IslandTheme, ThemeLook> = {
   },
   picture: {
     label: "Picture",
-    // Darkened so text and controls stay readable over any picture; Graphite until one is chosen.
-    island: (p, fit) => (p ? `linear-gradient(rgb(0 0 0 / 0.45), rgb(0 0 0 / 0.45)), ${photo(p, fit)}` : "#000"),
+    // The closed island shows the picture as it is; the open panel darkens it so text stays readable. Graphite until one is chosen.
+    island: (p, fit) => (p ? photo(p, fit) : "#000"),
     panel: (a, p) =>
       p
-        ? `linear-gradient(180deg, #000 0%, rgb(0 0 0 / 0.6) 14%, rgb(0 0 0 / 0.35) 55%, rgb(0 0 0 / 0.5) 100%), ${photo(p)}, #000`
+        ? `linear-gradient(180deg, #000 0%, rgb(0 0 0 / 0.48) 14%, rgb(0 0 0 / 0.28) 55%, rgb(0 0 0 / 0.4) 100%), ${photo(p)}, #000`
         : graphitePanel(a),
   },
 };

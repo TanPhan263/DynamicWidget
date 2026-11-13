@@ -12,10 +12,11 @@ it("tints the panel with the cover only where the theme says", () => {
   expect(themeLook("aurora").panel("9 8 7", null)).not.toContain("rgb(9 8 7");
 });
 
-it("shows the picture, darkened, only with the Picture theme", () => {
+it("shows the picture, darkened only on the panel, only with the Picture theme", () => {
   const pic = "data:image/jpeg;base64,AAAA";
   expect(themeLook("picture").panel("1 2 3", pic)).toContain(`url("${pic}")`);
-  expect(themeLook("picture").island(pic)).toMatch(/rgb\(0 0 0 \/ 0\.45\).*url\(/);
+  expect(themeLook("picture").island(pic)).toBe(`url("${pic}") center / cover no-repeat`);
+  expect(themeLook("picture").panel("1 2 3", pic)).toMatch(/^linear-gradient\(180deg, #000.*url\(/);
   expect(themeLook("graphite").panel("1 2 3", pic)).not.toContain("url(");
   // Until a picture is saved it looks like Graphite.
   expect(themeLook("picture").panel("1 2 3", null)).toBe(themeLook("graphite").panel("1 2 3", null));

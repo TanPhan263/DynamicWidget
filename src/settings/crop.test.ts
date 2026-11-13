@@ -1,4 +1,4 @@
-import { centered, clampOffset, displayScale, sourceRect, zoomAround } from "./crop";
+import { centered, clampOffset, displayScale, sourceRect, widgetAspect, zoomAround } from "./crop";
 
 const photo = { width: 4000, height: 3000 };
 const pill = { width: 480, height: 60 };
@@ -33,4 +33,10 @@ it("zooms around the frame's center", () => {
   // The picture point under the center stays under it.
   expect((200 - before.x) / 1).toBeCloseTo((200 - after.x) / 2);
   expect((150 - before.y) / 1).toBeCloseTo((150 - after.y) / 2);
+});
+
+test("a widget's frame matches its card on the panel grid", () => {
+  // Columns are (640 - 28 - 20) / 3 ≈ 197 wide; rows 133 tall, 10 apart.
+  expect(widgetAspect({ cols: 1, rows: 1 })).toBeCloseTo(197.33 / 133);
+  expect(widgetAspect({ cols: 3, rows: 2 })).toBeCloseTo(612 / 276);
 });

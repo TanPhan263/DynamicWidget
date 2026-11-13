@@ -1,4 +1,5 @@
-import type { BackgroundSlot } from "../shared/types";
+import { CARD_HEIGHT, EXPANDED_WIDTH, GAP, PADDING, WIDGET_COLUMNS } from "../island/geometry";
+import type { BackgroundSlot, WidgetSpan } from "../shared/types";
 
 /**
  * Width / height each picture is cropped to. The panel is 640 wide and about
@@ -9,6 +10,15 @@ export const CROP_ASPECT: Record<BackgroundSlot, number> = { panel: 4 / 3, islan
 
 /** Width the cropped picture is saved at. */
 export const CROP_WIDTH: Record<BackgroundSlot, number> = { panel: 1600, island: 1200 };
+
+/** Width / height of a widget card of this span on the open panel's grid. */
+export function widgetAspect(span: WidgetSpan): number {
+  const col = (EXPANDED_WIDTH - 2 * PADDING - (WIDGET_COLUMNS - 1) * GAP) / WIDGET_COLUMNS;
+  return (span.cols * col + (span.cols - 1) * GAP) / (span.rows * CARD_HEIGHT + (span.rows - 1) * GAP);
+}
+
+/** Width a widget's picture is saved at: sharp on a 3-column card at 2x. */
+export const WIDGET_CROP_WIDTH = 1200;
 
 export const MAX_ZOOM = 4;
 
