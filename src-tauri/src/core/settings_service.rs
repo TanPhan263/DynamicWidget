@@ -10,7 +10,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::market;
+use super::{events, market, news};
 use crate::errors::{AppError, AppResult};
 
 pub const CURRENT_SCHEMA_VERSION: u32 = 1;
@@ -192,6 +192,61 @@ impl From<SpanRepr> for WidgetSpan {
     }
 }
 
+/// How the News widget shows its headlines.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum NewsView {
+    /// A scrolling list of headlines.
+    #[default]
+    List,
+    /// One story at a time with its picture and summary, moving on by itself.
+    Slides,
+}
+
+/// A day the Countdowns widget counts down to.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Countdown {
+    pub name: String,
+    /// `YYYY-MM-DD`, a day on the user's calendar rather than a moment.
+    pub date: String,
+}
+
+/// Most days the Countdowns widget follows.
+pub const MAX_COUNTDOWNS: usize = 8;
+/// Longest countdown name kept, in characters.
+const MAX_COUNTDOWN_NAME: usize = 60;
+
+/// The icons on each side of the closed island, in order.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct IslandIcons {
+    pub left: Vec<IslandStat>,
+    pub right: Vec<IslandStat>,
+}
+
+/// A computer state the closed island can show as a mini icon.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum IslandStat {
+    Time,
+    Date,
+    Cpu,
+    Memory,
+    Disk,
+    Battery,
+    Weather,
+    Mail,
+}
+
+/// The island has room for this many icons in all.
+pub const MAX_ISLAND_ICONS: usize = 4;
+
+impl IslandIcons {
+    pub fn has(&self, stat: IslandStat) -> bool {
+        self.left.contains(&stat) || self.right.contains(&stat)
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum WidgetId {
@@ -210,10 +265,16 @@ pub enum WidgetId {
     Weather,
     /// Wi-Fi, Bluetooth, volume, brightness and other switches; see `controls`.
     Controls,
+    /// Headlines from [`SettingsV1::news_feeds`]; see `news`.
+    News,
+    /// What is coming up in [`SettingsV1::calendar_links`]; see `events`.
+    Events,
+    /// Days left until each of [`SettingsV1::countdowns`].
+    Countdowns,
 }
 
 impl WidgetId {
-    pub const ALL: [WidgetId; 10] = [
+    pub const ALL: [WidgetId; 13] = [
         WidgetId::Clock,
         WidgetId::Calendar,
         WidgetId::Timer,
@@ -224,6 +285,9 @@ impl WidgetId {
         WidgetId::Media,
         WidgetId::Weather,
         WidgetId::Controls,
+        WidgetId::News,
+        WidgetId::Events,
+        WidgetId::Countdowns,
     ];
 }
 
@@ -250,13 +314,25 @@ pub struct SettingsV1 {
     pub widgets: Vec<WidgetId>,
     /// Widgets missing here cover one cell.
     pub widget_sizes: BTreeMap<WidgetId, WidgetSpan>,
+    /// Per-widget card colors; widgets missing here keep the glass look.
+    pub widget_looks: BTreeMap<WidgetId, WidgetLook>,
     /// Ticker symbols the Stocks widget follows, in display order.
     pub stocks: Vec<String>,
     /// Symbols from `stocks` shown in the closed island, which takes turns
     /// showing them; at most [`market::MAX_ISLAND_STOCKS`].
     pub island_stocks: Vec<String>,
+    /// Feed or site addresses the News widget reads, in order; at most
+    /// [`news::MAX_FEEDS`].
+    pub news_feeds: Vec<String>,
+    pub news_view: NewsView,
+    /// Calendar (`.ics`) links the Events widget reads; at most
+    /// [`events::MAX_CALENDARS`]. They carry a private key, so they stay on this computer.
+    pub calendar_links: Vec<String>,
+    pub countdowns: Vec<Countdown>,
     pub music_bars: MusicBars,
     pub use_24_hour_clock: bool,
+    /// Icons the closed island shows while nothing else is going on.
+    pub island_icons: IslandIcons,
     /// Notify on charger plugged/unplugged and low battery.
     pub battery_alerts: bool,
     /// Local HTTP API that scripts and tools use to send notifications.
@@ -283,17 +359,38 @@ impl Default for SettingsV1 {
             do_not_disturb: false,
             widgets: WidgetId::ALL.to_vec(),
             widget_sizes: BTreeMap::new(),
+            widget_looks: BTreeMap::new(),
             stocks: vec!["AAPL".into(), "NVDA".into(), "BTC-USD".into()],
             island_stocks: Vec::new(),
+            news_feeds: Vec::new(),
+            news_view: NewsView::List,
+            calendar_links: Vec::new(),
+            countdowns: Vec::new(),
             music_bars: MusicBars::default(),
             use_24_hour_clock: false,
+            island_icons: IslandIcons::default(),
             battery_alerts: true,
             api_enabled: true,
             api_port: 47821,
-            start_at_login: false,
+            start_at_login: true,
             onboarding_completed: false,
         }
     }
+}
+
+/// How one widget's card looks. Unset fields keep the default glass look.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct WidgetLook {
+    /// `#rrggbb`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub background: Option<String>,
+    /// `#rrggbb`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    /// How opaque the background is, 0–100.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub opacity: Option<u8>,
 }
 
 /// Accepts `#rgb` or `#rrggbb` and returns lowercase `#rrggbb`.
@@ -325,6 +422,18 @@ fn clamp_numbers(s: &mut Settings) {
     for (color, fallback) in s.music_bars.colors.iter_mut().zip(white) {
         *color = normalize_color(color).unwrap_or(fallback);
     }
+    s.widget_looks = std::mem::take(&mut s.widget_looks)
+        .into_iter()
+        .map(|(id, l)| {
+            let look = WidgetLook {
+                background: l.background.as_deref().and_then(normalize_color),
+                text: l.text.as_deref().and_then(normalize_color),
+                opacity: l.opacity.map(|o| o.min(100)),
+            };
+            (id, look)
+        })
+        .filter(|(_, l)| *l != WidgetLook::default())
+        .collect();
 }
 
 /// Keeps valid, distinct symbols (at most [`market::MAX_SYMBOLS`]), and
@@ -353,8 +462,65 @@ fn clean_stocks(s: &mut Settings) {
     s.island_stocks = shown;
 }
 
-/// Removes duplicate widgets while keeping the first occurrence's position.
-fn dedup_widgets(widgets: &mut Vec<WidgetId>) {
+/// Keeps valid, distinct web addresses, at most [`news::MAX_FEEDS`].
+fn clean_news_feeds(s: &mut Settings) {
+    let mut kept: Vec<String> = Vec::new();
+    for url in s
+        .news_feeds
+        .iter()
+        .filter_map(|u| news::normalize_feed_url(u))
+    {
+        if !kept.contains(&url) && kept.len() < news::MAX_FEEDS {
+            kept.push(url);
+        }
+    }
+    s.news_feeds = kept;
+}
+
+/// Keeps valid, distinct calendar links, at most [`events::MAX_CALENDARS`].
+fn clean_calendar_links(s: &mut Settings) {
+    let mut kept: Vec<String> = Vec::new();
+    for url in s
+        .calendar_links
+        .iter()
+        .filter_map(|u| events::normalize_calendar_url(u))
+    {
+        if !kept.contains(&url) && kept.len() < events::MAX_CALENDARS {
+            kept.push(url);
+        }
+    }
+    s.calendar_links = kept;
+}
+
+/// Keeps countdowns with a name and a real date, at most [`MAX_COUNTDOWNS`].
+fn clean_countdowns(s: &mut Settings) {
+    s.countdowns = s
+        .countdowns
+        .iter()
+        .filter_map(|c| {
+            let name: String = c.name.trim().chars().take(MAX_COUNTDOWN_NAME).collect();
+            let date = chrono::NaiveDate::parse_from_str(c.date.trim(), "%Y-%m-%d").ok()?;
+            (!name.is_empty()).then(|| Countdown {
+                name,
+                date: date.format("%Y-%m-%d").to_string(),
+            })
+        })
+        .take(MAX_COUNTDOWNS)
+        .collect();
+}
+
+/// Each icon shows once: duplicates, and icons also on the left, leave the right.
+fn clean_island_icons(icons: &mut IslandIcons) {
+    dedup_widgets(&mut icons.left);
+    dedup_widgets(&mut icons.right);
+    let left = icons.left.clone();
+    icons.right.retain(|i| !left.contains(i));
+    icons.left.truncate(MAX_ISLAND_ICONS);
+    icons.right.truncate(MAX_ISLAND_ICONS - icons.left.len());
+}
+
+/// Removes duplicates while keeping the first occurrence's position.
+fn dedup_widgets<T: PartialEq + Copy>(widgets: &mut Vec<T>) {
     let mut seen = Vec::with_capacity(widgets.len());
     widgets.retain(|w| {
         if seen.contains(w) {
@@ -384,8 +550,12 @@ pub fn validate(mut s: Settings) -> AppResult<Settings> {
         s.language = "system".into();
     }
     dedup_widgets(&mut s.widgets);
+    clean_island_icons(&mut s.island_icons);
     clamp_numbers(&mut s);
     clean_stocks(&mut s);
+    clean_news_feeds(&mut s);
+    clean_calendar_links(&mut s);
+    clean_countdowns(&mut s);
     Ok(s)
 }
 
@@ -398,8 +568,12 @@ pub fn sanitize(mut s: Settings) -> Settings {
         s.toggle_shortcut = d.toggle_shortcut;
     }
     dedup_widgets(&mut s.widgets);
+    clean_island_icons(&mut s.island_icons);
     clamp_numbers(&mut s);
     clean_stocks(&mut s);
+    clean_news_feeds(&mut s);
+    clean_calendar_links(&mut s);
+    clean_countdowns(&mut s);
     s
 }
 
@@ -591,13 +765,24 @@ mod tests {
         assert_eq!(
             json["widgets"],
             serde_json::json!([
-                "clock", "calendar", "timer", "system", "notes", "actions", "stocks", "media",
-                "weather", "controls"
+                "clock",
+                "calendar",
+                "timer",
+                "system",
+                "notes",
+                "actions",
+                "stocks",
+                "media",
+                "weather",
+                "controls",
+                "news",
+                "events",
+                "countdowns"
             ])
         );
         assert_eq!(json["apiPort"], 47821);
         assert_eq!(json["apiEnabled"], true);
-        assert_eq!(json["startAtLogin"], false);
+        assert_eq!(json["startAtLogin"], true);
     }
 
     #[test]
@@ -624,6 +809,20 @@ mod tests {
         .unwrap();
         assert_eq!(s.island_size, IslandSize(50));
         assert_eq!(s.panel_size, IslandSize(80));
+    }
+
+    #[test]
+    fn widget_looks_keep_only_valid_values() {
+        let doc = r##"{"schemaVersion":1,"widgetLooks":{
+            "clock":{"background":"#ABC","text":"blue","opacity":250},
+            "notes":{"background":"red"}}}"##;
+        let s = validate(serde_json::from_str(doc).unwrap()).unwrap();
+        let clock = WidgetLook {
+            background: Some("#aabbcc".into()),
+            text: None,
+            opacity: Some(100),
+        };
+        assert_eq!(s.widget_looks, BTreeMap::from([(WidgetId::Clock, clock)]));
     }
 
     #[test]
@@ -769,6 +968,56 @@ mod tests {
     }
 
     #[test]
+    fn news_feeds_are_cleaned() {
+        let s = validate(Settings {
+            news_feeds: vec![
+                " vnexpress.net/rss ".into(),
+                "https://vnexpress.net/rss".into(),
+                "a b".into(),
+                "file:///x".into(),
+            ],
+            ..Settings::default()
+        })
+        .unwrap();
+        assert_eq!(s.news_feeds, vec!["https://vnexpress.net/rss"]);
+    }
+
+    #[test]
+    fn calendar_links_and_countdowns_are_cleaned() {
+        let s = validate(Settings {
+            calendar_links: vec![
+                "webcal://p01.icloud.com/x".into(),
+                "https://p01.icloud.com/x".into(),
+                "file:///x".into(),
+            ],
+            countdowns: vec![
+                Countdown {
+                    name: "  Trip ".into(),
+                    date: "2026-12-24".into(),
+                },
+                Countdown {
+                    name: " ".into(),
+                    date: "2026-12-24".into(),
+                },
+                Countdown {
+                    name: "Bad".into(),
+                    date: "2026-02-30".into(),
+                },
+            ],
+            ..Settings::default()
+        })
+        .unwrap();
+        assert_eq!(s.calendar_links, vec!["https://p01.icloud.com/x"]);
+        assert_eq!(
+            s.countdowns,
+            vec![Countdown {
+                name: "Trip".into(),
+                date: "2026-12-24".into()
+            }]
+        );
+    }
+
+    #[test]
     fn sanitize_repairs_instead_of_failing() {
         let s = sanitize(Settings {
             toggle_shortcut: "".into(),
@@ -777,6 +1026,24 @@ mod tests {
         });
         assert_eq!(s.toggle_shortcut, Settings::default().toggle_shortcut);
         assert_eq!(s.notification_seconds, 30);
+    }
+
+    #[test]
+    fn island_icons_show_once() {
+        let s: Settings = serde_json::from_str(
+            r#"{"islandIcons":{"left":["memory","cpu","memory"],"right":["cpu","battery"]}}"#,
+        )
+        .unwrap();
+        let icons = sanitize(s).island_icons;
+        assert_eq!(icons.left, vec![IslandStat::Memory, IslandStat::Cpu]);
+        assert_eq!(icons.right, vec![IslandStat::Battery]);
+        let s: Settings = serde_json::from_str(
+            r#"{"islandIcons":{"left":["cpu","memory","disk"],"right":["battery","weather","mail"]}}"#,
+        )
+        .unwrap();
+        let icons = sanitize(s).island_icons;
+        assert_eq!(icons.left.len() + icons.right.len(), MAX_ISLAND_ICONS);
+        assert_eq!(icons.right, vec![IslandStat::Battery]);
     }
 
     #[test]

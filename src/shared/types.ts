@@ -8,6 +8,51 @@ export type IslandStyle = "notch" | "island";
 export type BackgroundSlot = "panel" | "island";
 
 export type IslandTheme = "graphite" | "black" | "midnight" | "aurora" | "ember" | "slate" | "transparent" | "picture";
+/** How one widget's card looks. Mirrors the Rust `WidgetLook`. */
+export interface WidgetLook {
+  /** #rrggbb */
+  background?: string;
+  /** #rrggbb */
+  text?: string;
+  /** How opaque the background is, 0–100. */
+  opacity?: number;
+}
+
+/** The card's dark glass base, used when only the opacity is changed. */
+export const DEFAULT_TILE_COLOR = "#1c1c20";
+export const DEFAULT_TILE_OPACITY = 70;
+
+/** Darkens a widget picture so text stays readable when no color is picked over it. */
+const PICTURE_VEIL = "rgb(0 0 0 / 0.35)";
+
+/**
+ * CSS variables for a look: `--card` is the card background (color, picture
+ * or both), and `--color-white` recolors every Tailwind white (text-white/40
+ * and the like) inside, keeping their shades; `--widget-text` is the same
+ * color, for accents.
+ */
+export function lookVars(look: WidgetLook = {}, picture?: string | null): Record<string, string> {
+  const vars: Record<string, string> = {};
+  const tint =
+    look.background || look.opacity !== undefined
+      ? `color-mix(in srgb, ${look.background ?? DEFAULT_TILE_COLOR} ${look.opacity ?? DEFAULT_TILE_OPACITY}%, transparent)`
+      : null;
+  if (picture) {
+    // The color, if any, lies over the picture as a veil; the opacity sets how much shows through.
+    const veil = tint ?? PICTURE_VEIL;
+    vars["--card"] = `linear-gradient(${veil}, ${veil}), url("${picture}") center / cover`;
+  } else if (tint) {
+    vars["--card"] = tint;
+  }
+  if (look.text) {
+    vars["--color-white"] = look.text;
+    vars["--widget-text"] = look.text;
+    // Text with no color class of its own inherits the color already worked out above the card, so set it here too.
+    vars.color = look.text;
+  }
+  return vars;
+}
+
 /** Grid cells a widget covers: 1–3 columns, 1–2 rows. */
 export interface WidgetSpan {
   cols: number;
@@ -24,7 +69,18 @@ export function clampSpan(cols: number, rows: number): WidgetSpan {
     rows: Math.min(WIDGET_MAX_ROWS, Math.max(1, Math.round(rows))),
   };
 }
-export type WidgetId = "clock" | "calendar" | "timer" | "system" | "notes" | "actions" | "stocks" | "media" | "weather" | "controls";
+/** A computer state the closed island can show as a mini icon. */
+export type IslandStat = "time" | "date" | "cpu" | "memory" | "disk" | "battery" | "weather" | "mail";
+/** The icons on each side of the closed island, in order. */
+export interface IslandIcons {
+  left: IslandStat[];
+  right: IslandStat[];
+}
+export const ISLAND_STATS: readonly IslandStat[] = ["time", "date", "cpu", "memory", "disk", "battery", "weather", "mail"];
+/** The island has room for this many icons in all. */
+export const MAX_ISLAND_ICONS = 4;
+
+export type WidgetId = "clock" | "calendar" | "timer" | "system" | "notes" | "actions" | "stocks" | "media" | "weather" | "controls" | "news" | "events" | "countdowns";
 
 /** One-tap system actions in the Quick actions widget. */
 export type QuickAction = "keep-awake" | "screenshot" | "mute" | "lock" | "calculator" | "downloads" | "record";
@@ -43,6 +99,9 @@ export function widgetAppName(id: WidgetId, platform: Platform): string | null {
       media: null,
       weather: "Weather",
       controls: null,
+      news: null,
+      events: null,
+      countdowns: null,
     };
     return apps[id];
   }
@@ -58,13 +117,16 @@ export function widgetAppName(id: WidgetId, platform: Platform): string | null {
       media: null,
       weather: "Weather",
       controls: null,
+      news: null,
+      events: null,
+      countdowns: null,
     };
     return apps[id];
   }
   return null;
 }
 
-export const ALL_WIDGETS: readonly WidgetId[] = ["clock", "calendar", "timer", "system", "notes", "actions", "stocks", "media", "weather", "controls"];
+export const ALL_WIDGETS: readonly WidgetId[] = ["clock", "calendar", "timer", "system", "notes", "actions", "stocks", "media", "weather", "controls", "news", "events", "countdowns"];
 
 /** A widget's name in the current language. */
 export const widgetLabel = (id: WidgetId): string => t(`widget.${id}`);
@@ -102,6 +164,79 @@ export interface Weather {
   description: string;
   days: { date: string; highC: number; lowC: number; code: number }[];
 }
+
+/** Most feeds the News widget follows. Mirrors the Rust limit. */
+export const MAX_FEEDS = 8;
+
+/** Adds `https://` to a bare address; null when it still is not a web link. Mirrors the Rust check. */
+export function normalizeFeedUrl(input: string): string | null {
+  const s = input.trim();
+  const url = s.includes("://") ? s : `https://${s}`;
+  return /^https?:\/\/\S+$/i.test(url) ? url : null;
+}
+
+/** A headline from one of the followed feeds. */
+export interface NewsItem {
+  title: string;
+  link: string;
+  /** The feed's name. */
+  source: string;
+  /** Unix milliseconds, when the feed dates it. */
+  published: number | null;
+  /** Short plain-text summary. */
+  description: string | null;
+  /** An https picture. */
+  image: string | null;
+}
+
+/** How the News widget shows headlines: a scrolling list, or one story at a time that moves on by itself. */
+export type NewsView = "list" | "slides";
+
+export interface News {
+  /** Newest first. */
+  items: NewsItem[];
+  /** How each followed address is doing, in settings order. */
+  feeds: { url: string; title: string | null; error: string | null }[];
+}
+
+/** Most calendar links the Events widget reads. Mirrors the Rust limit. */
+export const MAX_CALENDARS = 8;
+
+/** Turns `webcal://` into `https://`, then checks it like a feed address. Mirrors the Rust check. */
+export function normalizeCalendarUrl(input: string): string | null {
+  const s = input.trim();
+  return normalizeFeedUrl(/^webcal:\/\//i.test(s) ? `https://${s.slice(9)}` : s);
+}
+
+/** One event, or one occurrence of a repeating one, from a calendar link. */
+export interface CalendarEvent {
+  /** Empty when the calendar gives no title. */
+  title: string;
+  /** Unix milliseconds; all-day events start at local midnight. */
+  start: number;
+  end: number;
+  allDay: boolean;
+  location: string | null;
+  /** The calendar's name. */
+  calendar: string;
+}
+
+export interface Events {
+  /** The next 30 days, soonest first. */
+  events: CalendarEvent[];
+  /** How each calendar link is doing, in settings order. */
+  calendars: { url: string; title: string | null; error: string | null }[];
+}
+
+/** A day the Countdowns widget counts down to. */
+export interface Countdown {
+  name: string;
+  /** YYYY-MM-DD. */
+  date: string;
+}
+
+/** Most days the Countdowns widget follows. Mirrors the Rust limit. */
+export const MAX_COUNTDOWNS = 8;
 
 /** Most symbols the Stocks widget follows. */
 export const MAX_SYMBOLS = 8;
@@ -154,12 +289,22 @@ export interface Settings {
   widgets: WidgetId[];
   /** Widgets missing here cover one cell. */
   widgetSizes: Partial<Record<WidgetId, WidgetSpan>>;
+  /** Per-widget card colors; widgets missing here keep the glass look. */
+  widgetLooks: Partial<Record<WidgetId, WidgetLook>>;
   /** Ticker symbols the Stocks widget follows, in order. */
   stocks: string[];
   /** Symbols from `stocks` the closed island takes turns showing, at most MAX_ISLAND_STOCKS. */
   islandStocks: string[];
+  /** Feed or site addresses the News widget reads, at most MAX_FEEDS. */
+  newsFeeds: string[];
+  newsView: NewsView;
+  /** Calendar (.ics) links the Events widget reads, at most MAX_CALENDARS. */
+  calendarLinks: string[];
+  countdowns: Countdown[];
   musicBars: MusicBarsSettings;
   use24HourClock: boolean;
+  /** Icons the closed island shows while nothing else is going on. */
+  islandIcons: IslandIcons;
   batteryAlerts: boolean;
   apiEnabled: boolean;
   apiPort: number;
@@ -224,6 +369,11 @@ export interface SystemStats {
   cpuPercent: number;
   memoryUsed: number;
   memoryTotal: number;
+  /** The disk the system runs from. */
+  diskUsed: number;
+  diskTotal: number;
+  /** Unread mail; null when no mail app runs or the island does not show it. */
+  mailUnread: number | null;
   battery: BatteryInfo | null;
   /** Some app is playing sound, such as music or a video. */
   audioPlaying: boolean;
@@ -287,8 +437,6 @@ export interface UiSnapshot {
   platform: Platform;
   version: string;
   settingsPath: string;
-  /** Pasted into the browser extension to pair it. */
-  browserToken: string;
   /** The Keep awake quick action is on. */
   keepAwake: boolean;
   /** When the running screen recording started, in Unix milliseconds. */
