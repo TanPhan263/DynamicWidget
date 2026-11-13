@@ -43,7 +43,9 @@ Clicks pass through everywhere outside the island, so the apps below it keep wor
 | **Live activities** | A running timer, unread count, music bars, and green and orange dots while an app uses the camera or microphone. |
 | **Now playing** | Cover art, title and playback controls for Spotify, Apple Music, any app in the Windows media flyout, and websites. |
 | **Controls** | Wi-Fi, Bluetooth, airplane mode, dark mode, night light or Night Shift, energy saver, volume and brightness. |
-| **Widgets** | Clock, Calendar, Timer, System (CPU, memory, battery), Notes, Weather, Stocks, Now playing, Controls and Quick actions. Drag to move, drag a corner to resize. |
+| **Status icons** | Round gauges beside the closed island for the time, date, CPU, memory, disk, battery, weather and unread mail (macOS). Drag them into place in Settings. |
+| **Widgets** | Clock, Calendar, Timer, System (CPU, memory, battery), Notes, Weather, Stocks, Now playing, News, Upcoming events, Countdowns, Controls and Quick actions. Drag to move, drag a corner to resize, and give each card its own color, text color, opacity or picture. |
+| **News and events** | Headlines from any RSS or Atom feed (or a news site that names one), as a list or as slides, and the next 30 days from private calendar links (`.ics` or `webcal://`). |
 | **Quick actions** | Record screen, screenshot, keep awake, Do Not Disturb, mute, lock, calculator, downloads. |
 | **Stocks** | Live prices from Yahoo Finance, with Vietnamese stocks (HOSE, HNX, UPCoM) from VPS. Pin up to 3 symbols to the island. |
 | **Website notifications** | A browser extension forwards notifications from Gmail, Slack, Discord and other sites. |
@@ -107,6 +109,7 @@ Requires macOS 12 Monterey or later.
 | Close | `Esc`, or move the pointer away |
 | Arrange widgets | Drag a card to move it, drag its bottom-right corner to resize |
 | Settings | Tray or menu bar icon → **Settings** |
+| Start at login | On by default; **Settings → General → System** turns it off |
 | Quit | Tray or menu bar icon → **Quit Lintel** (closing Settings only hides it) |
 
 ## Browser extension
@@ -114,8 +117,9 @@ Requires macOS 12 Monterey or later.
 The extension in [`extension/`](extension/) forwards website notifications and now-playing info to Lintel. It works in Chrome, Edge, Brave, Arc and other Chromium browsers (version 111 or later).
 
 1. Open `chrome://extensions` and turn on **Developer mode**.
-2. Click **Load unpacked** and choose the `extension` folder. **Settings → Browser → Show folder** opens it.
-3. Click the Lintel icon in the toolbar, paste the pairing token from **Settings → Browser** and click **Connect**.
+2. Click **Load unpacked** and choose the `extension` folder. **Settings → Notifications → Show folder** opens it.
+
+That's all: the extension pairs with Lintel by itself. Each time Lintel starts, it registers itself with Chrome (including Beta, Dev and Canary), Edge, Brave, Chromium, Arc and Vivaldi as the extension's [native messaging host](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging) (for your user only, no admin rights). The extension asks it for the pairing token when it's installed, when the browser starts, and whenever Lintel turns its token down. Only the Lintel extension, by its fixed ID, may ask. If the popup says it can't reach Lintel, start Lintel once, then reload the extension.
 
 Good to know:
 
@@ -145,7 +149,7 @@ curl -X POST http://127.0.0.1:47821/v1/notify \
 
 `GET /v1/health` checks that Lintel is running.
 
-**Security:** the server listens on `127.0.0.1` only and accepts only JSON. It refuses requests from web pages and requests whose `Host` isn't the loopback address. Browser extensions must send the pairing token (`Authorization: Bearer <token>`). You can change the port or turn the API off in Settings.
+**Security:** the server listens on `127.0.0.1` only and accepts only JSON. It refuses requests from web pages and requests whose `Host` isn't the loopback address. Browser extensions must send the pairing token (`Authorization: Bearer <token>`). You can change the port or turn the API off in **Settings → Notifications → Website notifications**.
 
 ## Building from source
 
