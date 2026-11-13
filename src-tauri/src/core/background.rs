@@ -9,6 +9,7 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use serde::{Deserialize, Serialize};
 
+use crate::core::settings_service::WidgetId;
 use crate::errors::{AppError, AppResult};
 
 /// Settings shrinks pictures to 1600 px wide JPEGs; this leaves room for PNGs.
@@ -29,6 +30,15 @@ pub fn path(settings_dir: &Path, slot: Slot) -> PathBuf {
         Slot::Panel => "background.img",
         Slot::Island => "background-island.img",
     })
+}
+
+/// A widget's own card picture, named after the widget.
+pub fn widget_path(settings_dir: &Path, id: WidgetId) -> PathBuf {
+    let name = serde_json::to_value(id)
+        .ok()
+        .and_then(|v| v.as_str().map(String::from))
+        .unwrap_or_default();
+    settings_dir.join(format!("widget-{name}.img"))
 }
 
 /// "image/jpeg" or "image/png" from the file's first bytes, else None.
@@ -88,6 +98,12 @@ mod tests {
     use super::*;
 
     const PNG: &[u8] = b"\x89PNG\r\n\x1a\n rest";
+
+    #[test]
+    fn names_widget_pictures_after_the_widget() {
+        let file = widget_path(Path::new("/s"), WidgetId::Countdowns);
+        assert_eq!(file, Path::new("/s/widget-countdowns.img"));
+    }
 
     #[test]
     fn round_trips_a_picture() {

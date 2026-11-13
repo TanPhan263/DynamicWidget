@@ -114,12 +114,17 @@ pub fn run() {
             commands::set_control,
             commands::set_ui_language,
         ])
+            commands::get_news,
+            commands::open_news_link,
+            commands::get_events,
         .build(tauri::generate_context!())
         .expect("error while building Lintel");
 
     app.run(|app, event| match event {
         // Keep running in the tray when windows close; only explicit Quit
         // (which passes an exit code) ends the process.
+            commands::get_widget_image,
+            commands::set_widget_image,
         RunEvent::ExitRequested {
             api, code: None, ..
         } => api.prevent_exit(),

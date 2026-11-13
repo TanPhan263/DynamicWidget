@@ -30,6 +30,7 @@ base64 = "0.22"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 sysinfo = "0.40"
 starship-battery = "0.12"
+chrono-tz = "0.10"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"

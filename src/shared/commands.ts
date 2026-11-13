@@ -12,6 +12,8 @@ import type {
   Settings,
   UiSnapshot,
   Weather,
+  News,
+  Events,
   WidgetId,
 } from "./types";
 
@@ -52,6 +54,15 @@ export const openSettings = () => invoke<void>("open_settings");
 /** Opens the system app that goes with a widget, such as Calendar. */
 export const openWidgetApp = (widget: WidgetId) => invoke<void>("open_widget_app", { widget });
 
+/** Headlines from the followed feeds; the core fetches each at most every 15 minutes. */
+export const getNews = () => invoke<News>("get_news");
+
+/** Upcoming events from the calendar links; the core fetches each at most every 15 minutes. */
+export const getEvents = () => invoke<Events>("get_events");
+
+/** Opens a headline in the browser. */
+export const openNewsLink = (url: string) => invoke<void>("open_news_link", { url });
+
 /** Runs a quick action; toggles resolve to their new state when it is known. */
 export const runQuickAction = (action: QuickAction) => invoke<boolean | null>("run_quick_action", { action });
 
@@ -61,6 +72,12 @@ export const mediaControl = (track: NowPlaying, command: MediaCommand) =>
 
 /** A background picture as a data URL, or null. */
 export const getBackgroundImage = (slot: BackgroundSlot) => invoke<string | null>("get_background_image", { slot });
+
+/** A widget's own card picture as a data URL, or null. */
+export const getWidgetImage = (id: WidgetId) => invoke<string | null>("get_widget_image", { id });
+
+/** Saves a JPEG or PNG data URL behind one widget's card, or removes it with null. */
+export const setWidgetImage = (id: WidgetId, image: string | null) => invoke<void>("set_widget_image", { id, image });
 
 /** Saves a JPEG or PNG data URL as a background picture, or removes it with null. */
 export const setBackgroundImage = (slot: BackgroundSlot, image: string | null) =>
@@ -78,7 +95,6 @@ export const getWeather = () => invoke<Weather>("get_weather");
 /** Opens a symbol's quote page in the browser. */
 export const openStockPage = (symbol: string) => invoke<void>("open_stock_page", { symbol });
 
-export const replaceBrowserToken = () => invoke<UiSnapshot>("replace_browser_token");
 
 /** Opens the browser extension's folder and returns its path. */
 export const openExtensionFolder = () => invoke<string>("open_extension_folder");

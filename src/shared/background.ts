@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { getBackgroundImage } from "./commands";
+import { getBackgroundImage, getWidgetImage } from "./commands";
 import { listenAll } from "./events";
 import { t } from "./i18n";
-import type { BackgroundSlot } from "./types";
+import { ALL_WIDGETS, type BackgroundSlot, type WidgetId } from "./types";
 
 export type Pictures = Record<BackgroundSlot, string | null>;
 
@@ -19,6 +19,25 @@ export function useBackgroundImages(): Pictures {
     return listenAll({ "background-changed": ({ slot, image }) => set(slot, image) });
   }, []);
   return pictures;
+}
+
+/** Pictures behind single widgets (data URLs), kept current across windows. */
+export function useWidgetImages(): Partial<Record<WidgetId, string>> {
+  const [images, setImages] = useState<Partial<Record<WidgetId, string>>>({});
+  useEffect(() => {
+    const set = (id: WidgetId, image: string | null) =>
+      setImages((p) => {
+        const { [id]: _, ...rest } = p;
+        return image ? { ...rest, [id]: image } : rest;
+      });
+    for (const id of ALL_WIDGETS) {
+      getWidgetImage(id)
+        .then((i) => set(id, i ?? null))
+        .catch(() => {});
+    }
+    return listenAll({ "widget-image-changed": ({ id, image }) => set(id, image) });
+  }, []);
+  return images;
 }
 
 /**

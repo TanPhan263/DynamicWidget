@@ -54,14 +54,20 @@ export function baseSnapshot(): UiSnapshot {
       doNotDisturb: false,
       widgets: ["clock", "calendar", "timer", "system", "notes"],
       widgetSizes: {},
+      widgetLooks: {},
       stocks: ["AAPL", "BTC-USD"],
       islandStocks: [],
+      newsFeeds: [],
+      newsView: "list",
+      calendarLinks: [],
+      countdowns: [],
       musicBars: { enabled: true, position: "inside", flipped: false, colors: ["#ffffff", "#ffffff"], showTitle: true },
       use24HourClock: false,
+      islandIcons: { left: [], right: [] },
       batteryAlerts: true,
       apiEnabled: true,
       apiPort: 47821,
-      startAtLogin: false,
+      startAtLogin: true,
       onboardingCompleted: true,
     },
     notifications: [],
@@ -69,6 +75,9 @@ export function baseSnapshot(): UiSnapshot {
       cpuPercent: 12,
       memoryUsed: 8 * 1024 ** 3,
       memoryTotal: 16 * 1024 ** 3,
+      diskUsed: 300 * 1024 ** 3,
+      diskTotal: 500 * 1024 ** 3,
+      mailUnread: 3,
       battery: { percent: 80, state: "discharging", minutesRemaining: 200 },
       audioPlaying: false,
       cameraInUse: false,
@@ -83,7 +92,6 @@ export function baseSnapshot(): UiSnapshot {
     platform: "macos",
     version: "0.1.0",
     settingsPath: "/tmp/settings.json",
-    browserToken: "0123456789abcdef0123456789abcdef",
     keepAwake: false,
     recordingSince: null,
     quotes: [
@@ -129,9 +137,6 @@ export const coreModule = {
       case "save_settings":
         snapshot = { ...snapshot, settings: args!.settings as UiSnapshot["settings"] };
         return snapshot;
-      case "replace_browser_token":
-        snapshot = { ...snapshot, browserToken: "fedcba9876543210fedcba9876543210" };
-        return snapshot;
       case "set_do_not_disturb":
         snapshot = { ...snapshot, settings: { ...snapshot.settings, doNotDisturb: args!.enabled as boolean } };
         return snapshot;
@@ -167,12 +172,31 @@ export const coreModule = {
         };
       case "get_background_image":
         return background[args!.slot as string] ?? null;
+      case "get_widget_image":
+        return null;
+      case "set_widget_image":
+        emit("widget-image-changed", { id: args!.id, image: (args!.image as string | null) ?? null });
+        return null;
       case "set_background_image":
         background[args!.slot as string] = (args!.image as string | null) ?? null;
         emit("background-changed", { slot: args!.slot, image: background[args!.slot as string] });
         return undefined;
       case "open_extension_folder":
         return "/Applications/Lintel.app/Contents/Resources/extension";
+      case "get_news":
+        return {
+          items: snapshot.settings.newsFeeds
+            .filter((url) => !url.includes("bad"))
+            .map((url, i) => ({ title: `Headline ${i + 1}`, link: `${url}/story`, source: "Sample News", published: Date.UTC(2026, 10, 12, 8), description: `Summary ${i + 1}`, image: i === 0 ? "https://img.example/1.jpg" : null })),
+          feeds: snapshot.settings.newsFeeds.map((url) => ({ url, title: url.includes("bad") ? null : "Sample News", error: url.includes("bad") ? "no news feed found at this address" : null })),
+        };
+      case "get_events":
+        return {
+          events: snapshot.settings.calendarLinks
+            .filter((url) => !url.includes("bad"))
+            .map((_, i) => ({ title: `Event ${i + 1}`, start: Date.UTC(2026, 10, 12, 9 + i), end: Date.UTC(2026, 10, 12, 10 + i), allDay: false, location: i === 0 ? "Room 1" : null, calendar: "Work" })),
+          calendars: snapshot.settings.calendarLinks.map((url) => ({ url, title: url.includes("bad") ? null : "Work", error: url.includes("bad") ? "this address is not a calendar link" : null })),
+        };
       default:
         return undefined;
     }

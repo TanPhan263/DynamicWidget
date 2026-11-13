@@ -40,3 +40,8 @@ code {
     inset 0 0 0 1px rgb(255 255 255 / 0.08),
     0 6px 20px rgb(0 0 0 / 0.15);
 }
+
+/* A color or picture the user picked for one widget (see lookVars). Unlayered and after the rule above, so it wins. */
+[data-card] .tile {
+  background: var(--card);
+}

@@ -1,5 +1,5 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { BackgroundSlot, IslandLayout, IslandNotification, QuoteState, Settings, SystemStats } from "./types";
+import type { BackgroundSlot, IslandLayout, IslandNotification, QuoteState, Settings, SystemStats, WidgetId } from "./types";
 
 /** Events emitted by the Rust side, with their payloads. */
 export interface CoreEvents {
@@ -15,6 +15,8 @@ export interface CoreEvents {
   "quotes-changed": QuoteState[];
   /** A background picture changed: its data URL, or null once removed. */
   "background-changed": { slot: BackgroundSlot; image: string | null };
+  /** A widget's own picture changed: its data URL, or null once removed. */
+  "widget-image-changed": { id: WidgetId; image: string | null };
 }
 
 export type CoreEvent = keyof CoreEvents;

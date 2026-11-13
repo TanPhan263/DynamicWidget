@@ -2,6 +2,8 @@ import {
   Bluetooth,
   Calculator,
   Camera,
+  ChevronLeft,
+  ChevronRight,
   Cloud,
   CloudDrizzle,
   CloudFog,
@@ -16,6 +18,7 @@ import {
   Lock,
   Moon,
   Music2,
+  Newspaper,
   Pause,
   Pin,
   Plane,
@@ -31,7 +34,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Slider } from "radix-ui";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
@@ -39,10 +42,14 @@ import { clockParts, formatBytes, formatDuration, formatMinutes, formatPercent, 
 import {
   errorMessage,
   MAX_ISLAND_STOCKS,
+  type CalendarEvent,
   type ControlChange,
+  type Countdown,
   type Controls,
   type ControlToggle,
   type MediaCommand,
+  type NewsItem,
+  type NewsView,
   type NowPlaying,
   type Quote,
   type QuickAction,
@@ -52,7 +59,7 @@ import {
   type WidgetId,
   type WidgetSpan,
 } from "../../shared/types";
-import { getControls, getWeather, setControl } from "../../shared/commands";
+import { getControls, getEvents, getNews, getWeather, openNewsLink, setControl } from "../../shared/commands";
 import { getLanguage, t, type MessageKey } from "../../shared/i18n";
 import { SlidingNumber } from "../SlidingNumber";
 import type { TimerApi } from "../useTimer";
@@ -319,21 +326,20 @@ function readNotes(): string {
 
 export function NotesWidget() {
   const [text, setText] = useState(readNotes);
-  useEffect(() => {
-    const id = setTimeout(() => {
-      try {
-        localStorage.setItem(NOTES_KEY, text);
-      } catch {
-        // Storage unavailable; the note lives until the island reloads.
-      }
-    }, 300);
-    return () => clearTimeout(id);
-  }, [text]);
+  // Saved on every keystroke, so closing the panel never loses the last words.
+  const change = (value: string) => {
+    setText(value);
+    try {
+      localStorage.setItem(NOTES_KEY, value);
+    } catch {
+      // Storage unavailable; the note lives until the island reloads.
+    }
+  };
   return (
     <Card title={t("widget.notes")}>
       <textarea
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => change(e.target.value)}
         placeholder={t("notes.placeholder")}
         aria-label={t("notes.label")}
         spellCheck={false}
@@ -490,21 +496,20 @@ export function StocksWidget({ api, span }: { api: StocksApi } & SpanProps) {
   const { quotes, pinned, onOpen, onTogglePin } = api;
   const full = pinned.length >= MAX_ISLAND_STOCKS;
   const wide = isWide(span);
-  const tall = isTall(span);
   // Only the full-width card has room for volume.
   const large = (span?.cols ?? 1) >= 3;
-  // One row per symbol that fits the card.
-  const rows = quotes.slice(0, tall ? 7 : 3);
   return (
     <Card title={t("widget.stocks")} className="px-2 pb-2">
-      {rows.length === 0 ? (
+      {quotes.length === 0 ? (
         <p className="px-1 text-xs text-white/65">{t("stocksWidget.empty")}</p>
       ) : (
-        <ul className="flex flex-1 flex-col justify-start divide-y divide-white/[0.05]">
-          {rows.map(({ symbol, quote, error }) => {
+        // Pinned to the space under the title, so the card keeps its cell's size and the rows scroll inside it.
+        <div className="relative min-h-0 flex-1">
+        <ul className="absolute inset-0 flex flex-col divide-y divide-white/[0.05] overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {quotes.map(({ symbol, quote, error }) => {
             const on = pinned.includes(symbol);
             return (
-            <li key={symbol} className="group/row flex items-center gap-0.5">
+            <li key={symbol} className="group/row flex shrink-0 items-center gap-0.5">
               <button
                 type="button"
                 title={quote ? t("stocksWidget.openQuote", { name: quote.name }) : (error ?? t("common.loading"))}
@@ -562,6 +567,7 @@ export function StocksWidget({ api, span }: { api: StocksApi } & SpanProps) {
             );
           })}
         </ul>
+        </div>
       )}
     </Card>
   );
@@ -645,12 +651,14 @@ export function weatherIcon(code: number): { icon: LucideIcon; color: string; ti
 }
 
 const WEATHER_REFRESH_MS = 15 * 60 * 1000;
-const degrees = (c: number) => `${Math.round(c)}°`;
+export const degrees = (c: number) => `${Math.round(c)}°`;
 
-function WeatherWidget({ span }: SpanProps) {
+/** Today's weather, refreshed every 15 minutes while `enabled`. */
+export function useWeather(enabled = true) {
   const [weather, setWeather] = useState<Weather | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
+    if (!enabled) return;
     let live = true;
     const load = () =>
       getWeather()
@@ -666,8 +674,12 @@ function WeatherWidget({ span }: SpanProps) {
       live = false;
       clearInterval(id);
     };
-  }, []);
+  }, [enabled]);
+  return { weather, error };
+}
 
+function WeatherWidget({ span }: SpanProps) {
+  const { weather, error } = useWeather();
   if (!weather) {
     return (
       <Card title={t("widget.weather")}>
@@ -737,6 +749,10 @@ export function Widget({
   actions,
   stocks,
   media,
+  newsFeeds = [],
+  newsView = "list",
+  calendarLinks = [],
+  countdowns = [],
 }: {
   id: WidgetId;
   span?: WidgetSpan;
@@ -747,6 +763,12 @@ export function Widget({
   actions: QuickActionsApi;
   stocks: StocksApi;
   media: MediaApi;
+  /** Addresses the News widget follows. */
+  newsFeeds?: readonly string[];
+  newsView?: NewsView;
+  /** Calendar links the Events widget reads. */
+  calendarLinks?: readonly string[];
+  countdowns?: readonly Countdown[];
 }) {
   switch (id) {
     case "clock":
@@ -769,7 +791,497 @@ export function Widget({
       return <WeatherWidget span={span} />;
     case "controls":
       return <ControlsWidget span={span} />;
+    case "news":
+      return <NewsWidget feeds={newsFeeds} view={newsView} now={now} span={span} />;
+    case "events":
+      return <EventsWidget links={calendarLinks} now={now} use24={use24} />;
+    case "countdowns":
+      return <CountdownsWidget countdowns={countdowns} now={now} span={span} />;
   }
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** The core keeps each calendar for 15 minutes, so asking more often only re-reads its cache. */
+const EVENTS_REFRESH_MS = 15 * 60 * 1000;
+
+/** Local midnight of the day `ms` falls on. */
+function dayStart(ms: number): number {
+  const d = new Date(ms);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+/** "today", "tomorrow", or the weekday and date. */
+function dayLabel(day: number, now: Date): string {
+  // Rounded, since a day with a clock change is 23 or 25 hours.
+  const diff = Math.round((day - dayStart(now.getTime())) / DAY_MS);
+  if (diff <= 1) return new Intl.RelativeTimeFormat(getLanguage(), { numeric: "auto" }).format(diff, "day");
+  return new Date(day).toLocaleDateString(getLanguage(), { weekday: "short", month: "short", day: "numeric" });
+}
+
+/** What is coming up in the calendars the user linked, grouped by day. */
+export function EventsWidget({ links, now, use24 }: { links: readonly string[]; now: Date; use24: boolean }) {
+  const [events, setEvents] = useState<CalendarEvent[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const key = links.join("\n");
+  useEffect(() => {
+    if (!key) return;
+    let live = true;
+    const load = () =>
+      getEvents()
+        .then((r) => {
+          if (!live || !r) return;
+          setEvents(r.events);
+          setError(r.events.length === 0 ? (r.calendars.find((c) => c.error)?.error ?? null) : null);
+        })
+        .catch((e) => live && setError(errorMessage(e)));
+    load();
+    const id = setInterval(load, EVENTS_REFRESH_MS);
+    return () => {
+      live = false;
+      clearInterval(id);
+    };
+  }, [key]);
+
+  const at = now.getTime();
+  // Events that end between refreshes drop off as the clock moves.
+  const left = (events ?? []).filter((e) => Math.max(e.end, e.start + 1) > at);
+  if (!key || left.length === 0) {
+    return (
+      <Card title={t("widget.events")}>
+        <p className="text-xs text-white/65">{!key ? t("events.noLinks") : (error ?? (events ? t("events.none") : t("common.loading")))}</p>
+      </Card>
+    );
+  }
+  const today = dayStart(at);
+  const days: { day: number; events: CalendarEvent[] }[] = [];
+  for (const e of left) {
+    // Something that started before today and is still going sits under today.
+    const day = Math.max(dayStart(e.start), today);
+    const last = days.at(-1);
+    if (last?.day === day) last.events.push(e);
+    else days.push({ day, events: [e] });
+  }
+  const time = (ms: number) => new Date(ms).toLocaleTimeString(getLanguage(), { hour: "numeric", minute: "2-digit", hour12: !use24 });
+  return (
+    <Card title={t("widget.events")} className="pb-1">
+      <div className="thin-scroll -mx-1.5 min-h-0 flex-1 overflow-y-auto px-1.5">
+        {days.map(({ day, events }) => (
+          <section key={day} aria-label={dayLabel(day, now)} className="mb-1.5">
+            <h4 className="text-[10px] font-semibold tracking-wide text-white/45 uppercase">{dayLabel(day, now)}</h4>
+            <ul>
+              {events.map((e) => {
+                const ongoing = !e.allDay && e.start <= at;
+                const detail = [e.location, links.length > 1 ? e.calendar : null].filter(Boolean).join(" · ");
+                return (
+                  <li key={`${e.calendar}${e.start}${e.title}`} className="flex gap-2 py-0.5">
+                    <span className={cn("w-14 shrink-0 text-[11px] leading-tight tabular-nums", ongoing ? "font-medium text-emerald-300" : "text-white/55")}>
+                      {e.allDay ? t("events.allDay") : ongoing ? t("events.now") : time(e.start)}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[12px] leading-tight font-medium text-white/90" title={e.title}>
+                        {e.title || t("events.untitled")}
+                      </span>
+                      {detail && <span className="block truncate text-[10px] text-white/45">{detail}</span>}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+/** Whole days from today to `date` (YYYY-MM-DD) on this computer's calendar; negative once it has passed. */
+export function daysUntil(date: string, now: Date): number {
+  const [y, m, d] = date.split("-").map(Number);
+  return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) / DAY_MS);
+}
+
+/** Time left until the start of `date` (YYYY-MM-DD, local), as whole days, hours, minutes and seconds; null once it has begun. */
+export function timeLeft(date: string, now: Date): { days: number; hours: number; minutes: number; seconds: number; clock: string } | null {
+  const [y, m, d] = date.split("-").map(Number);
+  const left = Math.floor((new Date(y, m - 1, d).getTime() - now.getTime()) / 1000);
+  if (left <= 0) return null;
+  const hours = Math.floor(left / 3600) % 24;
+  const minutes = Math.floor(left / 60) % 60;
+  const seconds = left % 60;
+  return { days: Math.floor(left / 86_400), hours, minutes, seconds, clock: `${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}` };
+}
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/** A steady hue for a name, so each countdown keeps its own accent color. */
+export function accentHue(name: string): number {
+  let h = 0;
+  for (const c of name) h = (h * 31 + c.codePointAt(0)!) % 360;
+  return h;
+}
+/** The countdown's accent: the widget's custom text color when set, else the name's own hue. */
+const accent = (name: string) => `var(--widget-text, oklch(0.78 0.14 ${accentHue(name)}))`;
+
+type TimeUnit = "day" | "hour" | "minute" | "second";
+
+/** A unit's word for `n` ("days", "hr") in the current language, from Intl. */
+function unitWord(lang: string, unit: TimeUnit, n: number, display: "long" | "short") {
+  return new Intl.NumberFormat(lang, { style: "unit", unit, unitDisplay: display })
+    .formatToParts(n)
+    .filter((p) => p.type === "unit")
+    .map((p) => p.value)
+    .join("")
+    .trim();
+}
+
+/** The current time every second while `on`; the island itself only ticks once a minute. */
+function useSeconds(on: boolean, fallback: Date) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    if (!on) return;
+    setNow(new Date());
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, [on]);
+  return on ? now : fallback;
+}
+
+type Ranked = Countdown & { days: number };
+
+/**
+ * The bigger card: the nearest day with glass cells for
+ * days, hours, minutes and seconds, and a bar in its accent color that drains each minute.
+ * Two rows tall, it lists the other days below.
+ */
+function BigCountdown({ first, rest, now, wide, tall }: { first: Ranked; rest: Ranked[]; now: Date; wide: boolean; tall: boolean }) {
+  const lang = getLanguage();
+  const relative = new Intl.RelativeTimeFormat(lang, { numeric: "auto" });
+  const left = timeLeft(first.date, now);
+  const color = accent(first.name);
+  // A big card (2×2, 3×2): the time grows to fill it, and the list keeps to the bottom.
+  const fill = wide && tall;
+  const [y, m, d] = first.date.split("-").map(Number);
+  const cells: [TimeUnit, number][] = left
+    ? [["day", left.days], ["hour", left.hours], ["minute", left.minutes], ["second", left.seconds]]
+    : [];
+  return (
+    <Card className="pb-2.5">
+      {/* The "+N" stays by the label: the card's top-right corner holds its move grip. */}
+      <div className="flex items-center gap-2">
+        <h3 className={LABEL}>{t("widget.countdowns")}</h3>
+        {!tall && rest.length > 0 && (
+          <span className="rounded-full bg-white/[0.08] px-1.5 py-px text-[10px] font-semibold text-white/55 tabular-nums">+{rest.length}</span>
+        )}
+      </div>
+      <p className="mt-1.5 flex min-w-0 items-baseline gap-1.5">
+        <span className="truncate text-[15px] leading-tight font-semibold text-white" title={first.name}>
+          {first.name}
+        </span>
+        <span className="shrink-0 text-[10px] text-white/45">
+          {new Date(y, m - 1, d).toLocaleDateString(lang, { weekday: "short", month: "short", day: "numeric" })}
+        </span>
+      </p>
+      {left ? (
+        <div
+          role="timer"
+          aria-label={cells.map(([u, v]) => new Intl.NumberFormat(lang, { style: "unit", unit: u, unitDisplay: "long" }).format(v)).join(", ")}
+          className={cn("mt-2 grid gap-1.5", wide ? "grid-cols-4" : "grid-cols-2", fill && "min-h-0 flex-1")}
+        >
+          {cells.map(([unit, value]) => (
+            <div
+              key={unit}
+              aria-hidden="true"
+              // Filling the card, each cell is a size container so the digits scale with it.
+              className={cn(
+                "relative flex flex-col items-center justify-center overflow-hidden rounded-xl bg-white/[0.06] py-1.5 ring-1 ring-white/[0.07] ring-inset",
+                fill && "[container-type:size]",
+              )}
+            >
+              <SlidingNumber
+                value={unit === "day" ? String(value) : pad2(value)}
+                className={cn("leading-none font-semibold", fill ? "text-[min(40cqw,52cqh)]" : wide ? "text-[22px]" : "text-[18px]")}
+              />
+              <span className={cn("mt-1 font-semibold tracking-[0.1em] text-white/45 uppercase", fill ? "text-[max(9px,min(9cqw,11cqh))]" : "text-[9px]")}>
+                {unitWord(lang, unit, value, "short")}
+              </span>
+              {unit === "second" && (
+                // Drains with the seconds; snaps back without sliding when a new minute starts.
+                <span
+                  className="absolute inset-x-0 bottom-0 h-0.5 origin-left motion-safe:transition-transform motion-safe:ease-linear"
+                  style={{ background: color, transform: `scaleX(${value / 60})`, transitionDuration: value === 59 ? "0s" : "1s" }}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className={cn("mt-2 text-[26px] leading-none font-semibold first-letter:uppercase", first.days < 0 && "text-white/45")} style={first.days === 0 ? { color } : undefined}>
+          {relative.format(first.days, "day")}
+        </p>
+      )}
+      {tall && rest.length > 0 && (
+        <ul className={cn("thin-scroll mt-2.5 overflow-y-auto border-t border-white/[0.06] pt-1", fill ? "max-h-[34%] shrink-0" : "min-h-0 flex-1")}>
+          {rest.map((c) => (
+            <li key={`${c.name}${c.date}`} className="flex items-center gap-2 py-1 text-[11px]">
+              <span aria-hidden="true" className={cn("size-1.5 shrink-0 rounded-full", c.days < 0 && "opacity-40")} style={{ background: accent(c.name) }} />
+              <span className="truncate text-white/80">{c.name}</span>
+              <span className={cn("ml-auto shrink-0 tabular-nums", c.days < 0 ? "text-white/35" : "text-white/55")}>{relative.format(c.days, "day")}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+/** The nearest day the user is counting down to, large, with the rest below. A bigger card shows a live countdown. */
+export function CountdownsWidget({ countdowns, now: minute, span }: { countdowns: readonly Countdown[]; now: Date } & SpanProps) {
+  const wide = isWide(span);
+  const tall = isTall(span);
+  // Ticks only while something is still ahead; the hook runs before the early return below.
+  const now = useSeconds((wide || tall) && countdowns.some((c) => daysUntil(c.date, minute) > 0), minute);
+  if (countdowns.length === 0) {
+    return (
+      <Card title={t("widget.countdowns")}>
+        <p className="text-xs text-white/65">{t("countdowns.none")}</p>
+      </Card>
+    );
+  }
+  const lang = getLanguage();
+  const all = countdowns.map((c) => ({ ...c, days: daysUntil(c.date, now) }));
+  // Days still ahead, soonest first, then those passed, latest first.
+  const [first, ...rest] = [
+    ...all.filter((c) => c.days >= 0).sort((a, b) => a.days - b.days),
+    ...all.filter((c) => c.days < 0).sort((a, b) => b.days - a.days),
+  ];
+  if (wide || tall) return <BigCountdown first={first} rest={rest} now={now} wide={wide} tall={tall} />;
+  const relative = new Intl.RelativeTimeFormat(lang, { numeric: "auto" });
+  const n = Math.abs(first.days);
+  const [y, m, d] = first.date.split("-").map(Number);
+  return (
+    <Card title={t("widget.countdowns")} className="pb-1">
+      <p className={cn("flex items-baseline gap-1.5", first.days < 0 && "text-white/45")}>
+        {first.days === 0 ? (
+          <span className="text-[22px] leading-none font-semibold first-letter:uppercase">{relative.format(0, "day")}</span>
+        ) : (
+          <>
+            <span className="text-[34px] leading-none font-semibold tabular-nums">{n}</span>
+            {/* "days" in the current language, with the right plural. */}
+            <span className="text-xs text-white/55">{unitWord(lang, "day", n, "long")}</span>
+          </>
+        )}
+      </p>
+      <p className="mt-1 truncate text-[12px] font-medium text-white/90" title={first.name}>
+        {first.name}
+      </p>
+      <p className="text-[10px] text-white/45">
+        {first.days < 0
+          ? relative.format(first.days, "day")
+          : new Date(y, m - 1, d).toLocaleDateString(lang, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+      </p>
+      {rest.length > 0 && (
+        <ul className="thin-scroll mt-2 min-h-0 flex-1 overflow-y-auto">
+          {rest.map((c) => (
+            <li key={`${c.name}${c.date}`} className="flex justify-between gap-2 py-0.5 text-[11px]">
+              <span className="truncate text-white/80">{c.name}</span>
+              <span className={cn("shrink-0 tabular-nums", c.days < 0 ? "text-white/35" : "text-white/55")}>{relative.format(c.days, "day")}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
+/** The core keeps each feed for 15 minutes, so asking more often only re-reads its cache. */
+const NEWS_REFRESH_MS = 15 * 60 * 1000;
+
+/** "5 min ago" in the current language. */
+function ago(ms: number, now: Date): string {
+  const minutes = Math.round((now.getTime() - ms) / 60_000);
+  const rtf = new Intl.RelativeTimeFormat(getLanguage(), { numeric: "auto", style: "short" });
+  if (minutes < 60) return rtf.format(-Math.max(0, minutes), "minute");
+  if (minutes < 24 * 60) return rtf.format(-Math.round(minutes / 60), "hour");
+  return rtf.format(-Math.round(minutes / (24 * 60)), "day");
+}
+
+/** Latest headlines from the feeds the user follows; a click opens one in the browser. */
+export function NewsWidget({ feeds, view = "list", now, span }: { feeds: readonly string[]; view?: NewsView; now: Date } & SpanProps) {
+  const [items, setItems] = useState<NewsItem[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const key = feeds.join("\n");
+  useEffect(() => {
+    if (!key) return;
+    let live = true;
+    const load = () =>
+      getNews()
+        .then((n) => {
+          if (!live || !n) return;
+          setItems(n.items);
+          // Only worth showing when nothing loaded at all.
+          setError(n.items.length === 0 ? (n.feeds.find((f) => f.error)?.error ?? null) : null);
+        })
+        .catch((e) => live && setError(errorMessage(e)));
+    load();
+    const id = setInterval(load, NEWS_REFRESH_MS);
+    return () => {
+      live = false;
+      clearInterval(id);
+    };
+  }, [key]);
+
+  if (!key || !items || items.length === 0) {
+    return (
+      <Card title={t("widget.news")}>
+        <p className="text-xs text-white/65">{!key ? t("news.noFeeds") : (error ?? (items ? t("news.none") : t("common.loading")))}</p>
+      </Card>
+    );
+  }
+  if (view === "slides") return <NewsSlides items={items} now={now} span={span} />;
+  return (
+    <Card title={t("widget.news")} className="pb-1">
+      <ul className="thin-scroll -mx-1.5 min-h-0 flex-1 overflow-y-auto">
+        {items.map((item) => (
+          <li key={item.link}>
+            <button
+              type="button"
+              onClick={() => openNewsLink(item.link).catch(() => {})}
+              title={item.title}
+              className="block w-full rounded-lg px-1.5 py-1 text-left outline-none hover:bg-white/[0.07] focus-visible:ring-2 focus-visible:ring-white/40"
+            >
+              <span className="line-clamp-2 text-[12px] leading-snug font-medium text-white/90">{item.title}</span>
+              <span className="flex gap-1 text-[10px] text-white/45">
+                <Newspaper className="mt-px size-2.5 shrink-0" aria-hidden="true" />
+                <span className="truncate">{item.source}</span>
+                {item.published !== null && <span className="shrink-0">· {ago(item.published, now)}</span>}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+/** How long each story stays before the next one slides in. */
+const SLIDE_MS = 6000;
+/** More dots than this would not fit across a small tile. */
+const MAX_SLIDES = 10;
+
+/**
+ * One story at a time over its picture, moving on every few seconds. Hovering
+ * or focusing holds it; the pause button stops it, and it starts paused when
+ * the system asks for less motion.
+ */
+function NewsSlides({ items, now, span }: { items: NewsItem[]; now: Date } & SpanProps) {
+  const slides = items.slice(0, MAX_SLIDES);
+  const reduce = useReducedMotion();
+  const [index, setIndex] = useState(0);
+  const [held, setHeld] = useState(false);
+  const [paused, setPaused] = useState(!!reduce);
+  const [broken, setBroken] = useState<ReadonlySet<string>>(new Set());
+  const at = index % slides.length;
+  const item = slides[at];
+  const playing = !paused && !held && slides.length > 1;
+  useEffect(() => {
+    if (!playing) return;
+    const id = setTimeout(() => setIndex((i) => (i + 1) % slides.length), SLIDE_MS);
+    return () => clearTimeout(id);
+  }, [playing, at, slides.length]);
+
+  const picture = item.image && !broken.has(item.image) ? item.image : null;
+  const showSummary = isWide(span) || isTall(span);
+  const step = (by: number) => setIndex(() => (at + by + slides.length) % slides.length);
+  const small = cn("grid size-5 place-items-center rounded-full text-white/80 backdrop-blur-sm", GLASS_BUTTON);
+  return (
+    <Card className="p-0">
+      <section
+        aria-roledescription="carousel"
+        aria-label={t("widget.news")}
+        className="relative size-full"
+        onKeyDown={(e) => {
+          if (slides.length < 2 || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
+          e.preventDefault();
+          step(e.key === "ArrowLeft" ? -1 : 1);
+        }}
+        onPointerEnter={() => setHeld(true)}
+        onPointerLeave={() => setHeld(false)}
+        onFocus={() => setHeld(true)}
+        onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setHeld(false)}
+      >
+        <AnimatePresence initial={false}>
+          <motion.button
+            key={item.link}
+            type="button"
+            aria-roledescription="slide"
+            aria-label={t("news.slide", { n: at + 1, count: slides.length, title: item.title })}
+            onClick={() => openNewsLink(item.link).catch(() => {})}
+            initial={{ opacity: 0, scale: reduce ? 1 : 1.04 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="absolute inset-0 overflow-hidden text-left outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-inset"
+          >
+            {picture ? (
+              <img
+                src={picture}
+                alt=""
+                referrerPolicy="no-referrer"
+                onError={() => setBroken((b) => new Set(b).add(picture))}
+                className="absolute inset-0 size-full object-cover"
+              />
+            ) : (
+              <Newspaper aria-hidden="true" className="absolute -top-2 -right-2 size-20 text-white/[0.06]" />
+            )}
+            {/* Keeps the words readable over any picture. */}
+            <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-black/10" />
+            <span className="absolute inset-x-0 bottom-0 flex flex-col gap-1 p-3">
+              <span className="flex gap-1 text-[10px] text-white/60">
+                <span className="truncate">{item.source}</span>
+                {item.published !== null && <span className="shrink-0">· {ago(item.published, now)}</span>}
+              </span>
+              <span className="line-clamp-2 text-[13px] leading-snug font-semibold text-white">{item.title}</span>
+              {showSummary && item.description && (
+                <span className="line-clamp-2 text-[11px] leading-snug text-white/70">{item.description}</span>
+              )}
+            </span>
+          </motion.button>
+        </AnimatePresence>
+        {slides.length > 1 && (
+          <div className="absolute top-2 left-2 flex items-center gap-1.5">
+            <button
+              type="button"
+              aria-label={paused ? t("news.play") : t("news.pause")}
+              onClick={() => setPaused((p) => !p)}
+              className={small}
+            >
+              {paused ? <Play className="size-2.5" fill="currentColor" aria-hidden="true" /> : <Pause className="size-2.5" fill="currentColor" aria-hidden="true" />}
+            </button>
+            {/* Kept up here with the pause button, so they never cover the story. */}
+            <button type="button" data-no-drag aria-label={t("news.prev")} onClick={() => step(-1)} className={small}>
+              <ChevronLeft className="size-3" aria-hidden="true" />
+            </button>
+            <div className="flex gap-1">
+              {slides.map((s, i) => (
+                <button
+                  key={s.link}
+                  type="button"
+                  aria-label={t("news.goTo", { n: i + 1 })}
+                  aria-current={i === at}
+                  onClick={() => setIndex(i)}
+                  className={cn("h-1.5 rounded-full outline-none transition-all focus-visible:ring-2 focus-visible:ring-white/60", i === at ? "w-3.5 bg-white" : "w-1.5 bg-white/40 hover:bg-white/70")}
+                />
+              ))}
+            </div>
+            <button type="button" data-no-drag aria-label={t("news.next")} onClick={() => step(1)} className={small}>
+              <ChevronRight className="size-3" aria-hidden="true" />
+            </button>
+          </div>
+        )}
+      </section>
+    </Card>
+  );
 }
 
 /** How often the controls re-read the system while the panel is open. */

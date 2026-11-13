@@ -69,6 +69,31 @@ pub async fn open_stock_page(symbol: String) -> AppResult<()> {
     ))
 }
 
+/// Headlines from the feeds in settings; each is fetched at most every 15 minutes.
+#[tauri::command]
+pub async fn get_news(app: AppHandle) -> AppResult<crate::core::news::News> {
+    let feeds = actions::state(&app).read(|i| i.settings.news_feeds.clone());
+    Ok(crate::core::news::latest(&feeds))
+}
+
+/// Upcoming events from the calendar links in settings; each is fetched at most every 15 minutes.
+#[tauri::command]
+pub async fn get_events(app: AppHandle) -> AppResult<crate::core::events::Events> {
+    let links = actions::state(&app).read(|i| i.settings.calendar_links.clone());
+    Ok(crate::core::events::upcoming(&links))
+}
+
+/// Opens a headline in the browser; only web links.
+#[tauri::command]
+pub async fn open_news_link(url: String) -> AppResult<()> {
+    if !crate::core::news::is_web_link(&url) {
+        return Err(AppError::Validation(
+            "only http and https links open".into(),
+        ));
+    }
+    actions::open_with_system(url)
+}
+
 #[tauri::command]
 pub async fn open_widget_app(widget: WidgetId) -> AppResult<()> {
     actions::open_widget_app(widget)
@@ -153,6 +178,41 @@ pub async fn set_background_image(
     background::save(&file, bytes.as_deref())?;
     let image = background::load(&file);
     let _ = app.emit(BACKGROUND_CHANGED, BackgroundChanged { slot, image });
+    Ok(())
+}
+
+/// Sent as `{ id, image }` (image is a data URL or null) when a widget's own picture changes.
+pub const WIDGET_IMAGE_CHANGED: &str = "widget-image-changed";
+
+#[derive(Clone, serde::Serialize)]
+struct WidgetImageChanged {
+    id: WidgetId,
+    image: Option<String>,
+}
+
+fn widget_image_file(app: &AppHandle, id: WidgetId) -> std::path::PathBuf {
+    let settings = actions::state(app).store.path();
+    background::widget_path(settings.parent().unwrap_or(std::path::Path::new(".")), id)
+}
+
+/// A widget's own card picture as a data URL, if one is saved.
+#[tauri::command]
+pub async fn get_widget_image(app: AppHandle, id: WidgetId) -> AppResult<Option<String>> {
+    Ok(background::load(&widget_image_file(&app, id)))
+}
+
+/// Saves a picture (a JPEG or PNG data URL) behind one widget's card, or removes it.
+#[tauri::command]
+pub async fn set_widget_image(
+    app: AppHandle,
+    id: WidgetId,
+    image: Option<String>,
+) -> AppResult<()> {
+    let bytes = image.as_deref().map(background::decode).transpose()?;
+    let file = widget_image_file(&app, id);
+    background::save(&file, bytes.as_deref())?;
+    let image = background::load(&file);
+    let _ = app.emit(WIDGET_IMAGE_CHANGED, WidgetImageChanged { id, image });
     Ok(())
 }
 

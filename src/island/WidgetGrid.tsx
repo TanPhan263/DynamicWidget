@@ -12,11 +12,11 @@ import { rectSortingStrategy, SortableContext, sortableKeyboardCoordinates, useS
 import { CSS } from "@dnd-kit/utilities";
 import { ArrowUpRight, GripVertical } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import { useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { FieldSafePointerSensor } from "@/lib/dnd";
 import { cn } from "@/lib/utils";
 import { dropWidget } from "../settings/widgetOrder";
-import { clampSpan, SMALL, widgetLabel, type WidgetId, type WidgetSpan } from "../shared/types";
+import { clampSpan, lookVars, SMALL, widgetLabel, type WidgetId, type WidgetLook, type WidgetSpan } from "../shared/types";
 import { t } from "../shared/i18n";
 import { CARD_HEIGHT, GAP, WIDGET_COLUMNS } from "./geometry";
 
@@ -141,6 +141,9 @@ const INTERACTIVE = "button, a, input, textarea, select, [contenteditable], [rol
 interface SortableProps {
   id: WidgetId;
   span: WidgetSpan;
+  look?: WidgetLook;
+  /** The widget's own picture, a data URL. */
+  picture?: string;
   resizing: boolean;
   /** The app a click opens, if any. */
   app: string | null;
@@ -152,8 +155,10 @@ interface SortableProps {
   children: ReactNode;
 }
 
-function SortableWidget({ id, span, resizing, app, onOpen, justDragged, onResize, onResizing, children }: SortableProps) {
+function SortableWidget({ id, span, look, picture, resizing, app, onOpen, justDragged, onResize, onResizing, children }: SortableProps) {
   const { setNodeRef, setActivatorNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id });
+  // Memoized: with a picture this is a long string, and dragging redraws often.
+  const vars = useMemo(() => lookVars(look, picture), [look, picture]);
   return (
     <div
       ref={setNodeRef}
@@ -162,7 +167,9 @@ function SortableWidget({ id, span, resizing, app, onOpen, justDragged, onResize
         transition,
         gridColumn: `span ${span.cols}`,
         gridRow: `span ${span.rows}`,
-      }}
+        ...vars,
+      } as CSSProperties}
+      data-card={vars["--card"] ? "" : undefined}
       // The whole card drags with the pointer; the grip is the keyboard handle.
       // A click that is not a drag opens the widget's app.
       onPointerDown={(e) => listeners?.onPointerDown?.(e)}
@@ -211,6 +218,8 @@ function SortableWidget({ id, span, resizing, app, onOpen, justDragged, onResize
 interface Props {
   widgets: WidgetId[];
   sizes: Partial<Record<WidgetId, WidgetSpan>>;
+  looks?: Partial<Record<WidgetId, WidgetLook>>;
+  pictures?: Partial<Record<WidgetId, string>>;
   render: (id: WidgetId, span: WidgetSpan) => ReactNode;
   onReorder: (widgets: WidgetId[]) => void;
   onResize: (id: WidgetId, span: WidgetSpan, done: boolean) => void;
@@ -224,7 +233,7 @@ interface Props {
 }
 
 /** The widget grid: drag a card to reorder, drag its corner to resize. */
-export function WidgetGrid({ widgets, sizes, render, onReorder, onResize, onDragging, scroll, appFor, onOpen }: Props) {
+export function WidgetGrid({ widgets, sizes, looks = {}, pictures = {}, render, onReorder, onResize, onDragging, scroll, appFor, onOpen }: Props) {
   const [resizing, setResizing] = useState<WidgetId | null>(null);
   // The click that ends a drag arrives right after the drop, so this stays
   // set until the next task.
@@ -284,6 +293,8 @@ export function WidgetGrid({ widgets, sizes, render, onReorder, onResize, onDrag
                 key={id}
                 id={id}
                 span={span}
+                look={looks[id]}
+                picture={pictures[id]}
                 resizing={resizing === id}
                 app={appFor(id)}
                 onOpen={() => onOpen(id)}
