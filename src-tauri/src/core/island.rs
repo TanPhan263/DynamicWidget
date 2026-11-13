@@ -15,7 +15,7 @@ use std::time::{Duration, Instant};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 
-use super::geometry::{DisplayGeometry, Point};
+use super::geometry::{DisplayGeometry, Point, Rect};
 use crate::actions;
 
 pub const ISLAND_LABEL: &str = "island";
@@ -30,6 +30,11 @@ pub const ISLAND_HOVER: &str = "island-hover";
 pub const ISLAND_LAYOUT: &str = "island-layout";
 
 const POINTER_POLL: Duration = Duration::from_millis(30);
+/// While the pointer is farther than [`NEAR`] from the island it is read this
+/// often; hover waits 120 ms before opening anyway.
+const FAR_POLL: Duration = Duration::from_millis(120);
+/// CSS pixels around the island where the pointer is read at full speed.
+const NEAR: f64 = 200.0;
 const DISPLAY_POLL: Duration = Duration::from_secs(2);
 /// How often full screen is checked, and how long the thread sleeps while
 /// the island is hidden (`wake` cuts that short).
@@ -108,6 +113,8 @@ struct Engine {
     last_full_screen_check: Option<Instant>,
     full_screen: bool,
     hovering: bool,
+    /// The pointer is within [`NEAR`] of the island.
+    near: bool,
     visible: bool,
 }
 
@@ -215,10 +222,9 @@ impl Engine {
         let Ok(pointer) = st.adapter.pointer_position() else {
             return;
         };
-        let area = p
-            .display
-            .window_rect_to_native(p.origin, rect.outset(HIT_SLOP));
-        self.set_hover(area.contains(pointer));
+        let to_native = |r: Rect| p.display.window_rect_to_native(p.origin, r);
+        self.near = to_native(rect.outset(NEAR)).contains(pointer);
+        self.set_hover(to_native(rect.outset(HIT_SLOP)).contains(pointer));
     }
 }
 
@@ -241,6 +247,7 @@ pub fn spawn(app: AppHandle) {
                 last_full_screen_check: None,
                 full_screen: false,
                 hovering: false,
+                near: true,
                 visible: false,
             };
             let _ = ENGINE.set(thread::current());
@@ -255,7 +262,11 @@ pub fn spawn(app: AppHandle) {
                 }
                 // Hidden, nothing needs the pointer; wake only to check full screen.
                 if engine.visible {
-                    thread::sleep(POINTER_POLL);
+                    thread::sleep(if engine.near || engine.hovering {
+                        POINTER_POLL
+                    } else {
+                        FAR_POLL
+                    });
                 } else {
                     thread::park_timeout(IDLE_POLL);
                 }

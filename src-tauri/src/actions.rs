@@ -305,8 +305,25 @@ pub fn apply_api(app: &AppHandle) {
     notify_ui(app);
 }
 
+/// Settings is made when opened and destroyed when closed, so a closed
+/// Settings page holds no memory (about 45 MB).
 pub fn open_settings(app: &AppHandle) {
-    if let Some(w) = app.get_webview_window("settings") {
+    // The island closes as Settings opens, and closing hands focus back to the
+    // previous app, which would cover Settings. The user is moving to Settings.
+    state(app).mutate(|i| i.previous_foreground = None);
+    let window = app.get_webview_window("settings").or_else(|| {
+        let config = app
+            .config()
+            .app
+            .windows
+            .iter()
+            .find(|w| w.label == "settings")?;
+        tauri::WebviewWindowBuilder::from_config(app, config)
+            .and_then(|b| b.build())
+            .map_err(|e| log::error!("settings window not created: {e}"))
+            .ok()
+    });
+    if let Some(w) = window {
         let _ = w.unminimize();
         let _ = w.show();
         let _ = w.set_focus();

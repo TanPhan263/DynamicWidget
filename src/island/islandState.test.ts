@@ -40,6 +40,11 @@ describe("island view", () => {
     expect(viewOf(reduce(s, { type: "toggle" }), "hover")).toBe("compact");
     expect(viewOf(reduce(s, { type: "close" }), "hover")).toBe("compact");
   });
+
+  it("closes under the pointer in hover mode (Settings button, Esc)", () => {
+    const hovered = reduce(initialState, { type: "hover", hover: true, trigger: "hover" });
+    expect(viewOf(reduce(hovered, { type: "close" }), "hover")).toBe("compact");
+  });
 });
 
 describe("notifications", () => {

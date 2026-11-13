@@ -62,7 +62,9 @@ export function reduce(s: IslandState, a: Action): IslandState {
     case "open":
       return opened({ ...s, pinned: true }, a.tab);
     case "close":
-      return { ...s, pinned: false };
+      // Forgets the hover too, so the panel closes under the pointer; it opens
+      // again once the pointer leaves and comes back.
+      return { ...s, pinned: false, hover: false };
     case "tab":
       return { ...s, tab: a.tab };
     case "notify": {

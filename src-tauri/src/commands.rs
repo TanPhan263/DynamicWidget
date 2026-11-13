@@ -291,13 +291,16 @@ fn apply_settings(app: &AppHandle, input: Settings) -> AppResult<()> {
         );
     }
 
-    st.store.save(&next)?;
     let api_changed = prev.api_enabled != next.api_enabled || prev.api_port != next.api_port;
+    // Saved under the state lock, like `actions::persist`, so two saves never share the temp file
+    // and the file always matches what is in memory.
     st.mutate(|i| {
+        st.store.save(&next)?;
         i.settings = next;
         // A successful save clears a stale shortcut or storage error.
         i.last_error = None;
-    });
+        AppResult::Ok(())
+    })?;
     if api_changed {
         actions::apply_api(app);
     }

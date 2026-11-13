@@ -32,6 +32,7 @@
       },
       {
         "label": "settings",
+        "create": false,
         "title": "Lintel Settings",
         "url": "index.html",
         "width": 880,

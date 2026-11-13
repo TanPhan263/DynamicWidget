@@ -630,14 +630,26 @@ fn spawn_vn_poller(app: AppHandle) {
                     match fetch_vps(&agent, &symbols) {
                         Ok(ticks) => {
                             // The chart round creates entries; ticks only move them.
-                            st.mutate(|i| {
+                            // Sent on only when a price moved, so a closed market redraws nothing.
+                            let shown = |e: &QuoteState| {
+                                e.quote
+                                    .as_ref()
+                                    .map(|q| (q.price, q.volume, q.previous_close))
+                            };
+                            let moved = st.mutate(|i| {
+                                let mut moved = false;
                                 for tick in &ticks {
                                     if let Some(entry) = i.quotes.get_mut(&tick.symbol) {
+                                        let before = shown(entry);
                                         entry.apply_tick(tick, now_ms());
+                                        moved |= shown(entry) != before;
                                     }
                                 }
+                                moved
                             });
-                            emit_quotes(&app);
+                            if moved {
+                                emit_quotes(&app);
+                            }
                         }
                         Err(e) => log::debug!("VN prices failed: {e}"),
                     }

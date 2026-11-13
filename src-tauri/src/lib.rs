@@ -11,7 +11,7 @@ mod tray;
 
 use std::sync::Arc;
 
-use tauri::{Emitter, Manager, RunEvent, WindowEvent};
+use tauri::{Emitter, Manager, RunEvent};
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
 
@@ -70,16 +70,6 @@ pub fn run() {
             system_monitor::spawn(handle.clone());
             market::spawn(handle.clone());
 
-            if let Some(settings_window) = app.get_webview_window("settings") {
-                // Closing Settings only hides it; Lintel lives in the tray.
-                let w = settings_window.clone();
-                settings_window.on_window_event(move |event| {
-                    if let WindowEvent::CloseRequested { api, .. } = event {
-                        api.prevent_close();
-                        let _ = w.hide();
-                    }
-                });
-            }
             if !state.read(|i| i.settings.onboarding_completed) {
                 actions::open_settings(&handle);
             }
