@@ -29,9 +29,12 @@ export function SlidingNumber({ value, className }: { value: string; className?:
               <motion.span
                 key={c}
                 className="absolute inset-0 text-center"
-                initial={{ y: "70%", opacity: 0, filter: "blur(2px)" }}
-                animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
-                exit={{ y: "-70%", opacity: 0, filter: "blur(2px)" }}
+                // A whole `transform` (not `y`) lets Motion hand the roll to the
+                // compositor; `y` is redrawn from script on every frame.
+                initial={{ transform: "translateY(70%)", opacity: 0, filter: "blur(2px)" }}
+                // No filter is left at rest: even blur(0px) keeps a GPU layer per digit.
+                animate={{ transform: "translateY(0%)", opacity: 1, filter: "blur(0px)", transitionEnd: { filter: "none" } }}
+                exit={{ transform: "translateY(-70%)", opacity: 0, filter: "blur(2px)" }}
                 transition={{ type: "spring", stiffness: 420, damping: 32 }}
               >
                 {c}

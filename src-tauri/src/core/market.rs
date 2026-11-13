@@ -42,8 +42,9 @@ const REFRESH: Duration = Duration::from_secs(60);
 /// After a failed round, try again sooner.
 const RETRY: Duration = Duration::from_secs(20);
 const STREAM_URL: &str = "wss://streamer.finance.yahoo.com/?version=2";
-/// Ticks are batched into one update for the pages this often.
-const EMIT_EVERY: Duration = Duration::from_millis(300);
+/// Ticks are batched into one update for the pages this often. Busy symbols
+/// tick many times a second, and each update rolls the digits on screen.
+const EMIT_EVERY: Duration = Duration::from_secs(1);
 /// A ping this often notices a connection that died quietly.
 const PING_EVERY: Duration = Duration::from_secs(30);
 /// A streamed price this recent wins over the chart's, which lags.

@@ -17,7 +17,7 @@ import {
   setUiLanguage,
 } from "../shared/commands";
 import { listenAll } from "../shared/events";
-import { MAX_ISLAND_STOCKS, PANEL_SIZE_RANGE, widgetAppName, type IslandStat, type Settings, type UiSnapshot, type WidgetId, type WidgetSpan } from "../shared/types";
+import { MAX_ISLAND_STOCKS, PANEL_SIZE_RANGE, widgetAppName, type IslandStat, type QuoteState, type Settings, type UiSnapshot, type WidgetId, type WidgetSpan } from "../shared/types";
 import {
   contentShape,
   expandedHeight,
@@ -128,6 +128,10 @@ export function Island() {
   // subscription is made once.
   const snapRef = useRef(snap);
   snapRef.current = snap;
+  // Prices keep streaming while nothing shows them (panel closed, no stock on
+  // the island). Then the latest quotes wait here instead of redrawing the island.
+  const quotesShown = useRef(false);
+  const waitingQuotes = useRef<QuoteState[] | null>(null);
   const hoverTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   // Hovering the island's media buttons must not open the panel under them.
   const islandHovered = useRef(false);
@@ -160,7 +164,10 @@ export function Island() {
       "notifications-changed": (notifications) => patch({ notifications }),
       "settings-changed": (settings) => patch({ settings }),
       "system-stats": (stats) => patch({ stats }),
-      "quotes-changed": (quotes) => patch({ quotes }),
+      "quotes-changed": (quotes) => {
+        if (quotesShown.current) patch({ quotes });
+        else waitingQuotes.current = quotes;
+      },
       "island-layout": (layout) => patch({ layout }),
       "state-changed": () => {
         getSnapshot().then(setSnap).catch(() => {});
@@ -183,6 +190,16 @@ export function Island() {
   }, [language, !!snap]);
   const trigger = settings?.expandTrigger ?? "hover";
   const view: View = viewOf(state, trigger);
+
+  // Quotes that arrived while hidden show as soon as something shows prices again.
+  const showsQuotes = view === "expanded" || (settings?.islandStocks.length ?? 0) > 0;
+  quotesShown.current = showsQuotes;
+  useEffect(() => {
+    const quotes = waitingQuotes.current;
+    if (!showsQuotes || !quotes) return;
+    waitingQuotes.current = null;
+    setSnap((s) => (s ? { ...s, quotes } : s));
+  }, [showsQuotes]);
 
   // A notification peeks for the configured time, longer while hovered.
   const peekId = state.peek?.id;
