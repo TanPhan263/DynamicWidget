@@ -194,10 +194,10 @@ impl Engine {
             return;
         }
         self.hovering = inside;
-        let _ = self.window.set_ignore_cursor_events(!inside);
+        let st = actions::state(&self.app);
+        st.adapter.set_click_through(&self.window, !inside);
         if inside {
             // Remember who had focus before a click can move it to the island.
-            let st = actions::state(&self.app);
             if let Some(token) = st.adapter.foreground_token() {
                 st.mutate(|i| i.previous_foreground = Some(token));
             }
@@ -233,8 +233,10 @@ pub fn spawn(app: AppHandle) {
         log::error!("island window missing from configuration");
         return;
     };
-    actions::state(&app).adapter.prepare_island(&window);
-    let _ = window.set_ignore_cursor_events(true);
+    let st = actions::state(&app);
+    st.adapter.prepare_island(&window);
+    st.adapter.set_click_through(&window, true);
+    drop(st);
 
     let spawned = thread::Builder::new()
         .name("lintel-island".into())

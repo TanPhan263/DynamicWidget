@@ -39,6 +39,14 @@ impl PlatformAdapter for WindowsAdapter {
         island::show(window);
     }
 
+    fn set_click_through(&self, window: &WebviewWindow, through: bool) {
+        island::set_click_through(window, through);
+    }
+
+    fn focus_island(&self, window: &WebviewWindow) {
+        island::focus(window);
+    }
+
     fn island_layout(&self, _app: &AppHandle) -> IslandLayout {
         // No notch: the page draws a floating pill below the top edge.
         IslandLayout::initial()

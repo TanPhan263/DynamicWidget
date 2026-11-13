@@ -4,7 +4,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     GetForegroundWindow, GetWindowLongPtrW, GetWindowThreadProcessId, IsWindow,
     SetForegroundWindow, SetWindowLongPtrW, SetWindowPos, ShowWindow, GWL_EXSTYLE, HWND_TOPMOST,
     SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, SW_SHOWNOACTIVATE, WS_EX_APPWINDOW,
-    WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
+    WS_EX_LAYERED, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT,
 };
 
 use crate::core::geometry::{DisplayGeometry, Point};
@@ -65,6 +65,28 @@ pub fn show(window: &WebviewWindow) {
             0,
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW,
         );
+    });
+}
+
+/// Click-through on or off, with the same styles tao uses. Done here rather
+/// than through tao: the island is shown with `ShowWindow` above, so tao still
+/// thinks it is hidden, and any tao flag change would hide it again.
+pub fn set_click_through(window: &WebviewWindow, through: bool) {
+    with_hwnd(window, move |hwnd| unsafe {
+        let style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32;
+        let bits = WS_EX_TRANSPARENT.0 | WS_EX_LAYERED.0;
+        let wanted = if through { style | bits } else { style & !bits };
+        if wanted != style {
+            SetWindowLongPtrW(hwnd, GWL_EXSTYLE, wanted as isize);
+        }
+    });
+}
+
+/// Keyboard focus for the island. tao's `set_focus` does nothing while it
+/// thinks the window is hidden (see [`set_click_through`]).
+pub fn focus(window: &WebviewWindow) {
+    with_hwnd(window, |hwnd| unsafe {
+        let _ = SetForegroundWindow(hwnd);
     });
 }
 

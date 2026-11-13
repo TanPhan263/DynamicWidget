@@ -21,6 +21,14 @@ pub trait PlatformAdapter: Send + Sync {
     fn place_island(&self, window: &WebviewWindow, origin: Point, display: &DisplayGeometry);
     /// Shows the island without taking focus from the active application.
     fn show_island(&self, window: &WebviewWindow);
+    /// Lets clicks pass through the island (`true`) or makes it take them.
+    fn set_click_through(&self, window: &WebviewWindow, through: bool) {
+        let _ = window.set_ignore_cursor_events(through);
+    }
+    /// Gives the island keyboard focus, so Esc reaches it.
+    fn focus_island(&self, window: &WebviewWindow) {
+        let _ = window.set_focus();
+    }
     /// Notch and menu bar of the primary display.
     fn island_layout(&self, app: &AppHandle) -> IslandLayout;
     /// Identifies the focused application, unless it is Lintel itself.

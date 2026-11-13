@@ -47,7 +47,7 @@ pub fn toggle_island(app: &AppHandle) {
     st.mutate(|i| i.island_summoned = true);
     crate::core::island::wake();
     if let Some(w) = app.get_webview_window(ISLAND_LABEL) {
-        let _ = w.set_focus();
+        st.adapter.focus_island(&w);
     }
     let _ = app.emit_to(ISLAND_LABEL, ISLAND_TOGGLE, ());
 }
