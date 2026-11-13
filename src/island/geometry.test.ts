@@ -12,6 +12,8 @@ import {
   WING,
   WINDOW_HEIGHT,
   WINDOW_WIDTH,
+  fitSides,
+  iconsWidth,
 } from "./geometry";
 
 import type { IslandLayout } from "../shared/types";
@@ -135,5 +137,34 @@ describe("island geometry", () => {
     expect(islandScale(200)).toBe(1.5);
     expect(islandScale(Number.NaN)).toBe(1);
     expect(islandScale(50, [80, 150])).toBe(0.8);
+  });
+});
+
+describe("iconsWidth", () => {
+  it("leaves 10 px between the icons and the pill's ends", () => {
+    // Four icons: 4 × 22 + 3 × 6 + 2 × 10.
+    expect(iconsWidth({ left: ["weather", "cpu", "memory", "battery"], right: [] })).toBe(126);
+    // Two groups sit 12 apart; the clock counts as two icons.
+    expect(iconsWidth({ left: ["cpu"], right: ["time", "battery"] })).toBe(22 + 12 + (3 * 22 + 2 * 6) + 20);
+    expect(iconsWidth({ left: ["cpu"], right: [] })).toBe(42);
+  });
+
+  it("only changes a pill that shows icons alone", () => {
+    const pill = shapeFor(plainMac, "island");
+    expect(islandBox(pill, "compact", { wings: false, rows: 1, icons: { left: ["weather", "cpu", "memory", "battery"], right: [] } }).width).toBe(126);
+    expect(islandBox(pill, "compact", { wings: false, rows: 1 }).width).toBe(pill.compactWidth);
+    // Beside a notch each wing fits the fuller side: one icon, 10 outside, 6 by the notch.
+    expect(islandBox(notch, "compact", { wings: true, rows: 1, icons: { left: ["cpu"], right: [] } }).width).toBe(200 + 2 * (22 + 10 + 6));
+    // Other things in the wings keep them at their usual width.
+    expect(islandBox(notch, "compact", { wings: true, rows: 1 }).width).toBe(200 + WING * 2);
+  });
+});
+
+describe("fitSides", () => {
+  it("keeps each wing to two round icons or the clock", () => {
+    expect(fitSides({ left: ["cpu", "memory"], right: ["time"] })).toEqual({ left: ["cpu", "memory"], right: ["time"] });
+    // What the left can't hold moves right; what fits nowhere is left out.
+    expect(fitSides({ left: ["cpu", "memory", "disk", "mail"], right: [] })).toEqual({ left: ["cpu", "memory"], right: ["disk", "mail"] });
+    expect(fitSides({ left: ["time", "cpu"], right: ["date", "mail"] })).toEqual({ left: ["time"], right: ["date", "mail"] });
   });
 });

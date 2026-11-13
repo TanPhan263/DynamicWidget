@@ -3,6 +3,7 @@ mod camera;
 mod displays;
 mod fullscreen;
 mod island;
+mod mail;
 mod media;
 
 use tauri::{AppHandle, Monitor, WebviewWindow};
@@ -66,6 +67,10 @@ impl PlatformAdapter for MacAdapter {
 
     fn microphone_in_use(&self) -> bool {
         audio::input_running()
+    }
+
+    fn mail_unread(&self) -> Option<u32> {
+        mail::unread()
     }
 
     fn now_playing(&self) -> Option<NowPlaying> {

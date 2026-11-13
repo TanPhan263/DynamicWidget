@@ -298,6 +298,62 @@ describe("Island", () => {
     expect(island).toHaveTextContent("▲1.23%");
   });
 
+  it("shows the icons chosen for the closed island", async () => {
+    const snap = baseSnapshot();
+    snap.settings.islandIcons = { left: ["battery"], right: ["cpu", "memory"] };
+    resetMock(snap);
+    const { container } = render(<Island />);
+    await flush();
+    const island = container.querySelector(".island")!;
+    expect(island).toHaveClass("compact");
+    expect(screen.getByRole("img", { name: "CPU 12%" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Memory 50%" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Battery 80%" })).toBeInTheDocument();
+    // Both wings fit the fuller one: two gauges (50), 10 outside, 6 by the notch.
+    const rects = invoked.filter((c) => c.cmd === "set_island_rect");
+    expect((rects.at(-1)?.args as { rect: { width: number } }).rect.width).toBe(200 + 2 * (50 + 10 + 6));
+    const gauges = screen.getAllByRole("img", { name: /%$/ }).map((g) => g.getAttribute("aria-label"));
+    expect(gauges).toEqual(["Battery 80%", "CPU 12%", "Memory 50%"]);
+  });
+
+  it("shows disk, mail and weather, and a plug on a desktop", async () => {
+    const snap = baseSnapshot();
+    snap.settings.islandIcons = { left: ["disk", "mail"], right: ["weather", "battery"] };
+    snap.stats.battery = null;
+    resetMock(snap);
+    render(<Island />);
+    await flush();
+    expect(screen.getByRole("img", { name: "Disk 60%" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Mail 3" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Plugged in" })).toBeInTheDocument();
+    expect(await screen.findByRole("img", { name: "Weather: Patchy rain nearby 30°" })).toBeInTheDocument();
+  });
+
+  it("shrinks a pill without a notch to hug its icons, like the Settings preview", async () => {
+    const snap = baseSnapshot();
+    snap.settings.islandStyle = "island";
+    snap.settings.islandIcons = { left: ["time", "cpu", "memory", "battery"], right: [] };
+    resetMock(snap);
+    render(<Island />);
+    await flush();
+    expect(screen.getByRole("img", { name: "CPU 12%" })).toBeInTheDocument();
+    const rects = invoked.filter((c) => c.cmd === "set_island_rect");
+    // The clock counts as two icons: 5 × 22 + 4 × 6 gaps, plus 10 px each side.
+    expect((rects.at(-1)?.args as { rect: { width: number } }).rect.width).toBe(154);
+  });
+
+  it("shows the time and the date as island icons", async () => {
+    vi.setSystemTime(new Date(2026, 10, 11, 9, 5));
+    const snap = baseSnapshot();
+    snap.settings.islandIcons = { left: ["time"], right: ["date"] };
+    resetMock(snap);
+    const { container } = render(<Island />);
+    await flush();
+    expect(screen.getByRole("img", { name: "Time 9:05 AM" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Wednesday, November 11, 2026" })).toHaveTextContent("Wed11");
+    expect(container.querySelector(".island")).toHaveClass("compact");
+  });
+
   it("shows music bars while sound plays", async () => {
     const { container } = render(<Island />);
     await flush();
@@ -462,7 +518,7 @@ describe("Island", () => {
     const island = container.querySelector(".island")!;
     expect(island).toHaveClass("floating", "compact");
     expect(island).toHaveTextContent("");
-    expect(invoked).toContainEqual({ cmd: "set_island_rect", args: { rect: { x: 402, y: 6, width: 196, height: 36 } } });
+    expect(invoked).toContainEqual({ cmd: "set_island_rect", args: { rect: { x: 402, y: 6, width: 196, height: 42 } } });
   });
 
   it("restyles live when the setting changes", async () => {

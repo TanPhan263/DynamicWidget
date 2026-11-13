@@ -36,6 +36,10 @@ pub trait PlatformAdapter: Send + Sync {
     fn camera_in_use(&self) -> bool;
     /// Some app is recording from a microphone.
     fn microphone_in_use(&self) -> bool;
+    /// Unread mail in the mail app; `None` when there is no way to tell.
+    fn mail_unread(&self) -> Option<u32> {
+        None
+    }
     /// The track a desktop player is playing, if it can be asked.
     fn now_playing(&self) -> Option<NowPlaying>;
     /// Plays, pauses or skips on `player` (a [`NowPlaying::app`]).

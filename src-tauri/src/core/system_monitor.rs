@@ -2,13 +2,14 @@
 //! System widget and charging live activity, and turns battery transitions
 //! into notifications.
 
+use crate::core::settings_service::IslandStat;
 use crate::i18n::{text, Text};
 use std::thread;
 use std::time::Duration;
 
 use serde::Serialize;
 use starship_battery::units::{ratio::percent, time::minute};
-use sysinfo::System;
+use sysinfo::{Disks, System};
 use tauri::{AppHandle, Emitter};
 
 use super::media::{NowPlaying, WEB_FRESH};
@@ -55,6 +56,11 @@ pub struct SystemStats {
     pub cpu_percent: f32,
     pub memory_used: u64,
     pub memory_total: u64,
+    /// The disk the system runs from.
+    pub disk_used: u64,
+    pub disk_total: u64,
+    /// Unread mail; `None` when no mail app runs or the island does not show it.
+    pub mail_unread: Option<u32>,
     /// `None` on desktops without a battery.
     pub battery: Option<BatteryInfo>,
     /// Some app is playing sound, such as music or a video.
@@ -181,6 +187,26 @@ fn read_battery(manager: Option<&starship_battery::Manager>) -> Option<BatteryIn
     })
 }
 
+/// Disk and mail are read every this many ticks (about 30 seconds).
+const SLOW_EVERY: u32 = 15;
+
+/// Used and total bytes of the disk mounted at the root (or the Windows
+/// system drive), else the largest one.
+fn system_disk(disks: &Disks) -> (u64, u64) {
+    let root = disks.iter().find(|d| {
+        let m = d.mount_point();
+        m == std::path::Path::new("/") || m.to_string_lossy().eq_ignore_ascii_case("C:\\")
+    });
+    root.or_else(|| disks.iter().max_by_key(|d| d.total_space()))
+        .map(|d| {
+            (
+                d.total_space().saturating_sub(d.available_space()),
+                d.total_space(),
+            )
+        })
+        .unwrap_or((0, 0))
+}
+
 pub fn spawn(app: AppHandle) {
     let spawned = thread::Builder::new()
         .name("lintel-system".into())
@@ -191,6 +217,10 @@ pub fn spawn(app: AppHandle) {
                 .ok();
             let mut prev_battery: Option<BatteryInfo> = None;
             let mut prev_playing: Option<NowPlaying> = None;
+            let mut disks = Disks::new().ok();
+            // Disk and mail change slowly and cost more to read, so they are read every SLOW_EVERY ticks.
+            let mut slow = (0, 0, None);
+            let mut tick = 0u32;
             loop {
                 let st = actions::state(&app);
                 if st.read(|i| i.quitting) {
@@ -204,6 +234,24 @@ pub fn spawn(app: AppHandle) {
                     stats.memory_used = sys.used_memory();
                     stats.memory_total = sys.total_memory();
                 }
+                if tick % SLOW_EVERY == 0 {
+                    let (used, total) = disks.as_mut().map_or((0, 0), |d| {
+                        d.refresh(true);
+                        system_disk(d)
+                    });
+                    let wants_mail = st.read(|i| i.settings.island_icons.has(IslandStat::Mail));
+                    slow = (
+                        used,
+                        total,
+                        if wants_mail {
+                            st.adapter.mail_unread()
+                        } else {
+                            None
+                        },
+                    );
+                }
+                tick = tick.wrapping_add(1);
+                (stats.disk_used, stats.disk_total, stats.mail_unread) = slow;
                 stats.battery = read_battery(manager.as_ref());
                 stats.audio_playing = st.adapter.audio_playing();
                 stats.camera_in_use = st.adapter.camera_in_use();

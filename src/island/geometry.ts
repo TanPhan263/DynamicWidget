@@ -1,4 +1,4 @@
-import { ISLAND_SIZE_RANGE, type IslandLayout, type IslandStyle, type WidgetSpan } from "../shared/types";
+import { ISLAND_SIZE_RANGE, type IslandIcons, type IslandLayout, type IslandStat, type IslandStyle, type WidgetSpan } from "../shared/types";
 
 // The island window is a fixed 1000×800 CSS-pixel canvas at the top center
 // of the primary display (see `core/island.rs`). Everything outside the
@@ -30,6 +30,48 @@ export interface Box {
 }
 
 export const WING = 64;
+/** A wing beside the notch fits two round icons, or the clock alone. */
+export const SIDE_SLOTS = 2;
+export const iconSlots = (id: IslandStat) => (id === "time" ? 2 : 1);
+export const slotsOf = (ids: IslandStat[]) => ids.reduce((n, id) => n + iconSlots(id), 0);
+
+/**
+ * The icons as a notch island shows them, so its wings never grow: what does
+ * not fit on the left moves to the right, and what fits on neither is left out.
+ */
+export function fitSides(icons: IslandIcons): IslandIcons {
+  const left: IslandStat[] = [];
+  const right: IslandStat[] = [];
+  const over: IslandStat[] = [];
+  for (const id of icons.left) (slotsOf(left) + iconSlots(id) <= SIDE_SLOTS ? left : over).push(id);
+  for (const id of [...icons.right, ...over]) if (slotsOf(right) + iconSlots(id) <= SIDE_SLOTS) right.push(id);
+  return { left, right };
+}
+/** Round status icons are 22 px; inside a group they sit 6 px apart, the two groups 12 px apart. */
+const ICON = 22;
+export const ICON_GAP = 6;
+const GROUP_GAP = 12;
+/** Space between a pill's (or a notch wing's) icons and its rounded end. */
+export const ICON_SIDE = 10;
+
+/** A row of icons side by side; the clock counts as two. */
+const groupWidth = (ids: IslandStat[]) => (ids.length ? slotsOf(ids) * ICON + (slotsOf(ids) - 1) * ICON_GAP : 0);
+
+/** Width a pill needs for just these icons, so it hugs them. */
+export function iconsWidth({ left, right }: IslandIcons): number {
+  const content = groupWidth(left) + groupWidth(right) + (left.length && right.length ? GROUP_GAP : 0);
+  return content + 2 * ICON_SIDE;
+}
+
+/**
+ * Each wing beside a notch holding icons alone: the outer side padded as on a
+ * pill, an icon gap beside the notch. Both take the fuller side's width, so
+ * the notch stays in the middle.
+ */
+export function wingWidth({ left, right }: IslandIcons): number {
+  return Math.max(groupWidth(left), groupWidth(right)) + ICON_SIDE + ICON_GAP;
+}
+
 /** Extra width for the now-playing title pinned in the compact island. */
 export const TITLE_WIDTH = 40;
 /** Extra width for the previous, play/pause and next buttons beside that title. */
@@ -42,13 +84,14 @@ export const CARD_HEIGHT = 133;
 export const GAP = 10;
 export const PADDING = 14;
 export const HEADER = 30;
-/** Pill hanging from the top edge where there is no notch. */
+/** Tall enough for the icons with as much room above and below as beside them (42 px). */
+const ICON_ROW_HEIGHT = ICON + 2 * ICON_SIDE;
+/** Pill hanging from the top edge where there is no notch; it may hang below a short menu bar. */
 const BAR_WIDTH = 190;
-const EDGE_HEIGHT = 32;
-/** The Dynamic Island capsule: a gap above it, and a little taller than a menu bar. */
+/** The Dynamic Island capsule: a gap above it. */
 const CAPSULE_GAP = 6;
 const CAPSULE_WIDTH = 196;
-const CAPSULE_HEIGHT = 36;
+const CAPSULE_HEIGHT = ICON_ROW_HEIGHT;
 
 export interface Shape {
   /** The island hangs from the top edge (notch or menu bar). */
@@ -76,7 +119,8 @@ function hanging(layout: IslandLayout): Shape {
       top: 0,
     };
   }
-  const height = layout.platform === "macos" ? Math.max(layout.menuBarHeight, 24) : EDGE_HEIGHT;
+  // At least as tall as the menu bar (macOS), and tall enough for even room around the icons.
+  const height = Math.max(layout.platform === "macos" ? layout.menuBarHeight : 0, ICON_ROW_HEIGHT);
   return { attached: true, hugsNotch: false, idleInfo: true, topInset: 0, compactWidth: BAR_WIDTH, compactHeight: height, top: 0 };
 }
 
@@ -172,7 +216,16 @@ export function contentShape(shape: Shape, scale: number): Shape {
 export function islandBox(
   shape: Shape,
   view: View,
-  opts: { wings: boolean; rows: number; scale?: number; title?: boolean; controls?: boolean; screenHeight?: number },
+  opts: {
+    wings: boolean;
+    rows: number;
+    scale?: number;
+    title?: boolean;
+    controls?: boolean;
+    screenHeight?: number;
+    /** Icons shown alone: a pill hugs them, and the wings beside a notch fit them. */
+    icons?: IslandIcons;
+  },
 ): Box {
   const scale = opts.scale ?? 1;
   let width: number;
@@ -188,10 +241,13 @@ export function islandBox(
       break;
     default: {
       // The notch itself never scales; the wings beside it do.
-      const base = shape.hugsNotch ? shape.compactWidth : shape.compactWidth * scale;
+      const icons = opts.icons && opts.icons.left.length + opts.icons.right.length > 0 ? opts.icons : null;
+      const hugsIcons = !shape.hugsNotch && !opts.wings && !!icons;
+      const base = shape.hugsNotch ? shape.compactWidth : (hugsIcons ? iconsWidth(icons!) : shape.compactWidth) * scale;
+      const wing = shape.hugsNotch && icons ? wingWidth(icons) : WING;
       width =
         base +
-        (opts.wings ? WING * 2 * scale : 0) +
+        (opts.wings ? wing * 2 * scale : 0) +
         (opts.title ? TITLE_WIDTH * scale : 0) +
         (opts.controls ? CONTROLS_WIDTH * scale : 0);
       height = shape.hugsNotch ? shape.compactHeight : shape.compactHeight * scale;

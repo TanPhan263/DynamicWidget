@@ -17,13 +17,14 @@ import {
   setUiLanguage,
 } from "../shared/commands";
 import { listenAll } from "../shared/events";
-import { MAX_ISLAND_STOCKS, PANEL_SIZE_RANGE, widgetAppName, type Settings, type UiSnapshot, type WidgetId, type WidgetSpan } from "../shared/types";
+import { MAX_ISLAND_STOCKS, PANEL_SIZE_RANGE, widgetAppName, type IslandStat, type Settings, type UiSnapshot, type WidgetId, type WidgetSpan } from "../shared/types";
 import {
   contentShape,
   expandedHeight,
   ISLAND_CLOSE_SPRING,
   ISLAND_SPRING,
   islandScale,
+  fitSides,
   islandBox,
   shapeFor,
   WINDOW_HEIGHT,
@@ -33,10 +34,11 @@ import {
 } from "./geometry";
 import { initialState, reduce, viewOf } from "./islandState";
 import { useTimer } from "./useTimer";
-import { useBackgroundImages } from "../shared/background";
+import { useBackgroundImages, useWidgetImages } from "../shared/background";
 import { themeLook } from "../shared/themes";
 import { useAmbient } from "./ambient";
 import { MusicBars } from "./MusicBars";
+import { useWeather } from "./widgets/Widgets";
 import { Compact, Expanded, Peek } from "./views";
 import { resolveLanguage, setLanguage, useLanguage } from "../shared/i18n";
 import type { WidgetAction } from "./widgets/Widgets";
@@ -52,12 +54,19 @@ const EAR = 8;
 const EAR_BIG = 14;
 const CLOSES_PANEL = new Set<WidgetAction>(["screenshot", "lock", "calculator", "downloads", "record"]);
 
-function useNow(intervalMs: number) {
+/**
+ * The current time, changed once a minute (every second with `seconds`).
+ * Keeping the same Date between changes lets React skip redrawing the island.
+ */
+function useNow(seconds: boolean) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), intervalMs);
+    const id = setInterval(() => {
+      const d = new Date();
+      setNow((prev) => (seconds || Math.floor(d.getTime() / 60_000) !== Math.floor(prev.getTime() / 60_000) ? d : prev));
+    }, 1000);
     return () => clearInterval(id);
-  }, [intervalMs]);
+  }, [seconds]);
   return now;
 }
 
@@ -86,7 +95,8 @@ function ViewLayer({
       className="absolute top-0 left-1/2"
       style={{ width, height, marginLeft: -width / 2, scale, transformOrigin: "50% 0%" }}
       initial={{ opacity: 0, filter: "blur(6px)" }}
-      animate={{ opacity: 1, filter: "blur(0px)" }}
+      // No filter is left at rest: one would stop the island icons' frosted blur from reaching the background.
+      animate={{ opacity: 1, filter: "blur(0px)", transitionEnd: { filter: "none" } }}
       exit={{ opacity: 0, filter: "blur(4px)", transition: { duration: 0.2, ease: "easeIn" } }}
       transition={{ duration: 0.16 }}
     >
@@ -111,7 +121,8 @@ export function Island() {
   const [snap, setSnap] = useState<UiSnapshot | null>(null);
   const [state, dispatch] = useReducer(reduce, initialState);
   const timer = useTimer();
-  const now = useNow(1000);
+  // Only the screen recording's elapsed time shows seconds.
+  const now = useNow(snap?.recordingSince != null);
 
   // Event handlers read the latest settings through a ref so the
   // subscription is made once.
@@ -230,6 +241,7 @@ export function Island() {
   const ambient = useAmbient((nowPlaying ?? recentTrack)?.image);
   const look = themeLook(settings?.theme);
   const pictures = useBackgroundImages();
+  const widgetPictures = useWidgetImages();
   const islandPicture = pictures.island ?? pictures.panel;
   const pictureSize = useImageSize(islandPicture);
   const playing = !!bars?.enabled && ((snap?.stats.audioPlaying ?? false) || nowPlaying !== null);
@@ -246,12 +258,22 @@ export function Island() {
     recordingSince === null &&
     timer.state.status === "idle" &&
     state.unread === 0;
+  // Island icons take the slot nothing more important uses.
+  const iconsFree =
+    recordingSince === null && timer.state.status === "idle" && state.unread === 0 && !barsInside && !titlePinned && pinned === null;
+  const shown = (list: IslandStat[] = []) => (iconsFree ? list : []);
+  const placedSides = { left: shown(settings?.islandIcons.left), right: shown(settings?.islandIcons.right) };
+  // Beside a notch they keep to the usual wings; a pill without one has room for them all.
+  const gauges = shape?.hugsNotch ? fitSides(placedSides) : placedSides;
+  const placed = settings?.islandIcons;
+  const { weather } = useWeather(!!placed && [...placed.left, ...placed.right].includes("weather"));
   const wings =
     recordingSince !== null ||
     timer.state.status !== "idle" ||
     state.unread > 0 ||
     barsInside ||
     pinned !== null ||
+    (!!shape?.hugsNotch && gauges.left.length + gauges.right.length > 0) ||
     !!snap?.stats.cameraInUse ||
     !!snap?.stats.microphoneInUse;
 
@@ -300,7 +322,16 @@ export function Island() {
   // Rows past the bottom of the screen scroll inside the panel.
   const panelScrolls = !!shape && expandedHeight(shape, rows, scale) > expandedHeight(shape, rows, scale, screenHeight);
   const box = shape
-    ? islandBox(shape, view, { wings, rows, scale, title: titlePinned, controls: titlePinned, screenHeight })
+    ? islandBox(shape, view, {
+        wings,
+        rows,
+        scale,
+        title: titlePinned,
+        controls: titlePinned,
+        screenHeight,
+        // Camera and microphone dots join the icons, so then the usual width stays.
+        icons: snap?.stats.cameraInUse || snap?.stats.microphoneInUse ? undefined : gauges,
+      })
     : null;
   const inner = shape ? contentShape(shape, scale) : null;
   // A closed notch island with a picture: the picture runs on into the ears, so both place it
@@ -465,6 +496,8 @@ export function Island() {
           <Compact
             shape={inner}
             wings={wings}
+            gauges={gauges}
+            weather={weather}
             recordingSince={recordingSince}
             pinned={pinned}
             music={
@@ -502,6 +535,7 @@ export function Island() {
         {view === "expanded" && (
           <Expanded
             topInset={inner.topInset}
+            widgetPictures={widgetPictures}
             tab={state.tab}
             onTab={(tab) => dispatch({ type: "tab", tab })}
             settings={sizePreview ? { ...settings, widgetSizes } : settings}

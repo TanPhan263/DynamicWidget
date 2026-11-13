@@ -6,6 +6,8 @@ import { clockParts, formatDuration, formatPercent, formatPrice, relativeTime, s
 import type {
   BatteryInfo,
   IslandNotification,
+  IslandIcons,
+  Weather,
   MediaCommand,
   NowPlaying,
   Quote,
@@ -14,8 +16,9 @@ import type {
   WidgetId,
   WidgetSpan,
 } from "../shared/types";
-import { ISLAND_SPRING, PADDING, WING, type Shape } from "./geometry";
+import { ICON_GAP, ICON_SIDE, ISLAND_SPRING, PADDING, WING, wingWidth, type Shape } from "./geometry";
 import type { Tab } from "./islandState";
+import { StatGauge } from "./Gauge";
 import { MusicBars } from "./MusicBars";
 import { NotificationIcon } from "./NotificationIcon";
 import { SlidingNumber } from "./SlidingNumber";
@@ -47,7 +50,7 @@ function Side({ children, from }: { children: ReactNode; from: "left" | "right" 
     <motion.span
       className="inline-flex items-center gap-1.5 whitespace-nowrap"
       initial={{ opacity: 0, x: from === "left" ? -6 : 6, filter: "blur(4px)" }}
-      animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+      animate={{ opacity: 1, x: 0, filter: "blur(0px)", transitionEnd: { filter: "none" } }}
       exit={{ opacity: 0, filter: "blur(4px)", transition: { duration: 0.1 } }}
       transition={{ type: "spring", stiffness: 400, damping: 30 }}
     >
@@ -59,6 +62,10 @@ function Side({ children, from }: { children: ReactNode; from: "left" | "right" 
 interface CompactProps {
   shape: Shape;
   wings: boolean;
+  /** Island icons to show on each side; empty while something more important shows. */
+  gauges: IslandIcons;
+  /** For the weather icon, once it has loaded. */
+  weather: Weather | null;
   /** When the running screen recording started, in Unix milliseconds. */
   recordingSince: number | null;
   onStopRecording: () => void;
@@ -87,7 +94,7 @@ interface CompactProps {
  * notch itself has no pixels). Elsewhere activities fill the pill, and some
  * styles show a clock and battery when idle; the Dynamic Island stays empty.
  */
-export function Compact({ shape, wings, recordingSince, onStopRecording, pinned, music, timer, unread, now, settings, stats }: CompactProps) {
+export function Compact({ shape, wings, gauges, weather, recordingSince, onStopRecording, pinned, music, timer, unread, now, settings, stats }: CompactProps) {
   let kind = "idle";
   let left: ReactNode = null;
   let right: ReactNode = null;
@@ -203,6 +210,11 @@ export function Compact({ shape, wings, recordingSince, onStopRecording, pinned,
         {formatPercent(pinned.changePercent).replace(/^[+\u2212]/, "")}
       </span>
     );
+  } else if (gauges.left.length + gauges.right.length > 0) {
+    kind = `stats-${gauges.left.join()}|${gauges.right.join()}`;
+    const row = (ids: IslandIcons["left"]) => (ids.length > 0 ? ids.map((id) => <StatGauge key={id} id={id} stats={stats} weather={weather} now={now} use24={settings.use24HourClock} />) : null);
+    left = row(gauges.left);
+    right = row(gauges.right);
   } else if (shape.idleInfo) {
     const { time, period } = clockParts(now, settings.use24HourClock);
     left = (
@@ -233,6 +245,12 @@ export function Compact({ shape, wings, recordingSince, onStopRecording, pinned,
     );
   }
 
+  // The gauges sit centered: in their wing beside a notch, in the middle of a pill.
+  const gaugesShown = kind.startsWith("stats-");
+  // Icons alone are sized to fit (the same sums as islandBox); camera and microphone dots keep the usual room.
+  const iconsOnly = gaugesShown && !camera && !microphone;
+  const wing = shape.hugsNotch && iconsOnly ? wingWidth(gauges) : WING;
+  const pad = ICON_SIDE;
   const leftNode = left && (
     <Side key={`l-${kind}`} from="left">
       {left}
@@ -249,25 +267,32 @@ export function Compact({ shape, wings, recordingSince, onStopRecording, pinned,
       {shape.hugsNotch ? (
         <>
           <motion.div
-            className="flex items-center justify-start overflow-hidden pl-3.5"
+            // Icons alone keep to the outer edge: when one wing holds fewer, the spare room sits by the notch.
+            className={cn("flex items-center overflow-hidden pl-3.5", gaugesShown && !iconsOnly ? "justify-center" : "justify-start")}
+            style={iconsOnly ? { paddingLeft: pad, paddingRight: ICON_GAP } : undefined}
             initial={false}
-            animate={{ width: wings ? WING : 0 }}
+            animate={{ width: wings ? wing : 0 }}
             transition={ISLAND_SPRING}
           >
             <AnimatePresence initial={false}>{wings && leftNode}</AnimatePresence>
           </motion.div>
           <div className="shrink-0" style={{ width: shape.compactWidth }} />
           <motion.div
-            className="flex items-center justify-end overflow-hidden pr-3.5"
+            className={cn("flex items-center overflow-hidden pr-3.5", gaugesShown && !iconsOnly ? "justify-center" : "justify-end")}
+            style={iconsOnly ? { paddingRight: pad, paddingLeft: ICON_GAP } : undefined}
             initial={false}
-            animate={{ width: wings ? WING : 0 }}
+            animate={{ width: wings ? wing : 0 }}
             transition={ISLAND_SPRING}
           >
             <AnimatePresence initial={false}>{wings && rightNode}</AnimatePresence>
           </motion.div>
         </>
       ) : (
-        <div className="flex w-full items-center justify-between gap-3 px-3.5">
+        <div
+          className={cn("flex w-full items-center gap-3 px-3.5", gaugesShown ? "justify-center" : "justify-between")}
+          // Icons alone sit as close to the sides as to the top and bottom; the width in geometry matches.
+          style={iconsOnly ? { paddingInline: pad } : undefined}
+        >
           <AnimatePresence initial={false} mode="wait">
             {leftNode}
           </AnimatePresence>
@@ -336,6 +361,8 @@ interface ExpandedProps {
   onDragging: (dragging: boolean) => void;
   appFor: (id: WidgetId) => string | null;
   onOpenApp: (id: WidgetId) => void;
+  /** Pictures behind single widgets, as data URLs. */
+  widgetPictures: Partial<Record<WidgetId, string>>;
   actions: QuickActionsApi;
   stocks: StocksApi;
   media: MediaApi;
@@ -420,6 +447,8 @@ export function Expanded(p: ExpandedProps) {
               <WidgetGrid
                 widgets={p.settings.widgets}
                 sizes={p.settings.widgetSizes}
+                looks={p.settings.widgetLooks}
+                pictures={p.widgetPictures}
                 onReorder={p.onReorder}
                 onResize={p.onResize}
                 onDragging={p.onDragging}
@@ -431,6 +460,10 @@ export function Expanded(p: ExpandedProps) {
                     actions={p.actions}
                     stocks={p.stocks}
                     media={p.media}
+                    newsFeeds={p.settings.newsFeeds}
+                    newsView={p.settings.newsView}
+                    calendarLinks={p.settings.calendarLinks}
+                    countdowns={p.settings.countdowns}
                   />
                 )}
               />
